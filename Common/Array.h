@@ -1,5 +1,5 @@
-#ifndef _BASE_H_
-#define _BASE_H_
+#ifndef _ARRAY_H_
+#define _ARRAY_H_
 
 /* Includes ------------------------------------------------------------------*/
 #include "stdint.h"

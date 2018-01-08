@@ -28,8 +28,6 @@ void Stm32_UartRxDma_Init(UartRxDmaStruct *uartRxDma, DMA_HandleTypeDef *rxDma, 
   uartRxDma->start = 0;
   uartRxDma->end = 0;
   
-  
-  
   HAL_DMA_Start_IT(uartRxDma->rxDma, 
                    (uint32_t)&(uartRxDma->uart->Instance->RDR), 
                    (uint32_t)uartRxDma->bufferBlock.rxBuffer.buffer, 

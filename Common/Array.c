@@ -4,7 +4,7 @@
 #include "string.h"
 #include "math.h"
 
-#include "Base.h"
+#include "Array.h"
 #include "stm32f0xx_hal.h"
 
 /* Private typedef -----------------------------------------------------------*/
@@ -44,19 +44,5 @@ void Array_Free(ArrayStruct* array)
   free(array->packet);
   free(array);
 }
-/*********************************************************************************************
 
-  * @brief  ÑÓÊ±
-  * @param  count
-  * @retval 
-  * @remark 
-
-  ********************************************************************************************/
-void Delay(uint16_t count)
-{
-  uint32_t time = 0;
-  
-  time = sysTime;
-  while((time + count) > sysTime);
-}
 
