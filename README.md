@@ -15,6 +15,7 @@
 │	├ Common
 │	├ ESP8266
 │	├ UartDma
+│	├ Sensor
 │	└ ZcProtocol
 ┕ EWARM
 	┕ project.eww
@@ -29,5 +30,6 @@ $PROJ_DIR$/../Module/UartDma
 $PROJ_DIR$/../Module/Common
 $PROJ_DIR$/../Module/ZcProtocol
 $PROJ_DIR$/../Module/ESP8266
+$PROJ_DIR$/../Module/Sensor
 ```
 
