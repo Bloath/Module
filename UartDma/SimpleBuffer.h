@@ -7,7 +7,7 @@
 
 #define BUFFER_LENGTH  600
 
-#define DYNAMIC_MEMORY  1       //是否使用 动态申请内存， 使用后会导致代码量增加
+//#define DYNAMIC_MEMORY  1       //是否使用 动态申请内存， 使用后会导致代码量增加
 
 #ifndef DYNAMIC_MEMORY
   #define STATIC_BUFFER_LEN 32  //不使用动态内存的情况下，静态内存的大小

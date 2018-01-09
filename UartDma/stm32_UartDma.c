@@ -56,7 +56,11 @@ void Stm32_UartRxDma_IntHandle(UartRxDmaStruct *uartRxDma)
                 uartRxDma->end - uartRxDma->start); }
   else if(uartRxDma->end < uartRxDma->start)
   {
+#ifdef DYNAMIC_MEMORY
     uint8_t *message = (uint8_t *)malloc(uartRxDma->bufferLength - uartRxDma->start + uartRxDma->end );
+#else
+    uint8_t message[STATIC_BUFFER_LEN];
+#endif
     
     CopyPacket(uartRxDma->bufferBlock.rxBuffer.buffer + uartRxDma->start, 
                message, 
@@ -69,7 +73,9 @@ void Stm32_UartRxDma_IntHandle(UartRxDmaStruct *uartRxDma)
     FillRxBlock(uartRxDma->bufferBlock.rxBlockList,
                 message, 
                 uartRxDma->bufferLength - uartRxDma->start + uartRxDma->end);
+#ifdef DYNAMIC_MEMORY
     free(message);
+#endif
   }
   
   uartRxDma->start = uartRxDma->end; 

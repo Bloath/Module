@@ -1,10 +1,9 @@
-/*
- * @file       DPS310.h
- * @brief      DPS310压力传感器头文件
- * @author     dong
- * @version    v0.1
- * @date       2016-11-03
- */
+#ifndef _DPS310_H_
+#define _DPS310_H_
+
+/* Includes ------------------------------------------------------------------*/
+
+/* Private define ------------------------------------------------------------*/
 
 #define DPS310_DeviceAddress  0xEE      // 最后一位“0”代表写操作，最后一位“1”代表读操作
 
@@ -111,7 +110,9 @@
 #define TMP_COUNT           3
 
 #define DPS310_CONFIG_1     1
-
+/* Private macro --------------------------------------------------------------*/
+/* Private variables ----------------------------------------------------------*/
+/* Private typedef -----------------------------------------------------------*/
 typedef enum DPS310_cfg
 {
     CONFIG_1,
@@ -133,10 +134,12 @@ typedef struct
   int C30;
 } struct_DPS310_coef;
 
-U8 DPS310_ReadRegister( U8 registerAddress, U8 *dataSave);
-U8 DPS310_ReadRegisters(U8 startAddress, U8 dataCount, U8 * dataBuff);
-U8 DPS310_WriteRegister(U8 registerAddress, U8 dataBuff);
+/* Private function prototypes ------------------------------------------------*/
+uint8_t DPS310_ReadRegister( uint8_t registerAddress, uint8_t *dataSave);
+uint8_t DPS310_ReadRegisters(uint8_t startAddress, uint8_t dataCount, uint8_t * dataBuff);
+uint8_t DPS310_WriteRegister(uint8_t registerAddress, uint8_t dataBuff);
 void DPS310_Config(DPS310_config configNumber);
 struct_DPS310_coef DPS310_Get_Coef();
-void DPS310_Get_Pressure(struct_DPS310_coef coef, U8* dataSave );
+void DPS310_Get_Pressure(struct_DPS310_coef coef, uint8_t* dataSave );
 
+#endif

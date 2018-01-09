@@ -23,16 +23,15 @@
 * Parameter       : None
 * Return          : 
 *******************************************************************************/
-void SimulatedI2C_Pin_Init(I2C_PinStruct* i2cModule, GPIO_TypeDef * sclPort, uint16_t sclPin, GPIO_TypeDef * sdaPort, uint16_t sdaPin)
+void SimulatedI2C_Pin_Init(I2C_PinStruct i2cPinStruct, GPIO_TypeDef * sclPort, uint16_t sclPin, GPIO_TypeDef * sdaPort, uint16_t sdaPin)
 {
-  i2cModule->sclPort = sclPort;
-  i2cModule->scl = sclPin;
-  i2cModule->sdaPort = sdaPort;
-  i2cModule->sda = sdaPin;
+  i2cPinStruct.sclPort = sclPort;
+  i2cPinStruct.scl = sclPin;
+  i2cPinStruct.sdaPort = sdaPort;
+  i2cPinStruct.sda = sdaPin;
   
-  
-  HAL_GPIO_WritePin(i2cModule[0].sclPort,i2cModule[0].scl, GPIO_PIN_SET); //SCL拉高
-  HAL_GPIO_WritePin(i2cModule[0].sdaPort,i2cModule[0].sda, GPIO_PIN_SET); //SDA拉高
+  SCL_Set(); //SCL拉高
+  SDA_Set(); //SDA拉高
 }
 
 
@@ -365,7 +364,7 @@ uint8_t SimulatedI2C_ByteRead(I2C_PinStruct i2cPinStruct, uint8_t deviceAddr, ui
   if(Status)     
   { return Status; }
   
-  SimulatedI2C_SendByte(i2cPinStruct, (deviceAddr << 1) | (1<<0)); 
+  SimulatedI2C_SendByte(i2cPinStruct, deviceAddr | (1<<0)); 
   
   Status = SimulatedI2C_WaitAck(i2cPinStruct);                
   if(Status)   
@@ -431,7 +430,7 @@ uint8_t SimulatedI2C_Read(I2C_PinStruct i2cPinStruct, uint8_t deviceAddr, uint8_
   if(Status)     
   { return Status; }
   
-  SimulatedI2C_SendByte(i2cPinStruct, (deviceAddr << 1) | (1<<0)); 
+  SimulatedI2C_SendByte(i2cPinStruct, deviceAddr | (1<<0)); 
   
   Status = SimulatedI2C_WaitAck(i2cPinStruct);                
   if(Status)   
