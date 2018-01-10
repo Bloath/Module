@@ -46,7 +46,9 @@ extern ZcProtocol zcPrtc;
 
 /* Public function prototypes -----------------------------------------------*/
 void ZcProtocol_Init();
-ArrayStruct* ZcProtocol_ConvertMsg(ZcProtocol* zcProtocol, uint8_t *message, uint16_t length);
+ArrayStruct* ZcProtocol_ConvertMsg(ZcProtocol* zcProtocol, uint8_t *message, uint16_t length);          //将头部和数据组合，转换为报文
+char* ZcProtocol_ConvertHttpString(ZcProtocol* zcProtocol, uint8_t *data, uint16_t dataLen);            //在组合的基础上，转换为字符串，并包含在HTTP协议内
+
 ZcProtocol* ZcProtocol_Check(uint8_t *message, uint16_t length);
 uint8_t ZcProtocol_SameId(uint8_t *message, uint16_t length, void *p);
 

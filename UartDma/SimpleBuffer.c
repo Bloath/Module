@@ -129,7 +129,7 @@ void TxBlockListHandle(TxBlockTypeDef *txBlock, void (*Transmit)(uint8_t*, uint1
           {
             Transmit(txBlock[i].message, txBlock[i].length);             //发送数据
             txBlock[i].flag |= TX_FLAG_SENDED;
-            break;              //注意这个位置
+            //break;              //注意这个位置
           }
         
           txBlock[i].retransCounter ++;                            //重发次数递增

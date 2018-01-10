@@ -5,6 +5,7 @@
 #include "Array.h"
 #include "ZcProtocol.h"
 #include "Convert.h"
+#include "Http.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -38,7 +39,28 @@ ArrayStruct* ZcProtocol_ConvertMsg(ZcProtocol* zcProtocol, uint8_t *message, uin
   
   return msg;
 }
+/*********************************************************************************************
 
+  * @brief  拙诚协议转HTTP协议
+  * @param  zcProtocol:  拙诚协议实例
+            data：数据域指针
+            dataLen：数据域长度
+  * @retval 返回数据包字符串指针
+  * @remark 字符串最终要返回
+
+  ********************************************************************************************/
+char* ZcProtocol_ConvertHttpString(ZcProtocol* zcProtocol, uint8_t *data, uint16_t dataLen)
+{
+  ArrayStruct *msg = ZcProtocol_ConvertMsg(zcProtocol, data ,dataLen);      // 首先转换成报文，二进制数据
+  
+  char *msgString = Msg2String(msg->packet, msg->length);       // 再转换为字符串，长度为原始报文两倍
+  Array_Free(msg);
+  
+  char *httpMsg = Http_Request(msgString);                    // 再转换成Http包，
+  free(msgString);
+  
+  return httpMsg;
+}
 
 /*********************************************************************************************
 

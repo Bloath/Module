@@ -44,40 +44,31 @@ void ZcProtocol_Init()
   * @remark 
 
   ********************************************************************************************/
-void ZcProtocol_ReponseHandle(uint8_t *message, uint16_t length)
+void ZcProtocol_ReceiveHandle(uint8_t *message, uint16_t length)
 {
-  ArrayStruct *msg = String2Msg((char*)message);            // 字符串转报文
-  
-  ZcProtocol *protocol = ZcProtocol_Check(msg->packet, msg->length);
+  ZcProtocol *protocol = ZcProtocol_Check(message, length);
   
   if(protocol != NULL)
   {
     ClearSpecifyBlock(esp8266_TxBlockList, ZcProtocol_SameId, &protocol->head.id);      //清除ID相同的发送报文
   }
-  
-  Array_Free(msg);
 }
+
+
 /*********************************************************************************************
 
-  * @brief  拙诚协议转字符串，填写到缓冲中
-  * @param  zcProtocol:  拙诚协议实例
-            txBlock：要填入的发送缓冲名称
-            data：数据域指针
-            dataLen：数据域长度
-  * @retval 报文数组结构体指针
+  * @brief  拙诚协议=》网络协议处理
+  * @param  message：http协议回复数据包内的回复内容部分字符串
+            length：报文长度
+  * @retval 
   * @remark 
 
   ********************************************************************************************/
-void ZcProtocol_ConvertHttpMsg(ZcProtocol* zcProtocol, TxBlockTypeDef *txBlock, uint8_t *data, uint16_t dataLen)
+void ZcProtocol_NetReceiveHandle(uint8_t *message, uint16_t length)
 {
-  ArrayStruct *msg = ZcProtocol_ConvertMsg(zcProtocol, data ,dataLen);      // 首先转换成报文
+  ArrayStruct *msg = String2Msg((char*)message);                // 字符串转报文数组
   
-  char *msgString = Msg2String(msg->packet, msg->length);       // 再转换为字符串
-  Array_Free(msg);
+  ZcProtocol_ReceiveHandle(msg->packet, msg->length);           //协议的原始报文处理
   
-  char *httpMsg = Http_Request(msgString);                    // 再转换成Http包
-  free(msgString);
-  
-  FillTxBlock(txBlock, (uint8_t*)httpMsg, strlen(httpMsg),  TX_FLAG_RT|TX_FLAG_MC);       // 填充到发送缓冲当中
-  free(httpMsg);
+  Array_Free(msg);      // 释放报文数组空闲
 }
