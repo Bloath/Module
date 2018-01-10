@@ -50,9 +50,6 @@ void Stm32_UartRxDma_IntHandle(UartRxDmaStruct *uartRxDma)
 {
   uartRxDma->end = uartRxDma->bufferLength - uartRxDma->rxDma->Instance->CNDTR;     //CNDTR是DMA中剩余传输数量
   
-  if(uartRxDma->bufferLength > 1000)
-  { uint8_t a = 0; }
-  
   /* 通过判断end与start的位置，进行不同的处理 */
   if(uartRxDma->end > uartRxDma->start)
   { FillRxBlock(uartRxDma->bufferBlock.rxBlockList, 
@@ -81,9 +78,6 @@ void Stm32_UartRxDma_IntHandle(UartRxDmaStruct *uartRxDma)
     free(message);
 #endif
   }
-  
-  if(uartRxDma->bufferLength > 1000)
-  { uint8_t b = 0; }
   
   uartRxDma->start = uartRxDma->end; 
 
