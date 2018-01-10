@@ -4,7 +4,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f0xx.h"
 #include "stdint.h"
-#include "stdlib.h"
 
 /* Public typedef -----------------------------------------------------------*/
 typedef struct

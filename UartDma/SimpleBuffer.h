@@ -3,20 +3,13 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stdint.h"
-#include "stdlib.h"
+#include "Conf.h"
 
 /* Public define -------------------------------------------------------------*/
-#define BUFFER_LENGTH  400
-
-#define DYNAMIC_MEMORY  1       //是否使用 动态申请内存， 使用后会导致代码量增加
-
-#ifndef DYNAMIC_MEMORY
-  #define STATIC_BUFFER_LEN 32  //不使用动态内存的情况下，静态内存的大小
-#endif
 
 
-#define RX_BLOCK_COUNT 5
-#define TX_BLOCK_COUNT 5
+#define RX_BLOCK_COUNT BLOCK_COUNT
+#define TX_BLOCK_COUNT BLOCK_COUNT
 
 #define RX_FLAG_USED    (1<<0)          //被占用
 
@@ -25,12 +18,6 @@
 #define TX_FLAG_RT      (1<<2)          //需要进行重新发送
 #define TX_FLAG_TIMEOUT (1<<3)          // 
 #define TX_FLAG_MC      (1<<7)          //手动清除
-
-#define TX_TIME_OUT     3000             //超时时间
-
-#include "stm32f0xx_hal.h"
-#define sysTime HAL_GetTick()
-
 
 /* Public typedef ------------------------------------------------------------*/
 typedef struct

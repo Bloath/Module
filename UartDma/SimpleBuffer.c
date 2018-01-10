@@ -40,8 +40,6 @@ void ReceiveSingleByte(uint8_t data, RxBufferTypeDef *rxBuffer)
   ********************************************************************************************/
 void FillRxBlock( RxBlockTypeDef *rxBlock, uint8_t *packet, uint16_t Len)
 {
-  uint16_t j=0;
-    
   if(Len == 0)
   { return; }
   
