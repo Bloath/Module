@@ -32,8 +32,8 @@ void ReceiveSingleByte(uint8_t data, RxBufferTypeDef *rxBuffer)
 
   * @brief  将缓冲内的数据填写到报文队列中
   * @param  rxBlockList：   接收缓冲结构体
-  * @param  packet：   要填入接收块的数据包指针
-  * @param  len；长度
+            packet：   要填入接收块的数据包指针
+            len；长度
   * @retval 无
   * @remark 
 
@@ -41,22 +41,24 @@ void ReceiveSingleByte(uint8_t data, RxBufferTypeDef *rxBuffer)
 void FillRxBlock( RxBlockTypeDef *rxBlock, uint8_t *packet, uint16_t Len)
 {
   uint16_t j=0;
-  
+    
   if(Len == 0)
   { return; }
   
+  /* 找到空闲缓冲，填入 */
   for(uint16_t i=0; i<RX_BLOCK_COUNT; i++)
   {
     if(!(rxBlock[i].flag & RX_FLAG_USED))                                      //查找空闲报文队列
     {
-      rxBlock[i].flag |= RX_FLAG_USED;                                                     //报文块使用标志位置位
+      rxBlock[i].flag |= RX_FLAG_USED;                                              //报文块使用标志位置位
 
 #ifdef DYNAMIC_MEMORY      
-      rxBlock[i].message = (uint8_t*)malloc((Len) * sizeof(uint8_t));                   //根据缓冲长度申请内存
+      rxBlock[i].message = (uint8_t*)malloc((Len + 1) * sizeof(uint8_t));         //根据缓冲长度申请内存，多一个字节，用于填写字符串停止符
 #endif
       
-      for(j=0; j<Len; j++)                                                          //将缓冲填入报文内
-      { rxBlock[i].message[j] = packet[j]; }
+      memcpy(rxBlock[i].message, packet, Len);  
+      
+      rxBlock[i].message[Len] = 0;              // 添加结束符，该缓冲块可以用作字符串处理 
       
       rxBlock[i].length = Len; 
       break;
@@ -181,7 +183,7 @@ uint8_t FillTxBlock(TxBlockTypeDef *txBlock, uint8_t *message, uint16_t length, 
         txBlock[i].message = (uint8_t*)malloc(length * sizeof(uint8_t));
       #endif
 
-      CopyPacket(message, txBlock[i].message, length);
+      memcpy(txBlock[i].message, message, length);
       txBlock[i].length = length;
       txBlock[i].flag |= TX_FLAG_USED;
       txBlock[i].time = sysTime;
@@ -238,22 +240,6 @@ void ClearSpecifyBlock(TxBlockTypeDef *txBlock, uint8_t (*func)(uint8_t*, uint16
     }
     
   }
-}
-/*********************************************************************************************
-
-  * @brief  拷贝数据包
-  * @param  srcPacket：源数据包指针
-  * @param  desPacket：目的数据包指针
-  * @param  length：长度
-  * @return 
-  * @remark source->destination，方向别搞错
-
-  ********************************************************************************************/
-void CopyPacket(uint8_t *srcPacket, uint8_t *desPacket, uint16_t length)
-{
-  memcpy(desPacket, srcPacket, length);
-//  for(uint16_t i=0; i<length; i++)
-//  { desPacket[i] = srcPacket[i]; }
 }
 
 /*********************************************************************************************

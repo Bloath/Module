@@ -2,67 +2,50 @@
 #include "stdint.h"
 #include "stdlib.h"
 #include "string.h"
-#include "Base.h"
-#include "StringHandle.h"
+#include "Array.h"
 #include "SimpleBuffer.h"
 #include "ESP8266.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
+#define HTTP_MAX_LEN 200        //HTTP协议最大长度
+
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
-char *httpHeader[4] = { "GET /?message=", " HTTP/1.1\r\nHost:", DOMAIN, "\r\n\r\n"};
-
 /* Private function prototypes -----------------------------------------------*/
+
 /*********************************************************************************************
  * @brief HTTP q请求头
- * @para： packet：数据包
-           length：数据包长度
- * @return *httpMessage:返回http请求头
+ * @para： 报文内容
+ * @return *httpPacket:返回http请求字符串指针
  * @remark 
   ********************************************************************************************/
-ArrayStruct* Http_Request(uint8_t *packet, uint16_t length)
+char* Http_Request(char* string)
 {  
-  uint16_t counter = 0;
+  /* 申请内存 */
+  char *httpPacket = (char*)malloc(HTTP_MAX_LEN);    
+  memset(httpPacket, 0, HTTP_MAX_LEN);  
   
-  for(uint16_t i=0; i<4; i++)
-  { counter += strlen(httpHeader[i]); }
+  /* 拼接HTTP协议 */
+  strcat(httpPacket, "GET /?message=");
+  strcat(httpPacket, string);
+  strcat(httpPacket, " HTTP/1.1\r\nHost:");
+  strcat(httpPacket, DOMAIN);
+  strcat(httpPacket, "\r\n\r\n");
   
-  ArrayStruct* httpMessage = Array_New(counter + length);      // 
-  uint8_t *p = httpMessage->packet;
-  
-  memcpy(p, httpHeader[0], strlen(httpHeader[0]));
-  p += strlen(httpHeader[0]);
-  
-  memcpy(p, packet, length);
-  p += length;
-  
-  for(uint16_t i=0; i<3; i++)
-  {
-    memcpy(p, httpHeader[1 + i], strlen(httpHeader[1 + i]));
-    p += strlen(httpHeader[1 + i]);
-  }
-    
-  return httpMessage;
+  return httpPacket;
 }
 /*********************************************************************************************
  * @brief HTTP 从接收数据中拿出数据端
- * @para： packet：数据包
-           length：数据包长度
- * @return *array
+ * @para： packet：数据包字符串
+ * @return *字符串
  * @remark 
   ********************************************************************************************/
-ArrayStruct* Http_GetMessage(uint8_t *packet, uint16_t len)
+char* Http_GetResponse(char *packet)
 {
-  uint16_t index = StringFindIndex("\r\n\r\n", packet, len);
+  /* 查找HTTP中双换行位置 */
+  char * index = strstr(packet, "HTTP");        //先找到HTTP
+  index = strstr(index, "\r\n\r\n");           //再找双换行
   
-  ArrayStruct* array = NULL;
-  
-  if(index != 0xFFFF)
-  { 
-    array = Array_New(len - index - 4); 
-    CopyPacket(packet + index + 4, array->packet, array->length);
-  }
- 
-  return array;
+  return (char*)(index + 4);
 }

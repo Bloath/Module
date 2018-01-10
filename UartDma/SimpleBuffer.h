@@ -3,11 +3,12 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stdint.h"
+#include "stdlib.h"
 
+/* Public define -------------------------------------------------------------*/
+#define BUFFER_LENGTH  400
 
-#define BUFFER_LENGTH  600
-
-//#define DYNAMIC_MEMORY  1       //是否使用 动态申请内存， 使用后会导致代码量增加
+#define DYNAMIC_MEMORY  1       //是否使用 动态申请内存， 使用后会导致代码量增加
 
 #ifndef DYNAMIC_MEMORY
   #define STATIC_BUFFER_LEN 32  //不使用动态内存的情况下，静态内存的大小
@@ -49,6 +50,7 @@ typedef struct
 #endif
   
   uint16_t length;
+  uint8_t isString;
 }RxBlockTypeDef;        //接收块
 
 
@@ -72,22 +74,21 @@ typedef struct
   RxBufferTypeDef rxBuffer;
   RxBlockTypeDef rxBlockList[RX_BLOCK_COUNT];
 }RxBufferStruct;
-
-/* Public define -------------------------------------------------------------*/
-
 typedef enum
 {
   TxBlockError_TimeOut = 0
 }TxBlockError;
+
+
 
 /* Public macro --------------------------------------------------------------*/
 /* Public variables ----------------------------------------------------------*/
 /* Public function prototypes ------------------------------------------------*/
 
 /* 接收需要的函数 */
-void ReceiveSingleByte(uint8_t rxByte, RxBufferTypeDef *rxBuffer);                   //接收单字节数据，填充至缓冲中
-void FillRxBlock( RxBlockTypeDef *rxBlock, uint8_t *packet, uint16_t Len);           //将接收缓冲中的数据填充到接收报文队列中
-void RxBlockListHandle(RxBlockTypeDef *rxBlock, void (*f)(uint8_t*, uint16_t));      //接收报文队列处理
+void ReceiveSingleByte(uint8_t rxByte, RxBufferTypeDef *rxBuffer);                              //接收单字节数据，填充至缓冲中
+void FillRxBlock( RxBlockTypeDef *rxBlock, uint8_t *packet, uint16_t Len);                      //将接收缓冲中的数据填充到接收报文队列中
+void RxBlockListHandle(RxBlockTypeDef *rxBlock, void (*f)(uint8_t*, uint16_t));                 //接收报文队列处理
 
 
 /* 发送需要的函数 */
@@ -97,7 +98,6 @@ void FreeTxBlock(TxBlockTypeDef *txBlock);                                      
 void ClearSpecifyBlock(TxBlockTypeDef *txBlock, uint8_t (*func)(uint8_t*, uint16_t, void*), void *p);   //通过指定函数，清除
 
 /* 小功能 */
-void CopyPacket(uint8_t *srcPacket, uint8_t *desPacket, uint16_t length);               //复制数据包
 uint8_t isPacketSame(uint8_t *srcPacket, uint8_t *desPacket, uint16_t length);
 
 #endif

@@ -34,7 +34,7 @@
 #include "math.h"
 
 #include "SimpleBuffer.h"
-#include "Base.h"
+#include "Array.h"
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
@@ -100,7 +100,7 @@ ArrayStruct* Dns_Request(uint16_t id, char *domain)
   /* 将域名的不同部分转换为长度和字符 */ 
   uint8_t *domainTemp = (uint8_t *)malloc(domainLen + 2);     // 申请内存
   
-  CopyPacket((uint8_t *)domain, domainTemp + 1, domainLen);        // 将域名复制到其中，预留前后字节
+  memcpy(domainTemp + 1, (uint8_t *)domain, domainLen);        // 将域名复制到其中，预留前后字节
   
   uint8_t lengthPointer = 0;          // 修改长度用的指针                      
   
@@ -118,16 +118,16 @@ ArrayStruct* Dns_Request(uint16_t id, char *domain)
   
   /* 复制请求头 */
   uint8_t* dnsHeaderTemp = LittleToBig_HalfWord((uint8_t *)&dnsHead, sizeof(DnsHeadStruct));
-  CopyPacket(dnsHeaderTemp, dns->packet, sizeof(DnsHeadStruct));
+  memcpy(dns->packet, dnsHeaderTemp, sizeof(DnsHeadStruct));
   free(dnsHeaderTemp);
   
   
   /* 复制问题区域的域名 */
-  CopyPacket(domainTemp, dns->packet + sizeof(DnsHeadStruct), domainLen + 2);
+  memcpy(dns->packet + sizeof(DnsHeadStruct), domainTemp, domainLen + 2);
   
   /* 复制问题区域的type和class */
   uint8_t* dnsQuestionPara = LittleToBig_HalfWord((uint8_t *)&dnsQuestion, sizeof(DnsQuestionStruct));
-  CopyPacket(dnsQuestionPara, dns->packet + sizeof(DnsHeadStruct) + domainLen + 2, sizeof(DnsQuestionStruct));
+  memcpy(dns->packet + sizeof(DnsHeadStruct) + domainLen + 2, dnsQuestionPara, sizeof(DnsQuestionStruct));
   free(dnsQuestionPara);
   
   free(domainTemp);
@@ -145,7 +145,7 @@ ArrayStruct* Dns_AnalyseIp(uint8_t *packet, uint16_t length)
 {
   ArrayStruct* ip = Array_New(4);
   
-  CopyPacket(packet + (length - 4), ip->packet, 4);
+  memcpy(ip->packet, packet + (length - 4), 4);
   
   return ip;
 }

@@ -3,6 +3,7 @@
 #include "stdlib.h"
 #include "stm32f0xx_hal.h"
 #include "stm32_UartDma.h"
+#include "string.h"
 
 /* Public typedef ------------------------------------------------------------*/
 /* Public define -------------------------------------------------------------*/
@@ -49,6 +50,9 @@ void Stm32_UartRxDma_IntHandle(UartRxDmaStruct *uartRxDma)
 {
   uartRxDma->end = uartRxDma->bufferLength - uartRxDma->rxDma->Instance->CNDTR;     //CNDTR是DMA中剩余传输数量
   
+  if(uartRxDma->bufferLength > 1000)
+  { uint8_t a = 0; }
+  
   /* 通过判断end与start的位置，进行不同的处理 */
   if(uartRxDma->end > uartRxDma->start)
   { FillRxBlock(uartRxDma->bufferBlock.rxBlockList, 
@@ -62,13 +66,13 @@ void Stm32_UartRxDma_IntHandle(UartRxDmaStruct *uartRxDma)
     uint8_t message[STATIC_BUFFER_LEN];
 #endif
     
-    CopyPacket(uartRxDma->bufferBlock.rxBuffer.buffer + uartRxDma->start, 
-               message, 
-               uartRxDma->bufferLength - uartRxDma->start);
+    memcpy(message, 
+           uartRxDma->bufferBlock.rxBuffer.buffer + uartRxDma->start,     
+           uartRxDma->bufferLength - uartRxDma->start);
     
-    CopyPacket(uartRxDma->bufferBlock.rxBuffer.buffer, 
-               message + uartRxDma->bufferLength - uartRxDma->start - 1, 
-               uartRxDma->end + 1);
+    memcpy(message + uartRxDma->bufferLength - uartRxDma->start - 1, 
+           uartRxDma->bufferBlock.rxBuffer.buffer,     
+           uartRxDma->end + 1);
     
     FillRxBlock(uartRxDma->bufferBlock.rxBlockList,
                 message, 
@@ -77,6 +81,9 @@ void Stm32_UartRxDma_IntHandle(UartRxDmaStruct *uartRxDma)
     free(message);
 #endif
   }
+  
+  if(uartRxDma->bufferLength > 1000)
+  { uint8_t b = 0; }
   
   uartRxDma->start = uartRxDma->end; 
 

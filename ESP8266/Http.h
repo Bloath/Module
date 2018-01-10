@@ -5,14 +5,14 @@
 #include "stdint.h"
 #include "stdlib.h"
 #include "string.h"
-#include "Base.h"
+#include "Array.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 /* Private function prototypes -----------------------------------------------*/
-ArrayStruct* Http_Request(uint8_t *packet, uint16_t length);
-ArrayStruct* Http_GetMessage(uint8_t *packet, uint16_t len);
+char* Http_Request(char* string);
+char* Http_GetResponse(char *packet);
 
 #endif

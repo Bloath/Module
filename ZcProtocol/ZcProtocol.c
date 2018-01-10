@@ -2,7 +2,7 @@
 #include "stdint.h"
 #include "stdlib.h"
 #include "string.h"
-#include "Base.h"
+#include "Array.h"
 #include "ZcProtocol.h"
 #include "Convert.h"
 
@@ -51,18 +51,18 @@ ArrayStruct* ZcProtocol_ConvertMsg(ZcProtocol* zcProtocol, uint8_t *message, uin
 ZcProtocol* ZcProtocol_Check(uint8_t *message, uint16_t length)
 {
   if(length < ZC_UNDATA_LEN)
-  { return 0; }
+  { return NULL; }
   
   ZcProtocol *protocol = (ZcProtocol*)message;  // 获取协议结构指针
   ZcProtocolEnd *tail = (ZcProtocolEnd*)(message + length - 2);
   
   /* 首尾判断 */
   if(protocol->head.head != ZC_HEAD || tail->end != ZC_END)
-  {  return 0;  }
+  {  return NULL;  }
   
   /* CRC判断 */
   if(tail->crc != ZcProtocol_GetCrc(message, length))
-  { return 0;  }
+  { return NULL;  }
 
   return protocol;
 }

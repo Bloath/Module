@@ -3,11 +3,11 @@
 #include "stdint.h"
 #include "stdlib.h"
 #include "string.h"
-#include "StringHandle.h"
 #include "Time.h"
 #include "SimpleBuffer.h"
 #include "ESP8266_HalHandle.h"
 #include "Convert.h"
+#include "Http.h"
 
 /* Private typedef -----------------------------------------------------------*/
 typedef enum
@@ -126,8 +126,8 @@ void ESP8266_Handle()
   ********************************************************************************************/
 void ESP8266_HttpTransmit(uint8_t *message, uint16_t length)
 {
-  IntSringTypeDef *count;
   static uint32_t time = 0;
+  char *count = NULL;
   
   switch(ESP8266_TcpStatus)
   { 
@@ -140,9 +140,9 @@ void ESP8266_HttpTransmit(uint8_t *message, uint16_t length)
     break;
     
   case TcpStatus_Connected:     // 发送数据数量
-    count = IntConvertToString((uint32_t)length);
+    count = Uint2String((uint32_t)length);
     ESP8266_SendString("AT+CIPSEND=");
-    ESP8266_SendData(count->string, count->length);
+    ESP8266_SendString(count);
     ESP8266_SendString("\r\n");
     ESP8266_TcpStatus = TcpStatus_WaitAck;
     time = sysTime;
@@ -178,50 +178,52 @@ void ESP8266_HttpTransmit(uint8_t *message, uint16_t length)
   * @retval 
 
   ********************************************************************************************/
-void ESP8266_RxMsgHandle(uint8_t *message, uint16_t length)
+void ESP8266_RxMsgHandle(uint8_t *packet, uint16_t length)
 {
+  char *message = (char *)packet;
+  
   if(ESP8266_TcpStatus == TcpStatus_WaitAck)
   { uint8_t i = 0; }
   
-  if(!StringInclude("+CWJAP", message, length) || !StringInclude("WIFI CONNECTED", message, length))
+  if(strstr(message, "+CWJAP") != NULL || strstr(message, "WIFI CONNECTED") != NULL)
   { ESP8266_ConnectStatus = ConnectStatus_Connected; return; }         //+CWJAP/CONNECTED，置位连接标志位
   
-  if(!StringInclude("smartconfig connected", message, length))  // smartconfig connected，则需要释放 AT+CWSTOPSMART
+  if(strstr(message, "+smartconfig connected") != NULL)  // smartconfig connected，则需要释放 AT+CWSTOPSMART
   { ESP8266_SendAtString("AT+CWSTOPSMART"); return; }
   
-  if(!StringInclude("No AP", message, length))                  // No AP，清除连接标志位 
+  if(strstr(message, "No AP") != NULL)                  // No AP，清除连接标志位 
   { ESP8266_Status &= ~ESP8266_WIFI_CONNECTED; return; }
   
-  if(!StringInclude("ERROR", message, length))
+  if(strstr(message,"ERROR") != NULL)
   { 
-    if(!StringInclude("CWSTARTSMART", message, length))
+    if(strstr(message, "CWSTARTSMART") != NULL)
     { ESP8266_ErrorHandle(Error_AirKissError); return; }
     
   }
   /***********TCP部分****************/
   
-  if(!StringInclude("CLOSED", message, length))                 //CLOSED 链接关闭
+  if(strstr(message, "CLOSED") != NULL)                 //CLOSED 链接关闭
   { ESP8266_TcpStatus = TcpStatus_Init; return; }
     
-  if(!StringInclude("CONNECT\r\n", message, length) ||
-     !StringInclude("ALREADY CONNECTED", message, length))            //CONNECT 连接成功
+  if(strstr(message, "CONNECT\r\n") != NULL ||
+     strstr(message, "ALREADY CONNECTED") != NULL)            //CONNECT 连接成功
   { ESP8266_TcpStatus = TcpStatus_Connected; return; }
   
-  if(!StringInclude("OK\r\n>", message, length))                      // > 开始接收发送数据
+  if(strstr(message, "OK\r\n>") != NULL)                      // > 开始接收发送数据
   { ESP8266_TcpStatus = TcpStatus_StartTrans; return; }
 
-  if(!StringInclude("Recv", message, length))                   //SEND OK 发送成功
+  if(strstr(message, "Recv") != NULL)                   //SEND OK 发送成功
   { ESP8266_TcpStatus = TcpStatus_SendOk;  }
   
   /***********收到数据处理****************/
-  if(!StringInclude("+IPD", message, length) || !StringInclude("+ID", message, length))
+  if(strstr(message, "+IPD") != NULL  || strstr(message, "+ID") != NULL)
   { 
-    if(!StringInclude("HTTP", message, length))
+    if(strstr(message, "HTTP") != NULL)
     { 
-      uint16_t index = StringFindIndex("\r\n\r\n68", message, length);
+      char* index = (char *)Http_GetResponse(message);
       
-      if(index != 0xFFFF)
-      { FillRxBlock(esp8266_RxBlockList, message + index + 4, length - index - 4); }
+      if(index != NULL)
+      { FillRxBlock(esp8266_RxBlockList, (uint8_t*)index, strlen(index)); }
     }
   }  
 
@@ -279,7 +281,6 @@ void ESP8266_SendAtString(const char* cmd)
   ********************************************************************************************/
 void ESP8266_ErrorHandle(ESP8266_Error errorType)
 {
-  uint16_t i=0;
   
   ESP8266_HardWareReset();                                                      //硬件复位
   ESP8266_ConnectStatus = ConnectStatus_Init;                                 //初始化连接
