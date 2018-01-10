@@ -1,11 +1,12 @@
 /* Includes ------------------------------------------------------------------*/
-#include "ESP8266.h"
+
 #include "stdint.h"
-#include "stdlib.h"
 #include "string.h"
+#include "stdlib.h"
 #include "Time.h"
 #include "SimpleBuffer.h"
-#include "ESP8266_HalHandle.h"
+#include "ESP8266.h"
+#include "ESP8266_Handle.h"
 #include "Convert.h"
 #include "Http.h"
 
@@ -94,7 +95,7 @@ void ESP8266_Handle()
     break;
     
   case ConnectStatus_Idle:      //ø’œ–¥¶¿Ì
-    if((time + INTERVAL) < sysTime)
+    if((time + ESP8266_INTERVAL) < sysTime)
     { 
       ESP8266_SendAtString("AT+CWJAP?");
       time = sysTime;
@@ -156,7 +157,7 @@ void ESP8266_HttpTransmit(uint8_t *message, uint16_t length)
     break;
   
   case TcpStatus_WaitAck:
-    if((time + INTERVAL) < sysTime)
+    if((time + ESP8266_INTERVAL) < sysTime)
     {
       ESP8266_ErrorHandle(Error_CipSendError);
       ESP8266_TcpStatus = TcpStatus_Init;

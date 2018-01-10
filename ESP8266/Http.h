@@ -3,9 +3,8 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stdint.h"
-#include "stdlib.h"
-#include "string.h"
 #include "Array.h"
+#include "Conf.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/

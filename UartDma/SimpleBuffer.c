@@ -3,12 +3,11 @@
 #include "stdlib.h"
 #include "string.h"
 #include "SimpleBuffer.h"
+
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
-extern uint32_t sysTime;
-
 /* Private function prototypes -----------------------------------------------*/
 void TxBlockErrorHandle(TxBlockError error);
 

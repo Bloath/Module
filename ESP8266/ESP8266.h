@@ -3,13 +3,10 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stdint.h"
-#include "ESP8266_HalHandle.h"
-
+#include "ESP8266_Handle.h"
 /* Public typedef ------------------------------------------------------------*/
 /* Public define -------------------------------------------------------------*/
-#define INTERVAL 3000
 
-#define DOMAIN  "wxio.bloath.com"
 
 #define ESP8266_WIFI_CONNECTED       (1<<0)
 #define ESP8266_TCP_CONNECTED        (1<<1)

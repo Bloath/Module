@@ -3,13 +3,10 @@
 #include "stdlib.h"
 #include "string.h"
 #include "Array.h"
-#include "SimpleBuffer.h"
-#include "ESP8266.h"
+#include "Conf.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
-#define HTTP_MAX_LEN 200        //HTTP协议最大长度
-
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 /* Private function prototypes -----------------------------------------------*/

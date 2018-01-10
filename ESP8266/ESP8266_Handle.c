@@ -3,7 +3,7 @@
 #include "string.h"
 #include "ESP8266.h"
 #include "stm32f0xx_hal.h"
-
+#include "SimpleBuffer.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/

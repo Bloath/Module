@@ -1,17 +1,24 @@
-#ifndef _DNS_H_
-#define _DNS_H_
+#ifndef _ESP8266_HALHANDLE_H_
+#define _ESP8266_HALHANDLE_H_
 
 /* Includes ------------------------------------------------------------------*/
 #include "stdint.h"
-#include "stdlib.h"
-#include "Base.h"
+#include "SimpleBuffer.h"
+#include "Conf.h"
+
 
 /* Public typedef ------------------------------------------------------------*/
 /* Public define -------------------------------------------------------------*/
 /* Public macro --------------------------------------------------------------*/
 /* Public variables ----------------------------------------------------------*/
+extern TxBlockTypeDef esp8266_TxBlockList[TX_BLOCK_COUNT];                      //模块的发送缓冲
+extern RxBlockTypeDef esp8266_RxBlockList[RX_BLOCK_COUNT];                      //模块的接收缓冲
+
 /* Public function prototypes ------------------------------------------------*/
-ArrayStruct* Dns_Request(uint16_t id, char *domain);
-ArrayStruct* Dns_AnalyseIp(uint8_t *packet, uint16_t length);
+void ESP8266_SendData(uint8_t *data, uint16_t length);
+void ESP8266_SendString(const char *string);
+void ESP8266_HardWareReset();
+void ESP8266_ReceiveDataHandle(uint8_t *data, uint16_t length);
+void ESP8266_Test();
 
 #endif
