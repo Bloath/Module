@@ -10,7 +10,8 @@
 #include "../UartDma/SimpleBuffer.h"
 #include "../Sys_Conf.h"
 #include "Http.h"
-#include "ZcProtocol_API.h"
+#include "ZcProtocol_API.h"     
+#include "ZcProtocol_Handle.h"  //硬件相关处理
 
 /* private typedef ------------------------------------------------------------*/
 /* private define -------------------------------------------------------------*/
@@ -148,86 +149,46 @@ void ZcProtocol_ReceiveHandle(uint8_t *message, uint16_t length)
     ZcProtocol_TimeStamp(protocol->head.timestamp);             //每次都更新时间戳
     ClearSpecifyBlock(Enthernet_TxBlockList, ZcProtocol_SameId, &protocol->head.id);    //每次服务器回复后都要清除相应报文
     
-    switch(protocol->head.cmd)                          
-    { 
-    /* 查询暂存报文 */
-    case ZC_CMD_QUERY_HOLD:
-      zcHandle.status = ZcHandleStatus_Idle;  // 切换为空闲状态，继续发送查询暂存报文
-      break;
-      
-    /* 服务器下发确认报文 */
-    case ZC_CMD_SERVER_CONFIRM:
-      
-      /* 当接收到确认报文且与之前的暂存报文ID相同 */
-      if(protocol->head.id == zcHandle.holdId)
+    
+    /* 先查看是否有操作的报文
+       回复0：处理成功，不需要后续处理
+       回复1：非处理命令，进入通讯类报文处理
+       回复2：则处理失败，直接发送失败恢复命令 */
+    uint8_t operationRes = ZcProtocol_OperationCmdHandle(protocol);        //先查看是否有操作的报文
+
+    if(operationRes == 1)
+    {
+      switch(protocol->head.cmd)                          
       { 
-        zcHandle.status = ZcHandleStatus_Idle;  // 切换为空闲状态，发送下一次查询暂存报文
-        zcPrtc.head.id++;                       // Id递增
-      }
-      break;
-    
-    /* 地址域 */
-    case ZC_CMD_ADDRESS:
-      ZcProtocol_NetTransmit(ZC_CMD_ADDRESS, zcPrtc.head.address, 7, 0);
-      break;
-    
-//    /* 设备相关属性 */
-//    case ZC_CMD_DEVICE_ATTR:
-//      
-//      break;
-//      
-//    /* 计量相关属性 */
-//    case ZC_CMD_MEASURE_ATTR:
-//      
-//      break;
-//    
-//    /* 阶梯费用 */
-//    case ZC_CMD_LADIR_PRICE:
-//      
-//      break;
-//    
-//    /* 充值记录 */
-//    case ZC_CMD_RECHARGE:
-//      
-//      break;
-//    
-//    /* 用气历史记录 */
-//    case ZC_CMD_USE_HISTORY:
-//      
-//      break;
-//      
-//    /* 报警信息 */
-//    case ZC_CMD_ALARM:
-//      
-//      break;
-//      
-//    /* 环境参数 */
-//    case ZC_CMD_ENVIROMENT:
-//      
-//      break;
-//      
-//    /* 管道状态 */
-//    case ZC_CMD_PIPE_STATUS:
-//      
-//      break;
-//      
-//    /* 阀门开关记录 */
-//    case ZC_CMD_VALVE_RECORD:
-//      
-//      break;
-//      
-//    /* 阀门开关操作 */
-//    case ZC_CMD_VALVE_OPRT:
-//      
-//      break;
+      /* 查询暂存报文 */
+      case ZC_CMD_QUERY_HOLD:
+        zcHandle.status = ZcHandleStatus_Idle;  // 切换为空闲状态，继续发送查询暂存报文
+        break;
+        
+      /* 服务器下发确认报文 */
+      case ZC_CMD_SERVER_CONFIRM:
+        
+        /* 当接收到确认报文且与之前的暂存报文ID相同 */
+        if(protocol->head.id == zcHandle.holdId)
+        { 
+          zcHandle.status = ZcHandleStatus_Idle;  // 切换为空闲状态，发送下一次查询暂存报文
+          zcPrtc.head.id++;                       // Id递增
+        }
+        break;
       
-    /* 回复的命令 */
-    default:
-      ZcProtocol_NetTransmit(ZC_CMD_FAIL, NULL, 0, 0);
-      break;
+      /* 地址域 */
+      case ZC_CMD_ADDRESS:
+        ZcProtocol_NetTransmit(ZC_CMD_ADDRESS, zcPrtc.head.address, 7, 0);
+        break;
+        
+      /* 回复的命令 */
+      default:
+        ZcProtocol_NetTransmit(ZC_CMD_FAIL, NULL, 0, 0);
+        break;
+      }
     }
-    
-    
+    else if(operationRes == 2)
+    { ZcProtocol_NetTransmit(ZC_CMD_FAIL, NULL, 0, 0); }        //操作类指令失败，发送失败回复
   }
 }
 
