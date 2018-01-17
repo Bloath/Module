@@ -1,5 +1,5 @@
-#ifndef _PROTOCOLHANDLE_H_
-#define _PROTOCOLHANDLE_H_
+#ifndef _ZCPROTOCOL_API_H_
+#define _ZCPROTOCOL_API_H_
 
 /* Includes ------------------------------------------------------------------*/
 #include "../Sys_Conf.h"

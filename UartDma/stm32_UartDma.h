@@ -1,5 +1,5 @@
-#ifndef _STM32_DMA_RX_H_
-#define _STM32_DMA_RX_H_
+#ifndef _STM32_UARTDMA_H_
+#define _STM32_UARTDMA_H_
 
 /* Includes ------------------------------------------------------------------*/
 #include "../Sys_Conf.h"

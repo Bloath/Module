@@ -105,7 +105,7 @@ ZcProtocol* ZcProtocol_Check(uint8_t *message, uint16_t length)
   ********************************************************************************************/
 uint8_t ZcProtocol_SameId(uint8_t *message, uint16_t length, void *p)
 {
-  uint8_t id = 0, res=1;
+  uint8_t res=1;
  
   char* index = strstr( (char *)message, "message=");
   ArrayStruct* msg = String2Msg(index + 8);

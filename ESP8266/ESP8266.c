@@ -196,9 +196,6 @@ void ESP8266_RxMsgHandle(uint8_t *packet, uint16_t length)
 {
   char *message = (char *)packet;
   
-  if(ESP8266_ConnectStatus == ConnectStatus_Connected)
-  { uint8_t i=0; }
-  
   /***********连接wifi部分****************/
   if(strstr(message, "+CWJAP") != NULL || strstr(message, "WIFI CONNECTED") != NULL)
   { ESP8266_ConnectStatus = ConnectStatus_Connected; return; }         //+CWJAP/CONNECTED，置位连接标志位

@@ -10,7 +10,7 @@
 #include "../UartDma/SimpleBuffer.h"
 #include "../Sys_Conf.h"
 #include "Http.h"
-#include "ZcProtocol_Handle.h"
+#include "ZcProtocol_API.h"
 
 /* private typedef ------------------------------------------------------------*/
 /* private define -------------------------------------------------------------*/

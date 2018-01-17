@@ -36,6 +36,16 @@
 #include "ZcProtocol.h"		# 与ZcProtocol.h文件为同一文件夹，可以直接引入
 ```
 
+其他非Module中的文件添加.h文件的时候，建议同样使用相对路径
+
+```
+#include "../Module/UartDma/Stm32_UartDma.h"
+#include "../Module/ESP8266/ESP8266.h"
+#include "../Module/ZcProtocol/http.h"
+#include "../Module/ZcProtocol/ZcProtocol.h"
+#include "../Module/ZcProtocol/ZcProtocol_API.h"
+```
+
 
 
 #### 1.2 配置文件与处理文件的使用
