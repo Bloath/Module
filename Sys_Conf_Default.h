@@ -1,0 +1,11 @@
+#ifndef _SYS_CONF_H_
+#define _SYS_CONF_H_
+
+#include "stm32f0xx_hal.h"
+#include "stdint.h"
+
+#define sysTime HAL_GetTick()
+
+
+  
+#endif
