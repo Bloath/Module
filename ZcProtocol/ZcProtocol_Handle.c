@@ -171,54 +171,59 @@ void ZcProtocol_ReceiveHandle(uint8_t *message, uint16_t length)
       ZcProtocol_NetTransmit(ZC_CMD_ADDRESS, zcPrtc.head.address, 7, 0);
       break;
     
-    /* 设备相关属性 */
-    case ZC_CMD_DEVICE_ATTR:
+//    /* 设备相关属性 */
+//    case ZC_CMD_DEVICE_ATTR:
+//      
+//      break;
+//      
+//    /* 计量相关属性 */
+//    case ZC_CMD_MEASURE_ATTR:
+//      
+//      break;
+//    
+//    /* 阶梯费用 */
+//    case ZC_CMD_LADIR_PRICE:
+//      
+//      break;
+//    
+//    /* 充值记录 */
+//    case ZC_CMD_RECHARGE:
+//      
+//      break;
+//    
+//    /* 用气历史记录 */
+//    case ZC_CMD_USE_HISTORY:
+//      
+//      break;
+//      
+//    /* 报警信息 */
+//    case ZC_CMD_ALARM:
+//      
+//      break;
+//      
+//    /* 环境参数 */
+//    case ZC_CMD_ENVIROMENT:
+//      
+//      break;
+//      
+//    /* 管道状态 */
+//    case ZC_CMD_PIPE_STATUS:
+//      
+//      break;
+//      
+//    /* 阀门开关记录 */
+//    case ZC_CMD_VALVE_RECORD:
+//      
+//      break;
+//      
+//    /* 阀门开关操作 */
+//    case ZC_CMD_VALVE_OPRT:
+//      
+//      break;
       
-      break;
-      
-    /* 计量相关属性 */
-    case ZC_CMD_MEASURE_ATTR:
-      
-      break;
-    
-    /* 阶梯费用 */
-    case ZC_CMD_LADIR_PRICE:
-      
-      break;
-    
-    /* 充值记录 */
-    case ZC_CMD_RECHARGE:
-      
-      break;
-    
-    /* 用气历史记录 */
-    case ZC_CMD_USE_HISTORY:
-      
-      break;
-      
-    /* 报警信息 */
-    case ZC_CMD_ALARM:
-      
-      break;
-      
-    /* 环境参数 */
-    case ZC_CMD_ENVIROMENT:
-      
-      break;
-      
-    /* 管道状态 */
-    case ZC_CMD_PIPE_STATUS:
-      
-      break;
-      
-    /* 阀门开关记录 */
-    case ZC_CMD_VALVE_RECORD:
-      
-      break;
-      
-    /* 阀门开关操作 */
-    case ZC_CMD_VALVE_OPRT:
-      
+    /* 回复的命令 */
+    default:
+      ZcProtocol_NetTransmit(ZC_CMD_FAIL, NULL, 0, 0);
       break;
     }
     

@@ -117,7 +117,7 @@ void ESP8266_Handle()
     break;
     
   case ConnectStatus_Connected:
-    TxBlockListHandle(Enthernet_TxBlockList, ESP8266_HttpTransmit, 1000);
+    TxBlockListHandle(Enthernet_TxBlockList, ESP8266_HttpTransmit, 2000);
     break;
   }
 }
