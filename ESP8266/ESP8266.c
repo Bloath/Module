@@ -1,14 +1,19 @@
 /* Includes ------------------------------------------------------------------*/
 
-#include "stdint.h"
 #include "string.h"
 #include "stdlib.h"
 #include "Time.h"
-#include "SimpleBuffer.h"
+
+#include "../UartDma/SimpleBuffer.h"
+#include "../Common/Convert.h"
+#include "../Common/Delay.h"
+
+#include "../ZcProtocol/Http.h"
+#include "../ZcProtocol/ZcProtocol_Conf.h"
+
 #include "ESP8266.h"
 #include "ESP8266_Handle.h"
-#include "Convert.h"
-#include "Http.h"
+
 
 /* Private typedef -----------------------------------------------------------*/
 typedef enum
@@ -53,10 +58,12 @@ typedef enum
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
-ESP8266_ConnectStatusEnum ESP8266_ConnectStatus = ConnectStatus_Init;
-ESP8266_TcpStatusEnum ESP8266_TcpStatus = TcpStatus_Init;
+ESP8266_ConnectStatusEnum ESP8266_ConnectStatus = ConnectStatus_Init;   //WIFI连接状态
+ESP8266_TcpStatusEnum ESP8266_TcpStatus = TcpStatus_Init;               // TCP发送状态
 uint16_t ESP8266_Status = 0;
 
+TxBlockTypeDef Enthernet_TxBlockList[TX_BLOCK_COUNT];                      //模块的发送缓冲
+RxBlockTypeDef Enthernet_RxBlockList[RX_BLOCK_COUNT];                      //模块的接收缓冲
 
 /* Private function prototypes -----------------------------------------------*/
 void ESP8266_SendAtCmd(uint8_t *data, uint16_t length);
@@ -67,8 +74,6 @@ void ESP8266_HttpTransmit(uint8_t *message, uint16_t length);
 void ESP8266_ResponseHandle(uint8_t *message, uint16_t length);
 
 /* Private functions ---------------------------------------------------------*/
-
-
 
 /*********************************************************************************************
 
@@ -112,7 +117,7 @@ void ESP8266_Handle()
     break;
     
   case ConnectStatus_Connected:
-    TxBlockListHandle(esp8266_TxBlockList, ESP8266_HttpTransmit, 1000);
+    TxBlockListHandle(Enthernet_TxBlockList, ESP8266_HttpTransmit, 1000);
     break;
   }
 }
@@ -132,15 +137,24 @@ void ESP8266_HttpTransmit(uint8_t *message, uint16_t length)
   
   switch(ESP8266_TcpStatus)
   { 
-  case TcpStatus_Init:          //初始化，发送TCP连接
+    /* 初始化，发送TCP连接，AT+CIPSTART="TCP","域名",80，等待模块回复CONNECT 或者 ALREADY CONNECTED */
+  case TcpStatus_Init:          
     ESP8266_SendString("AT+CIPSTART=\"TCP\",\"");
+#ifdef DOMAIN
     ESP8266_SendString(DOMAIN);
     ESP8266_SendString("\",80\r\n");
+#else
+    ESP8266_SendString(IP);
+    ESP8266_SendString("\",");
+    ESP8266_SendString(PORT);
+    ESP8266_SendString("\r\n");
+#endif
     ESP8266_TcpStatus = TcpStatus_WaitAck;
     time = sysTime;
     break;
-    
-  case TcpStatus_Connected:     // 发送数据数量
+  
+    /* 发送数据数量，先发送数据数量, AT+CIPSEND=数量，等待模块回复 > */
+  case TcpStatus_Connected:     
     count = Uint2String((uint32_t)length);
     ESP8266_SendString("AT+CIPSEND=");
     ESP8266_SendString(count);
@@ -150,6 +164,7 @@ void ESP8266_HttpTransmit(uint8_t *message, uint16_t length)
     free(count);
     break;
     
+    /* 将数据写入模块，等待回复SEND OK */
   case TcpStatus_StartTrans:    //开始传输
     ESP8266_SendData(message, length);
     ESP8266_TcpStatus = TcpStatus_WaitAck;
@@ -158,13 +173,11 @@ void ESP8266_HttpTransmit(uint8_t *message, uint16_t length)
   
   case TcpStatus_WaitAck:
     if((time + ESP8266_INTERVAL) < sysTime)
-    {
-      ESP8266_ErrorHandle(Error_CipSendError);
-      ESP8266_TcpStatus = TcpStatus_Init;
-    }
+    { ESP8266_ErrorHandle(Error_CipSendError); }        //等待超时错误处理，（AT指令发送数据后，长时间没回复）
     
     break;
     
+    /* 当模块接收到回复数据时，会回复Recv xx bytes，切换为发送成功 */
   case TcpStatus_SendOk:
     ESP8266_TcpStatus = TcpStatus_Init;
     break;
@@ -183,9 +196,10 @@ void ESP8266_RxMsgHandle(uint8_t *packet, uint16_t length)
 {
   char *message = (char *)packet;
   
-  if(ESP8266_TcpStatus == TcpStatus_WaitAck)
-  { uint8_t i = 0; }
+  if(ESP8266_ConnectStatus == ConnectStatus_Connected)
+  { uint8_t i=0; }
   
+  /***********连接wifi部分****************/
   if(strstr(message, "+CWJAP") != NULL || strstr(message, "WIFI CONNECTED") != NULL)
   { ESP8266_ConnectStatus = ConnectStatus_Connected; return; }         //+CWJAP/CONNECTED，置位连接标志位
   
@@ -195,13 +209,14 @@ void ESP8266_RxMsgHandle(uint8_t *packet, uint16_t length)
   if(strstr(message, "No AP") != NULL)                  // No AP，清除连接标志位 
   { ESP8266_Status &= ~ESP8266_WIFI_CONNECTED; return; }
   
+  /************错误ERROR处理************/
   if(strstr(message,"ERROR") != NULL)
   { 
     if(strstr(message, "CWSTARTSMART") != NULL)
     { ESP8266_ErrorHandle(Error_AirKissError); return; }
     
   }
-  /***********TCP部分****************/
+  /**************TCP部分****************/
   
   if(strstr(message, "CLOSED") != NULL)                 //CLOSED 链接关闭
   { ESP8266_TcpStatus = TcpStatus_Init; return; }
@@ -219,12 +234,12 @@ void ESP8266_RxMsgHandle(uint8_t *packet, uint16_t length)
   /***********收到数据处理****************/
   if(strstr(message, "+IPD") != NULL  || strstr(message, "+ID") != NULL)
   { 
-    if(strstr(message, "HTTP") != NULL)
+    if(strstr(message, "HTTP") != NULL)                 //找到HTTP字符串
     { 
-      char* index = (char *)Http_GetResponse(message);
-      
+      char* index = (char *)Http_GetResponse(message);  //通过两次换行找到回复体
+     
       if(index != NULL)
-      { FillRxBlock(esp8266_RxBlockList, (uint8_t*)index, strlen(index)); }
+      { FillRxBlock(Enthernet_RxBlockList, (uint8_t*)index, strlen(index)); }     // 回复体处理
     }
   }  
 
@@ -242,21 +257,11 @@ void ESP8266_RxMsgHandle(uint8_t *packet, uint16_t length)
   ********************************************************************************************/
 void ESP8266_SendAtCmd(uint8_t *data, uint16_t length)
 {
-  uint8_t *temp = (uint8_t*)malloc((length + 2) * sizeof(uint8_t));             //申请一段内存
-  uint16_t i;
-  uint32_t time;
-	
-  for(i=0; i<length; i++)                                //将原有数据复制进入
-  { temp[i] = data[i]; }
-  temp[length] = 0x0D;                                  //最后一字节新增换行
-  temp[length + 1] = 0x0A;
-  ESP8266_SendData(temp, length + 2);                   //发送数据
+  uint8_t end[2] = {0x0D, 0x0A};
+  ESP8266_SendData(data, length);       //发送数据
+  ESP8266_SendData(end, 2);             //发送换行
   
-  time = sysTime;
-  
-  while((time + 300) > sysTime);
-  
-  free(temp);                                           //释放一段内存
+  Delay_ms(20);
 }
 /*********************************************************************************************
 
@@ -284,7 +289,6 @@ void ESP8266_ErrorHandle(ESP8266_Error errorType)
 {
   
   ESP8266_HardWareReset();                                                      //硬件复位
-  ESP8266_ConnectStatus = ConnectStatus_Init;                                 //初始化连接
   
   switch(errorType)
   {

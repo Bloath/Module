@@ -2,7 +2,7 @@
 #define _ARRAY_H_
 
 /* Includes ------------------------------------------------------------------*/
-#include "stdint.h"
+#include "../Sys_Conf.h"
 
 /* Public typedef ------------------------------------------------------------*/
 typedef struct

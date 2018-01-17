@@ -1,18 +1,15 @@
 /* Includes ------------------------------------------------------------------*/
-#include "stdint.h"
 #include "string.h"
-#include "ESP8266.h"
+
 #include "stm32f0xx_hal.h"
-#include "SimpleBuffer.h"
+#include "../UartDma/SimpleBuffer.h"
+#include "ESP8266.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 extern UART_HandleTypeDef huart2;
-
-TxBlockTypeDef esp8266_TxBlockList[TX_BLOCK_COUNT];                      //模块的发送缓冲
-RxBlockTypeDef esp8266_RxBlockList[RX_BLOCK_COUNT];                      //模块的接收缓冲
 
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
@@ -51,17 +48,4 @@ void ESP8266_SendString(const char *string)
 void ESP8266_HardWareReset()
 {
   
-}
-/*********************************************************************************************
-
-  * @brief  ESP8266的数据接收部分，连接之后
-  * @param  data：需要发送的数据指针
-  * @param  length：数据长度  
-  * @retval 无
-  * @remark 
-
-  ********************************************************************************************/
-void ESP8266_ReceiveDataHandle(uint8_t *data, uint16_t length)
-{
-  uint8_t i=0;
 }

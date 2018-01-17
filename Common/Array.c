@@ -1,5 +1,4 @@
 /* Includes ------------------------------------------------------------------*/
-#include "stdint.h"
 #include "stdlib.h"
 #include "Array.h"
 

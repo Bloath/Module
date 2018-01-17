@@ -2,7 +2,7 @@
 #define _CONVERT_H_
 
 /* Includes ------------------------------------------------------------------*/
-#include "stdint.h"
+#include "../Sys_Conf.h"
 #include "Array.h"
 
 /* Public typedef -----------------------------------------------------------*/

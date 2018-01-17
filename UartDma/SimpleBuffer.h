@@ -2,8 +2,8 @@
 #define _SIMPLE_BUFFER_H_
 
 /* Includes ------------------------------------------------------------------*/
-#include "stdint.h"
-#include "Conf.h"
+#include "../Sys_Conf.h"
+#include "SimpleBuffer_Conf.h"
 
 /* Public define -------------------------------------------------------------*/
 
@@ -52,7 +52,10 @@ typedef struct
     uint16_t length;
     uint16_t flag;
     uint16_t retransCounter;
+
+#ifdef TX_BLOCK_TIMEOUT
     uint32_t time;
+#endif
 }TxBlockTypeDef;        // ·¢ËÍ¿é     
 
 

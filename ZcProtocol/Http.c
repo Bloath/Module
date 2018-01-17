@@ -2,8 +2,10 @@
 #include "stdint.h"
 #include "stdlib.h"
 #include "string.h"
-#include "Array.h"
-#include "Conf.h"
+
+#include "../Common/Array.h"
+#include "ZcProtocol_Conf.h"
+#include "Http.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -24,10 +26,18 @@ char* Http_Request(char* string)
   memset(httpPacket, 0, HTTP_MAX_LEN);  
   
   /* ∆¥Ω”HTTP–≠“È */
-  strcat(httpPacket, "GET /?message=");
+  strcat(httpPacket, "GET ");
+  strcat(httpPacket, PATH);
+  strcat(httpPacket, "?message=");
   strcat(httpPacket, string);
   strcat(httpPacket, " HTTP/1.1\r\nHost:");
+#ifdef DOMAIN
   strcat(httpPacket, DOMAIN);
+#else
+  strcat(httpPacket, IP);
+  strcat(httpPacket, ":");
+  strcat(httpPacket, PORT);
+#endif
   strcat(httpPacket, "\r\n\r\n");
   
   return httpPacket;

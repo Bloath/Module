@@ -2,17 +2,16 @@
 #include "stdint.h"
 #include "stdlib.h"
 #include "string.h"
-#include "Array.h"
+
+#include "../Common/Array.h"
+#include "../Common/Convert.h"
 #include "ZcProtocol.h"
-#include "Convert.h"
 #include "Http.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro --------------------------------------------------------------*/
 /* Private variables ----------------------------------------------------------*/
-ZcProtocol zcPrtc;
-
 /* Private function prototypes ------------------------------------------------*/
 uint8_t ZcProtocol_GetCrc(uint8_t *message, uint16_t length);
 
@@ -20,19 +19,26 @@ uint8_t ZcProtocol_GetCrc(uint8_t *message, uint16_t length);
 
   * @brief  协议转报文
   * @param  protocol:  协议结构体指针
+            
   * @retval 报文数组结构体指针
   * @remark 
 
   ********************************************************************************************/
-ArrayStruct* ZcProtocol_ConvertMsg(ZcProtocol* zcProtocol, uint8_t *message, uint16_t length)
+ArrayStruct* ZcProtocol_ConvertMsg(ZcProtocol* zcProtocol, uint8_t *data, uint16_t dataLen)
 {
-  zcProtocol->head.length = ZC_UNDATA_LEN + length;
-  
-  ArrayStruct *msg = Array_New(zcProtocol->head.length);     // 协议头中指针占4个字节，结尾占两个字节
+  /* 确定数据长度，并申请相应内存 */
+  if(data == NULL)
+  { dataLen = 1; }
+  zcProtocol->head.length = ZC_UNDATA_LEN + dataLen;
+  ArrayStruct *msg = Array_New(zcProtocol->head.length);     
 
+  /* 按照 头 、数据、结尾的顺序开始对报文进行赋值 */
   *(ZcProtocolHead*)(msg->packet) = zcProtocol->head;        // 复制协议头
   
-  memcpy(msg->packet + ZC_HEAD_LEN, message, length);      // 复制数据
+  if(data == NULL)
+  { msg->packet[ZC_HEAD_LEN] = 0; }
+  else
+  { memcpy(msg->packet + ZC_HEAD_LEN, data, dataLen); }          // 复制数据域
 
   msg->packet[msg->length - 2] = ZcProtocol_GetCrc(msg->packet, msg->length);     // 填充CRC
   msg->packet[msg->length - 1] = ZC_END;                //填充结束字符
@@ -64,10 +70,10 @@ char* ZcProtocol_ConvertHttpString(ZcProtocol* zcProtocol, uint8_t *data, uint16
 
 /*********************************************************************************************
 
-  * @brief  协议初始化
+  * @brief  协议检查，
   * @param  
-  * @retval 
-  * @remark 设置一些参数，设定地址
+  * @retval 返回协议指针
+  * @remark 检查协议头、尾以及CRC等
 
   ********************************************************************************************/
 ZcProtocol* ZcProtocol_Check(uint8_t *message, uint16_t length)
@@ -99,14 +105,19 @@ ZcProtocol* ZcProtocol_Check(uint8_t *message, uint16_t length)
   ********************************************************************************************/
 uint8_t ZcProtocol_SameId(uint8_t *message, uint16_t length, void *p)
 {
-  uint8_t id = 0, position=42;
-  id |= ((message[position] > 0x40)? (message[position] - 0x41 + 10): (message[position] - 0x30))<<4;
-  id |= (message[position + 1] > 0x40)? (message[position + 1] - 0x41 + 10): (message[position + 1] - 0x30);
-
-  if(id == *((uint8_t *)p))
-  { return 0; }
+  uint8_t id = 0, res=1;
+ 
+  char* index = strstr( (char *)message, "message=");
+  ArrayStruct* msg = String2Msg(index + 8);
   
-  return 1;
+  ZcProtocol *protocol = (ZcProtocol*)msg->packet;
+
+  if(protocol->head.id == *((uint8_t *)p))
+  { res = 0; }
+  
+  Array_Free(msg);
+  
+  return res;
 }
 
 
@@ -124,6 +135,8 @@ uint8_t ZcProtocol_GetCrc(uint8_t *message, uint16_t length)
   uint8_t crc = 0;
   for(uint16_t i=0; i<(length - 2); i++)             //填充CRC
   { crc += message[i]; }
+  
+  crc ^= 0xFF;
 
   return crc;
 }

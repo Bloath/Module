@@ -1,7 +1,7 @@
 /* Includes ------------------------------------------------------------------*/
-#include "stdint.h"
 #include "stdlib.h"
 #include "string.h"
+
 #include "SimpleBuffer.h"
 
 /* Private typedef -----------------------------------------------------------*/
@@ -112,6 +112,8 @@ void TxBlockListHandle(TxBlockTypeDef *txBlock, void (*Transmit)(uint8_t*, uint1
   {
       if(txBlock[i].flag & TX_FLAG_USED)            
       {
+        
+#ifdef TX_BLOCK_TIMEOUT
           /* 发送超时，进入错误处理，并释放发送缓冲块 */
           if((txBlock[i].time + TX_TIME_OUT) < sysTime && txBlock[i].flag & TX_FLAG_TIMEOUT)
           {
@@ -119,6 +121,7 @@ void TxBlockListHandle(TxBlockTypeDef *txBlock, void (*Transmit)(uint8_t*, uint1
             FreeTxBlock(&txBlock[i]);
             continue;
           }
+#endif
         
           /*在已发送标志位为0，或者重复发送为真时
             进行数据的发送，并置位已发送标志位*/
@@ -183,8 +186,11 @@ uint8_t FillTxBlock(TxBlockTypeDef *txBlock, uint8_t *message, uint16_t length, 
       memcpy(txBlock[i].message, message, length);
       txBlock[i].length = length;
       txBlock[i].flag |= TX_FLAG_USED;
+      
+#ifdef TX_BLOCK_TIMEOUT
       txBlock[i].time = sysTime;
-
+#endif
+      
       /* 可以自定义标志位，自动添加占用标志位，默认只发送一次 */
       txBlock[i].flag |= custom;
       
@@ -212,7 +218,10 @@ void FreeTxBlock(TxBlockTypeDef *txBlock)
   txBlock->flag = 0;
   txBlock->length = 0;
   txBlock->retransCounter = 0;
+  
+#ifdef TX_BLOCK_TIMEOUT  
   txBlock->time = 0;
+#endif
 }
 
 /*********************************************************************************************

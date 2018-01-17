@@ -1,9 +1,9 @@
 /* Includes ------------------------------------------------------------------*/
-#include "stdint.h"
 #include "stdlib.h"
+#include "string.h"
+
 #include "stm32f0xx_hal.h"
 #include "stm32_UartDma.h"
-#include "string.h"
 
 /* Public typedef ------------------------------------------------------------*/
 /* Public define -------------------------------------------------------------*/

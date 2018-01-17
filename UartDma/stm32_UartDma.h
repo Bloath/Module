@@ -2,8 +2,9 @@
 #define _STM32_DMA_RX_H_
 
 /* Includes ------------------------------------------------------------------*/
-#include "stdint.h"
+#include "../Sys_Conf.h"
 #include "SimpleBuffer.h"
+
 /* Public typedef ------------------------------------------------------------*/
 
 typedef struct
