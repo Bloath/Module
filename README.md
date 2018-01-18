@@ -48,7 +48,7 @@
 
 
 
-#### 1.2 配置文件与处理文件的使用
+#### 1.2 .Default文件的使用
 
 > Module中的大部分代码是多平台公用的，例如`Array.c` `SimpleBuffer.c` `Convert.c`，但是也有需要硬件处理的或者不同业务的，例如`ESP8266.c`需要硬件串口，`ZcProtocol_Handle.c`不同设备有不同的协议处理。同时用Module代码会造成不同使用者的文件不相同，无法使用git更新代码（同样的文件名，不同平台/产品内容不同，在pull push时会影响其他人的代码）。
 
@@ -66,7 +66,12 @@ Sys_Conf.h		# 任意修改，不会上传或更新
 Sys_Conf.h.Default	# 会随着commit不断更新，第一次使用时应该复制并去掉.Default
 ```
 
+#### 1.3 命名规则
 
-
-
-
+* 需要隔离的类型，后缀要加上.Default，且在上传时会屏蔽
+  * 配置文件xxx_Conf.h，对代码包的配置
+  * 业务处理文件xxx_Handle.c/h，不同产品不同业务处理
+  * 硬件接口文件xxx_HalApi.c/h，针对不同MCU进行自定义配置
+* 不需要隔离的文件
+  * 接口文件 xxx_API.c/h，例如ZcProtocol_API，包含接收、发送、主循环处理等等
+  * 基础定义文件xxx.c/h，例如ZcProtocol.c，包含协议结构体定义，协议检查，CRC获取等。相较于ZcProtocol_API更为基础。
