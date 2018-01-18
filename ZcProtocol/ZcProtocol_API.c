@@ -174,6 +174,13 @@ void ZcProtocol_ReceiveHandle(uint8_t *message, uint16_t length)
           zcHandle.status = ZcHandleStatus_Idle;  // 切换为空闲状态，发送下一次查询暂存报文
           zcPrtc.head.id++;                       // Id递增
         }
+        
+        /* 当控制欲的SFD为1时，直接发送查询暂存报文,并切换为等待状态*/
+        if((protocol->head.control & (1<<7)) != 0)
+        { 
+          ZcProtocol_NetTransmit(ZC_CMD_FAIL, NULL, 0, 0);
+          zcHandle.status = ZcHandleStatus_Wait; 
+        }   
         break;
       
       /* 地址域 */
