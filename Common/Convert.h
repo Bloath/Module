@@ -13,5 +13,6 @@
 ArrayStruct* String2Msg(char* string);
 char* Msg2String(uint8_t *message, uint16_t length);
 char* Uint2String(uint32_t number);
+void StrCat(char* src, char* str);
 
 #endif

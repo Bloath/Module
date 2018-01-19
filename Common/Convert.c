@@ -105,3 +105,26 @@ char* Uint2String(uint32_t number)
   
   return numString;
 }
+/*********************************************************************************************
+
+  * @brief  字符串拼接
+  * @param  src,源字符串
+            str：后面拼接的字符串
+  * @retval 
+  * @remark 有的编译器对strcat的支持不好，
+
+  ********************************************************************************************/
+void StrCat(char* src, char* str)
+{
+  char* p = src;
+  
+  while(1)
+  {
+    if(*p == 0)
+    { break; }
+    else
+    { p += 1; }
+  }
+  
+  memcpy(p, str, strlen(str));
+}
