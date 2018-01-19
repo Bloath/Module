@@ -6,6 +6,6 @@
 
 #define sysTime HAL_GetTick()
 
-
+#define CUSTOM_STANDARD_FUNCTION
   
 #endif
