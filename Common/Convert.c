@@ -3,6 +3,7 @@
 #include "string.h"
 #include "math.h"
 
+#include "../Module/Common/Malloc.h"
 #include "Array.h"
 
 /* Private typedef -----------------------------------------------------------*/
