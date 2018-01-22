@@ -4,6 +4,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "../Sys_Conf.h"
 #include "../UartDma/SimpleBuffer.h"
+#include "ZcProtocol.h"
 
 /* Public typedef ------------------------------------------------------------*/
 typedef enum

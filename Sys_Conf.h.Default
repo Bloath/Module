@@ -5,7 +5,5 @@
 #include "stdint.h"
 
 #define sysTime HAL_GetTick()
-
-#define CUSTOM_STANDARD_FUNCTION  //是否使用自定义的标准库
   
 #endif

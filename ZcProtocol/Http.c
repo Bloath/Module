@@ -12,23 +12,6 @@
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 /* Private function prototypes -----------------------------------------------*/
-/*********************************************************************************************
-
-  * @brief  字符串拼接
-  * @param  src,源字符串
-            str：后面拼接的字符串
-  * @retval 
-  * @remark 在sys_conf中，有切换是否使用标准库的宏定义
-
-  ********************************************************************************************/
-void Str_Concat(char *src, char *str)
-{
-#ifdef CUSTOM_STANDARD_FUNCTION
-  StrCat(src, str);
-#else
-  strcat(src, str);
-#endif
-}
 
 /*********************************************************************************************
  * @brief HTTP q请求头
@@ -43,19 +26,19 @@ char* Http_Request(char* string)
   memset(httpPacket, 0, HTTP_MAX_LEN);  
   
   /* 拼接HTTP协议 */
-  Str_Concat(httpPacket, "GET ");
-  Str_Concat(httpPacket, PATH);
-  Str_Concat(httpPacket, "?message=");
-  Str_Concat(httpPacket, string);
-  Str_Concat(httpPacket, " HTTP/1.1\r\nHost:");
+  strstr(httpPacket, "GET ");
+  strstr(httpPacket, PATH);
+  strstr(httpPacket, "?message=");
+  strstr(httpPacket, string);
+  strstr(httpPacket, " HTTP/1.1\r\nHost:");
 #ifdef DOMAIN
-  Str_Concat(httpPacket, DOMAIN);
+  strstr(httpPacket, DOMAIN);
 #else
-  Str_Concat(httpPacket, IP);
-  Str_Concat(httpPacket, ":");
-  Str_Concat(httpPacket, PORT);
+  strstr(httpPacket, IP);
+  strstr(httpPacket, ":");
+  strstr(httpPacket, PORT);
 #endif
-  Str_Concat(httpPacket, "\r\n\r\n");
+  strstr(httpPacket, "\r\n\r\n");
   
   return httpPacket;
 }
