@@ -1,10 +1,9 @@
 /* Includes ------------------------------------------------------------------*/
-#include "stdint.h"
-#include "stdlib.h"
 #include "string.h"
 
 #include "../Common/Array.h"
 #include "../Common/Convert.h"
+#include "../Module/Common/Malloc.h"
 #include "ZcProtocol_Conf.h"
 #include "Http.h"
 
@@ -40,7 +39,7 @@ void Str_Concat(char *src, char *str)
 char* Http_Request(char* string)
 {  
   /* 申请内存 */
-  char *httpPacket = (char*)malloc(HTTP_MAX_LEN);    
+  char *httpPacket = (char*)Malloc(HTTP_MAX_LEN);    
   memset(httpPacket, 0, HTTP_MAX_LEN);  
   
   /* 拼接HTTP协议 */
@@ -72,5 +71,5 @@ char* Http_GetResponse(char *packet)
   char * index = strstr(packet, "HTTP");        //先找到HTTP
   index = strstr(index, "\r\n\r\n");           //再找双换行
   
-  return (char*)(index + 4);
+  return (index == NULL)? (char*)index:(char*)(index + 4);
 }

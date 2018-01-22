@@ -1,5 +1,6 @@
 /* Includes ------------------------------------------------------------------*/
-#include "stdlib.h"
+
+#include "../Module/Common/Malloc.h"
 #include "Array.h"
 
 /* Private typedef -----------------------------------------------------------*/
@@ -17,10 +18,10 @@
   ********************************************************************************************/
 ArrayStruct* Array_New(uint16_t length)
 {
-  ArrayStruct* array = (ArrayStruct* )malloc(sizeof(ArrayStruct));
+  ArrayStruct* array = (ArrayStruct* )Malloc(sizeof(ArrayStruct));
   
   array->length = length;
-  array->packet = (uint8_t *)malloc(array->length);
+  array->packet = (uint8_t *)Malloc(array->length);
   
   return array;
 }
@@ -34,8 +35,8 @@ ArrayStruct* Array_New(uint16_t length)
   ********************************************************************************************/
 void Array_Free(ArrayStruct* array)
 {
-  free(array->packet);
-  free(array);
+  Free(array->packet);
+  Free(array);
 }
 
 

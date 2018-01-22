@@ -41,9 +41,9 @@ uint8_t Char2Hex(char x)
   * @remark 转换完成的报文数组
 
   ********************************************************************************************/
-ArrayStruct* String2Msg(char* string)
+ArrayStruct* String2Msg(char* string, uint16_t specifyLen)
 {
-  uint16_t length = strlen(string);
+  uint16_t length = (specifyLen == 0)? strlen(string): specifyLen;
   ArrayStruct* msg = Array_New(length / 2);
   
   for(uint16_t i=0; i<(length / 2); i++)
@@ -66,7 +66,7 @@ ArrayStruct* String2Msg(char* string)
   ********************************************************************************************/
 char* Msg2String(uint8_t *message, uint16_t length)
 {
-  char *string = (char*)malloc(length * 2 + 1);
+  char *string = (char*)Malloc(length * 2 + 1);
   
   for(uint8_t i=0; i<length; i++)
   {
@@ -92,7 +92,7 @@ char* Uint2String(uint32_t number)
   uint32_t temp = 0;
   
   /* 申请内存准备放置字符串 */ 
-  char *numString = (char*)malloc(len + 1);     // 申请对应内存
+  char *numString = (char*)Malloc(len + 1);     // 申请对应内存
   memset(numString, 0, len + 1);        // 全部置零
   
   /* 字符串赋值 */

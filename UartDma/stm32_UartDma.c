@@ -1,7 +1,7 @@
 /* Includes ------------------------------------------------------------------*/
-#include "stdlib.h"
 #include "string.h"
 
+#include "../Module/Common/Malloc.h"
 #include "stm32f0xx_hal.h"
 #include "stm32_UartDma.h"
 
@@ -58,7 +58,7 @@ void Stm32_UartRxDma_IntHandle(UartRxDmaStruct *uartRxDma)
   else if(uartRxDma->end < uartRxDma->start)
   {
 #ifdef DYNAMIC_MEMORY
-    uint8_t *message = (uint8_t *)malloc(uartRxDma->bufferLength - uartRxDma->start + uartRxDma->end );
+    uint8_t *message = (uint8_t *)Malloc(uartRxDma->bufferLength - uartRxDma->start + uartRxDma->end );
 #else
     uint8_t message[STATIC_BUFFER_LEN];
 #endif
@@ -75,7 +75,7 @@ void Stm32_UartRxDma_IntHandle(UartRxDmaStruct *uartRxDma)
                 message, 
                 uartRxDma->bufferLength - uartRxDma->start + uartRxDma->end);
 #ifdef DYNAMIC_MEMORY
-    free(message);
+    Free(message);
 #endif
   }
   

@@ -7,6 +7,7 @@
 #include "../UartDma/SimpleBuffer.h"
 #include "../Common/Convert.h"
 #include "../Common/Delay.h"
+#include "../Module/Common/Malloc.h"
 
 #include "../ZcProtocol/Http.h"
 #include "../ZcProtocol/ZcProtocol_Conf.h"
@@ -161,7 +162,7 @@ void ESP8266_HttpTransmit(uint8_t *message, uint16_t length)
     ESP8266_SendString("\r\n");
     ESP8266_TcpStatus = TcpStatus_WaitAck;
     time = sysTime;
-    free(count);
+    Free(count);
     break;
     
     /* 将数据写入模块，等待回复SEND OK */

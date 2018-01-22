@@ -37,7 +37,6 @@ typedef struct
 #endif
   
   uint16_t length;
-  uint8_t isString;
 }RxBlockTypeDef;        //Ω” ’øÈ
 
 

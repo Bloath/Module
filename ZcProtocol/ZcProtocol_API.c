@@ -6,6 +6,7 @@
 #include "ZcProtocol.h"
 
 //在此下面是针对不同处理环境添加的头
+#include "../Module/Common/Malloc.h"
 #include "../ESP8266/ESP8266.h"
 #include "../UartDma/SimpleBuffer.h"
 #include "../Sys_Conf.h"
@@ -85,7 +86,7 @@ void ZcProtocol_NetTransmit(uint8_t cmd, uint8_t *data, uint16_t dataLen, uint8_
   
   char* httpMsg = ZcProtocol_ConvertHttpString(&zcPrtc, data, dataLen);         //转换为HTTP协议，
   FillTxBlock(Enthernet_TxBlockList, (uint8_t*)httpMsg, strlen(httpMsg), TX_FLAG_MC|TX_FLAG_RT);        //填写到网络发送缓冲当中
-  free(httpMsg);
+  Free(httpMsg);
   
   /* 更新ID */
   if(isUpdateId)
@@ -128,6 +129,7 @@ void ZcProtocol_Handle()
     /* 等待状态，发送缓冲为手动清除，如果没有回复的话是不会清除的 
        等待状态为死锁，直到接收到确认报文或者查询暂存回复*/
   case ZcHandleStatus_Wait:
+    time = sysTime;
     break;
   }
 }
@@ -210,7 +212,7 @@ void ZcProtocol_ReceiveHandle(uint8_t *message, uint16_t length)
   ********************************************************************************************/
 void ZcProtocol_NetReceiveHandle(uint8_t *message, uint16_t length)
 {
-  ArrayStruct *msg = String2Msg((char*)message);                // 字符串转报文数组
+  ArrayStruct *msg = String2Msg((char*)message, 0);                // 字符串转报文数组
   
   ZcProtocol_ReceiveHandle(msg->packet, msg->length);           //协议的原始报文处理
   

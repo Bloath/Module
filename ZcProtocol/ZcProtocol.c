@@ -5,6 +5,7 @@
 
 #include "../Common/Array.h"
 #include "../Common/Convert.h"
+#include "../Module/Common/Malloc.h"
 #include "ZcProtocol.h"
 #include "Http.h"
 
@@ -63,7 +64,7 @@ char* ZcProtocol_ConvertHttpString(ZcProtocol* zcProtocol, uint8_t *data, uint16
   Array_Free(msg);
   
   char *httpMsg = Http_Request(msgString);                    // 再转换成Http包，
-  free(msgString);
+  Free(msgString);
   
   return httpMsg;
 }
@@ -108,7 +109,7 @@ uint8_t ZcProtocol_SameId(uint8_t *message, uint16_t length, void *p)
   uint8_t res=1;
  
   char* index = strstr( (char *)message, "message=");
-  ArrayStruct* msg = String2Msg(index + 8);
+  ArrayStruct* msg = String2Msg(index + 8, ZC_HEAD_LEN * 2);
   
   ZcProtocol *protocol = (ZcProtocol*)msg->packet;
 

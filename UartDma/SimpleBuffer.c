@@ -1,7 +1,7 @@
 /* Includes ------------------------------------------------------------------*/
-#include "stdlib.h"
 #include "string.h"
 
+#include "../Module/Common/Malloc.h"
 #include "SimpleBuffer.h"
 
 /* Private typedef -----------------------------------------------------------*/
@@ -50,7 +50,7 @@ void FillRxBlock( RxBlockTypeDef *rxBlock, uint8_t *packet, uint16_t Len)
       rxBlock[i].flag |= RX_FLAG_USED;                                              //报文块使用标志位置位
 
 #ifdef DYNAMIC_MEMORY      
-      rxBlock[i].message = (uint8_t*)malloc((Len + 1) * sizeof(uint8_t));         //根据缓冲长度申请内存，多一个字节，用于填写字符串停止符
+      rxBlock[i].message = (uint8_t*)Malloc((Len + 1) * sizeof(uint8_t));         //根据缓冲长度申请内存，多一个字节，用于填写字符串停止符
 #endif
       
       memcpy(rxBlock[i].message, packet, Len);  
@@ -82,7 +82,7 @@ void RxBlockListHandle(RxBlockTypeDef *rxBlock, void (*f)(uint8_t*, uint16_t))
       (*f)(rxBlock[i].message, rxBlock[i].length);
       
 #ifdef DYNAMIC_MEMORY  
-      free(rxBlock[i].message);                             //释放申请的内存,定长
+      Free(rxBlock[i].message);                             //释放申请的内存
 #endif      
     
       rxBlock[i].flag &= ~RX_FLAG_USED;                    //清空已使用标志位
@@ -180,7 +180,7 @@ uint8_t FillTxBlock(TxBlockTypeDef *txBlock, uint8_t *message, uint16_t length, 
     if((txBlock[i].flag & TX_FLAG_USED) == 0)
     {
       #ifdef DYNAMIC_MEMORY
-        txBlock[i].message = (uint8_t*)malloc(length * sizeof(uint8_t));
+        txBlock[i].message = (uint8_t*)Malloc(length * sizeof(uint8_t));
       #endif
 
       memcpy(txBlock[i].message, message, length);
@@ -212,7 +212,7 @@ uint8_t FillTxBlock(TxBlockTypeDef *txBlock, uint8_t *message, uint16_t length, 
 void FreeTxBlock(TxBlockTypeDef *txBlock)
 {
 #ifdef DYNAMIC_MEMORY
-  free(txBlock->message);
+  Free(txBlock->message);
 #endif
   
   txBlock->flag = 0;
