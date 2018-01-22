@@ -26,19 +26,19 @@ char* Http_Request(char* string)
   memset(httpPacket, 0, HTTP_MAX_LEN);  
   
   /* ∆¥Ω”HTTP–≠“È */
-  strstr(httpPacket, "GET ");
-  strstr(httpPacket, PATH);
-  strstr(httpPacket, "?message=");
-  strstr(httpPacket, string);
-  strstr(httpPacket, " HTTP/1.1\r\nHost:");
+  strcat(httpPacket, "GET ");
+  strcat(httpPacket, PATH);
+  strcat(httpPacket, "?message=");
+  strcat(httpPacket, string);
+  strcat(httpPacket, " HTTP/1.1\r\nHost:");
 #ifdef DOMAIN
-  strstr(httpPacket, DOMAIN);
+  strcat(httpPacket, DOMAIN);
 #else
-  strstr(httpPacket, IP);
-  strstr(httpPacket, ":");
-  strstr(httpPacket, PORT);
+  strcat(httpPacket, IP);
+  strcat(httpPacket, ":");
+  strcat(httpPacket, PORT);
 #endif
-  strstr(httpPacket, "\r\n\r\n");
+  strcat(httpPacket, "\r\n\r\n");
   
   return httpPacket;
 }
