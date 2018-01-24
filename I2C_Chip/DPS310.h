@@ -135,8 +135,8 @@ typedef struct
 } struct_DPS310_coef;
 
 /* Private function prototypes ------------------------------------------------*/
-void DPS310_Config(DPS310_config configNumber);
-struct_DPS310_coef DPS310_Get_Coef();
-void DPS310_Get_Pressure(struct_DPS310_coef coef, uint8_t* dataSave );
+void DPS310_Config(uint8_t address, DPS310_config configNumber);
+struct_DPS310_coef DPS310_Get_Coef(uint8_t address);
+void DPS310_Get_Pressure(uint8_t address, struct_DPS310_coef coef, uint8_t* dataSave );
 
 #endif

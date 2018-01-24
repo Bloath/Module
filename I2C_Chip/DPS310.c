@@ -27,9 +27,9 @@
  *  @举例      
 ******************************************************************************************/
 
-uint8_t DPS310_ReadRegister( uint8_t registerAddress, uint8_t *dataSave)
+uint8_t DPS310_ReadRegister(uint8_t address, uint8_t registerAddress, uint8_t *dataSave)
 {
-  return SimulatedI2C_ByteRead(DPS310_I2C_POINTER, DPS310_DeviceAddress, registerAddress, dataSave);	
+  return SimulatedI2C_ByteRead(DPS310_I2C_POINTER, address, registerAddress, dataSave);	
 }
 
 /******************************************************************************************
@@ -43,9 +43,9 @@ uint8_t DPS310_ReadRegister( uint8_t registerAddress, uint8_t *dataSave)
  *  @举例      
 ******************************************************************************************/
 
-uint8_t DPS310_ReadRegisters(uint8_t startAddress, uint8_t dataCount, uint8_t * dataBuff)
+uint8_t DPS310_ReadRegisters(uint8_t address, uint8_t startAddress, uint8_t dataCount, uint8_t * dataBuff)
 {
-  return SimulatedI2C_Read(DPS310_I2C_POINTER, DPS310_DeviceAddress, startAddress, dataBuff, dataCount);		
+  return SimulatedI2C_Read(DPS310_I2C_POINTER, address, startAddress, dataBuff, dataCount);		
 }
 /******************************************************************************************
  *  @名称      DPS310_WriteRegister 
@@ -58,9 +58,9 @@ uint8_t DPS310_ReadRegisters(uint8_t startAddress, uint8_t dataCount, uint8_t * 
  *  @举例      
 ******************************************************************************************/
 
-uint8_t DPS310_WriteRegister(uint8_t registerAddress, uint8_t dataBuff)
+uint8_t DPS310_WriteRegister(uint8_t address, uint8_t registerAddress, uint8_t dataBuff)
 {
-  return SimulatedI2C_ByteWrite(DPS310_I2C_POINTER, DPS310_DeviceAddress, registerAddress, dataBuff);			
+  return SimulatedI2C_ByteWrite(DPS310_I2C_POINTER, address, registerAddress, dataBuff);			
 }
 
 /******************************************************************************************
@@ -74,27 +74,27 @@ uint8_t DPS310_WriteRegister(uint8_t registerAddress, uint8_t dataBuff)
  *  @举例      
 ******************************************************************************************/
 
-void DPS310_Config(DPS310_config configNumber)
+void DPS310_Config(uint8_t address, DPS310_config configNumber)
 {
   uint8_t temp[3];
-  DPS310_ReadRegisters(DPS310_StartAddress, 3, temp);  // 为什么需要有这一步，下面的设置才正确。
+  DPS310_ReadRegisters(address, DPS310_StartAddress, 3, temp);  // 为什么需要有这一步，下面的设置才正确。
   
   if(configNumber == CONFIG_1)
   {
-    DPS310_WriteRegister(PRS_CFG, 0x35);   
+    DPS310_WriteRegister(address, PRS_CFG, 0x35);   
     Delay_ms(100);  
-    DPS310_WriteRegister(TMP_CFG, 0xA0);   
+    DPS310_WriteRegister(address, TMP_CFG, 0xA0);   
     Delay_ms(100);  
-    DPS310_WriteRegister(CFG_REG, 0x04); 
+    DPS310_WriteRegister(address, CFG_REG, 0x04); 
     Delay_ms(100); 
   }
   else if(configNumber == CONFIG_2)
   {
-    DPS310_WriteRegister(PRS_CFG, 0x26);   
+    DPS310_WriteRegister(address, PRS_CFG, 0x26);   
     Delay_ms(100);  
-    DPS310_WriteRegister(TMP_CFG, 0xA0);   
+    DPS310_WriteRegister(address, TMP_CFG, 0xA0);   
     Delay_ms(100);  
-    DPS310_WriteRegister(CFG_REG, 0x04); 
+    DPS310_WriteRegister(address, CFG_REG, 0x04); 
     Delay_ms(100); 
   }
 }
@@ -109,11 +109,11 @@ void DPS310_Config(DPS310_config configNumber)
  *  @日期      2016-11-02 
  *  @举例       
 ******************************************************************************************/
-struct_DPS310_coef DPS310_Get_Coef()
+struct_DPS310_coef DPS310_Get_Coef(uint8_t address)
 {
   uint8_t coefBuff[COEF_COUNT];
   struct_DPS310_coef dataSave;  // 创建数据实例
-  DPS310_ReadRegisters(COEF, COEF_COUNT, coefBuff);     // 从计算系数中读取N个数
+  DPS310_ReadRegisters(address, COEF, COEF_COUNT, coefBuff);     // 从计算系数中读取N个数
   
   dataSave.C0 = coefBuff[0];
   dataSave.C0 = (dataSave.C0 << 4) + (coefBuff[1] >> 4); 
@@ -166,7 +166,7 @@ struct_DPS310_coef DPS310_Get_Coef()
  *  @日期      2016-11-02 
  *  @举例      
 ******************************************************************************************/
-void DPS310_Get_Pressure(struct_DPS310_coef coef, uint8_t* dataSave )
+void DPS310_Get_Pressure(uint8_t address, struct_DPS310_coef coef, uint8_t* dataSave )
 {
   uint8_t dataReady[1] = {0};
   uint8_t PRS_buff[3] = {0, 0, 0};
@@ -183,13 +183,13 @@ void DPS310_Get_Pressure(struct_DPS310_coef coef, uint8_t* dataSave )
   long long int P_raw = 0;
   long long int T_raw = 0;
   
-  DPS310_WriteRegister(MEAS_CFG, 0x01); 
+  DPS310_WriteRegister(address, MEAS_CFG, 0x01); 
   while( !(dataReady[0] & 0x10))
   {
-    DPS310_ReadRegisters(MEAS_CFG,1,dataReady);
+    DPS310_ReadRegisters(address, MEAS_CFG,1,dataReady);
     Delay_ms(50);
   }
-  DPS310_ReadRegisters(PRS_STARTADDRESS, PRS_COUNT, PRS_buff); 
+  DPS310_ReadRegisters(address, PRS_STARTADDRESS, PRS_COUNT, PRS_buff); 
     
   Pressure = PRS_buff[0];
   Pressure = (Pressure << 8) + PRS_buff[1];
