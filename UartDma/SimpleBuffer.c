@@ -3,6 +3,7 @@
 
 #include "../Module/Common/Malloc.h"
 #include "SimpleBuffer.h"
+#include "SimpleBuffer_Handle.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -25,6 +26,8 @@ void ReceiveSingleByte(uint8_t data, RxBufferTypeDef *rxBuffer)
 {
   rxBuffer->buffer[rxBuffer->count] = data;         //填入缓冲 
   rxBuffer->count ++;                               //计数器递增
+  if(rxBuffer->count >= BUFFER_LENGTH)
+  { BufferOverFlow(); }
 }
 
 /*********************************************************************************************
@@ -39,19 +42,19 @@ void ReceiveSingleByte(uint8_t data, RxBufferTypeDef *rxBuffer)
   ********************************************************************************************/
 void FillRxBlock( RxBlockTypeDef *rxBlock, uint8_t *packet, uint16_t Len)
 {
+  uint8_t i = 0;
+  
   if(Len == 0)
   { return; }
   
   /* 找到空闲缓冲，填入 */
-  for(uint16_t i=0; i<RX_BLOCK_COUNT; i++)
+  for(i=0; i<RX_BLOCK_COUNT; i++)
   {
     if(!(rxBlock[i].flag & RX_FLAG_USED))                                      //查找空闲报文队列
     {
       rxBlock[i].flag |= RX_FLAG_USED;                                              //报文块使用标志位置位
-
-#ifdef DYNAMIC_MEMORY      
+    
       rxBlock[i].message = (uint8_t*)Malloc((Len + 1) * sizeof(uint8_t));         //根据缓冲长度申请内存，多一个字节，用于填写字符串停止符
-#endif
       
       memcpy(rxBlock[i].message, packet, Len);  
       
@@ -61,6 +64,9 @@ void FillRxBlock( RxBlockTypeDef *rxBlock, uint8_t *packet, uint16_t Len)
       break;
     }
   }
+  
+  if(i == RX_BLOCK_COUNT)
+  { RxBlock_ErrorHandle(rxBlock, BlockFull); }
 }
 
 /*********************************************************************************************
@@ -81,9 +87,7 @@ void RxBlockListHandle(RxBlockTypeDef *rxBlock, void (*f)(uint8_t*, uint16_t))
     {
       (*f)(rxBlock[i].message, rxBlock[i].length);
       
-#ifdef DYNAMIC_MEMORY  
       Free(rxBlock[i].message);                             //释放申请的内存
-#endif      
     
       rxBlock[i].flag &= ~RX_FLAG_USED;                    //清空已使用标志位
     }
@@ -155,23 +159,7 @@ void TxBlockListHandle(TxBlockTypeDef *txBlock, void (*Transmit)(uint8_t*, uint1
   * @remark 
 
   ********************************************************************************************/
-void TxBlockErrorHandle(TxBlockError error)
-{
-
-  
-}
-
-/*********************************************************************************************
-
-  * @brief  填充发送结构体
-  * @param  txBlock：发送模块结构体指针
-  * @param  message：报文指针
-  * @param  length：报文长度
-  * @return 
-  * @remark 
-
-  ********************************************************************************************/
-uint8_t FillTxBlock(TxBlockTypeDef *txBlock, uint8_t *message, uint16_t length,  uint8_t custom)
+void FillTxBlock(TxBlockTypeDef *txBlock, uint8_t *message, uint16_t length,  uint8_t custom)
 {
   uint16_t i;
   
@@ -179,9 +167,7 @@ uint8_t FillTxBlock(TxBlockTypeDef *txBlock, uint8_t *message, uint16_t length, 
   { 
     if((txBlock[i].flag & TX_FLAG_USED) == 0)
     {
-      #ifdef DYNAMIC_MEMORY
-        txBlock[i].message = (uint8_t*)Malloc(length * sizeof(uint8_t));
-      #endif
+      txBlock[i].message = (uint8_t*)Malloc(length * sizeof(uint8_t));
 
       memcpy(txBlock[i].message, message, length);
       txBlock[i].length = length;
@@ -199,7 +185,8 @@ uint8_t FillTxBlock(TxBlockTypeDef *txBlock, uint8_t *message, uint16_t length, 
     
   }
   
-  return (i==TX_BLOCK_COUNT)?1:0;
+  if(i == TX_BLOCK_COUNT)
+  { TxBlock_ErrorHandle(txBlock, BlockFull); }
 }
 /*********************************************************************************************
 
@@ -211,9 +198,7 @@ uint8_t FillTxBlock(TxBlockTypeDef *txBlock, uint8_t *message, uint16_t length, 
   ********************************************************************************************/
 void FreeTxBlock(TxBlockTypeDef *txBlock)
 {
-#ifdef DYNAMIC_MEMORY
   Free(txBlock->message);
-#endif
   
   txBlock->flag = 0;
   txBlock->length = 0;
@@ -244,7 +229,6 @@ void ClearSpecifyBlock(TxBlockTypeDef *txBlock, uint8_t (*func)(uint8_t*, uint16
       if(!func(txBlock[i].message, txBlock[i].length, p))
       { FreeTxBlock(txBlock + i); }
     }
-    
   }
 }
 

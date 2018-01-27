@@ -105,6 +105,7 @@ void ESP8266_Handle()
     { 
       ESP8266_SendAtString("AT+CWJAP?");
       time = sysTime;
+      ESP8266_ConnectStatus = ConnectStatus_WaitAck;
     }
     break;
     
@@ -112,9 +113,12 @@ void ESP8266_Handle()
   case ConnectStatus_AirKiss:   //Airkiss
     ESP8266_SendAtString("AT+CWSTARTSMART=3");
     ESP8266_ConnectStatus = ConnectStatus_WaitAck;
+    time = sysTime;
     break;
     
   case ConnectStatus_WaitAck:
+    if((time + ESP8266_INTERVAL) < sysTime)
+    { ESP8266_ErrorHandle(Error_transmitTimeout);}
     break;
     
   case ConnectStatus_Connected:

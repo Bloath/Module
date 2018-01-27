@@ -29,28 +29,17 @@ typedef struct
 typedef struct
 {
   uint8_t flag;
-  
-#ifdef DYNAMIC_MEMORY
   uint8_t *message;
-#else
-  uint8_t message[STATIC_BUFFER_LEN];
-#endif
-  
   uint16_t length;
 }RxBlockTypeDef;        //接收块
 
 
 typedef struct
 {
-#ifdef DYNAMIC_MEMORY
   uint8_t *message;
-#else
-  uint8_t message[STATIC_BUFFER_LEN];
-#endif
-  
-    uint16_t length;
-    uint16_t flag;
-    uint16_t retransCounter;
+  uint16_t length;
+  uint16_t flag;
+  uint16_t retransCounter;
 
 #ifdef TX_BLOCK_TIMEOUT
     uint32_t time;
@@ -81,7 +70,7 @@ void RxBlockListHandle(RxBlockTypeDef *rxBlock, void (*f)(uint8_t*, uint16_t)); 
 
 
 /* 发送需要的函数 */
-uint8_t FillTxBlock(TxBlockTypeDef *txBlock, uint8_t *message, uint16_t length, uint8_t ManualClear);           //填充发送队列，包含清除重发以及未使用标志位为1
+void FillTxBlock(TxBlockTypeDef *txBlock, uint8_t *message, uint16_t length, uint8_t ManualClear);           //填充发送队列，包含清除重发以及未使用标志位为1
 void TxBlockListHandle(TxBlockTypeDef *txBlock, void (*Transmit)(uint8_t*, uint16_t), uint32_t timeout);
 void FreeTxBlock(TxBlockTypeDef *txBlock);                                                              //释放发送块，释放内存清除标志位
 void ClearSpecifyBlock(TxBlockTypeDef *txBlock, uint8_t (*func)(uint8_t*, uint16_t, void*), void *p);   //通过指定函数，清除

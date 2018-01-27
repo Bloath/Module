@@ -29,7 +29,7 @@ typedef struct
 typedef struct
 {
   ZcProtocolHead head;
-  uint8_t *data;
+  uint8_t data;
 }ZcProtocol;
 
 /* Public define ------------------------------------------------------------*/
