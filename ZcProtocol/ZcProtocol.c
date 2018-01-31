@@ -83,14 +83,14 @@ ZcProtocol* ZcProtocol_Check(uint8_t *message, uint16_t length)
   { return NULL; }
   
   ZcProtocol *protocol = (ZcProtocol*)message;  // 获取协议结构指针
-  ZcProtocolEnd *tail = (ZcProtocolEnd*)(message + length - 2);
+  ZcProtocolEnd *tail = (ZcProtocolEnd*)(message + protocol->head.length - 2);
   
   /* 首尾判断 */
   if(protocol->head.head != ZC_HEAD || tail->end != ZC_END)
   {  return NULL;  }
   
   /* CRC判断 */
-  if(tail->crc != ZcProtocol_GetCrc(message, length))
+  if(tail->crc != ZcProtocol_GetCrc(message, protocol->head.length))
   { return NULL;  }
 
   return protocol;
