@@ -3,7 +3,12 @@
 
 #include "stm32f0xx_hal.h"
 #include "stdint.h"
+#include "main.h"
+
+extern uint32_t realTimeCounter;
 
 #define sysTime HAL_GetTick()
-  
+#define realTime realTimeCounter
+
+
 #endif
