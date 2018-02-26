@@ -57,8 +57,6 @@ typedef enum
   TxBlockError_TimeOut = 0
 }TxBlockError;
 
-
-
 /* Public macro --------------------------------------------------------------*/
 /* Public variables ----------------------------------------------------------*/
 /* Public function prototypes ------------------------------------------------*/

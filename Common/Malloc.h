@@ -11,6 +11,13 @@ typedef struct
   uint16_t endIndex;   
 }MallocBlockStruct;
 
+typedef enum
+{
+  Malloc_OutOfMemory = 0,
+  Malloc_OutOfBlocks,
+  Malloc_MemoryUnreasonable,
+}MallocErrorEnum;
+
 /* Public define -------------------------------------------------------------*/
 /* Public macro --------------------------------------------------------------*/
 /* Public variables ----------------------------------------------------------*/

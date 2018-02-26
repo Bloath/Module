@@ -27,12 +27,12 @@ void* Malloc(uint16_t size)
   /* Ê£ÓàÈÝÁ¿²»×ã */
   if(surplusMemory < size)
   {
-    MallocError_OutOfMemory();
+    Malloc_ErrorHandle(Malloc_OutOfMemory);
     return NULL;
   }
   if(usedBlockCount == MALLOC_BLOCK_COUNT)
   {
-     MallocError_OutOfBlocks();
+     Malloc_ErrorHandle(Malloc_OutOfBlocks);
      return NULL;
   }
   
@@ -108,7 +108,7 @@ void* Malloc(uint16_t size)
   }
   else
   {  
-    MallocError_OutOfMemory();
+    Malloc_ErrorHandle(Malloc_MemoryUnreasonable);
     return NULL;
   }
   

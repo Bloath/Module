@@ -60,11 +60,11 @@ uint32_t ZcProtocol_TimeStamp(uint32_t timeStamp)
   if(timeStamp != 0)
   { 
     zcPrtc.head.timestamp = timeStamp;  //更新时间戳
-    time = sysTime;                     //记录此时的系统时间
+    time = realTime;                     //记录此时的系统时间
     return 0;                           //返回0
   }
   else
-  { return zcPrtc.head.timestamp + (sysTime - time) / 1000; } //获取时间戳，则是在之前记录的时间戳的基础上，加上后面跑过的系统时间
+  { return zcPrtc.head.timestamp + (realTime - time) / 1000; } //获取时间戳，则是在之前记录的时间戳的基础上，加上后面跑过的系统时间
     
 }
 
@@ -81,6 +81,10 @@ uint32_t ZcProtocol_TimeStamp(uint32_t timeStamp)
   ********************************************************************************************/
 void ZcProtocol_NetTransmit(uint8_t cmd, uint8_t *data, uint16_t dataLen, uint8_t isUpdateId)
 {
+    /* 取一个新ID */
+  if(isUpdateId)
+  { zcPrtc.head.id ++; }  
+  
   zcPrtc.head.timestamp = ZcProtocol_TimeStamp(0);      //更新时间戳
   zcPrtc.head.cmd = cmd;
   
@@ -88,9 +92,9 @@ void ZcProtocol_NetTransmit(uint8_t cmd, uint8_t *data, uint16_t dataLen, uint8_
   FillTxBlock(Enthernet_TxBlockList, (uint8_t*)httpMsg, strlen(httpMsg), TX_FLAG_MC|TX_FLAG_RT);        //填写到网络发送缓冲当中
   Free(httpMsg);
   
-  /* 更新ID */
+    /* 更新ID */
   if(isUpdateId)
-  { zcPrtc.head.id ++; }        
+  { zcPrtc.head.id ++; } 
 }
 /*********************************************************************************************
 
@@ -105,17 +109,17 @@ void ZcProtocol_Handle()
   static uint32_t time=0;
   
   /* 间隔一段时间 */
-  if((time + zcHandle.loopInterval) > sysTime)
+  if((time + zcHandle.loopInterval) > realTime)
   { return; }
   else
-  { time = sysTime; }
+  { time = realTime; }
   
   /* 根据主状态进行处理 */
   switch(zcHandle.status)
   {
     /* 初始化 */
   case ZcHandleStatus_Init:
-    zcHandle.loopInterval = 60000;
+    zcHandle.loopInterval = 60;
     zcHandle.status = ZcHandleStatus_Idle;
     break;
     
@@ -129,7 +133,7 @@ void ZcProtocol_Handle()
     /* 等待状态，发送缓冲为手动清除，如果没有回复的话是不会清除的 
        等待状态为死锁，直到接收到确认报文或者查询暂存回复*/
   case ZcHandleStatus_Wait:
-    time = sysTime;
+    time = realTime;
     break;
   }
 }
@@ -151,7 +155,6 @@ void ZcProtocol_ReceiveHandle(uint8_t *message, uint16_t length)
     ZcProtocol_TimeStamp(protocol->head.timestamp);             //每次都更新时间戳
     ClearSpecifyBlock(Enthernet_TxBlockList, ZcProtocol_SameId, &protocol->head.id);    //每次服务器回复后都要清除相应报文
     
-    
     /* 先查看是否有操作的报文
        回复0：处理成功，不需要后续处理
        回复1：非处理命令，进入通讯类报文处理
@@ -169,25 +172,20 @@ void ZcProtocol_ReceiveHandle(uint8_t *message, uint16_t length)
         
       /* 服务器下发确认报文 */
       case ZC_CMD_SERVER_CONFIRM:
-        
         /* 当接收到确认报文且与之前的暂存报文ID相同 */
         if(protocol->head.id == zcHandle.holdId)
         { 
           zcHandle.status = ZcHandleStatus_Idle;  // 切换为空闲状态，发送下一次查询暂存报文
           zcPrtc.head.id++;                       // Id递增
         }
-        
+             
         /* 当控制欲的SFD为1时，直接发送查询暂存报文,并切换为等待状态*/
         if((protocol->head.control & (1<<7)) != 0)
         { 
+          zcHandle.holdId = zcPrtc.head.id;
           ZcProtocol_NetTransmit(00, NULL, 0, 0);
           zcHandle.status = ZcHandleStatus_Wait; 
         }   
-        break;
-      
-      /* 地址域 */
-      case ZC_CMD_ADDRESS:
-        ZcProtocol_NetTransmit(ZC_CMD_ADDRESS, zcPrtc.head.address, 7, 0);
         break;
         
       /* 回复的命令 */
@@ -212,7 +210,7 @@ void ZcProtocol_ReceiveHandle(uint8_t *message, uint16_t length)
   ********************************************************************************************/
 void ZcProtocol_NetReceiveHandle(uint8_t *message, uint16_t length)
 {
-  ArrayStruct *msg = String2Msg((char*)message, 0);                // 字符串转报文数组
+  ArrayStruct *msg = String2Msg(strstr(message, "68"), 0);      // 字符串转报文数组
   
   ZcProtocol_ReceiveHandle(msg->packet, msg->length);           //协议的原始报文处理
   

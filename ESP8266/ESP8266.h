@@ -7,7 +7,7 @@
 
 /* Public typedef ------------------------------------------------------------*/
 /* Public define -------------------------------------------------------------*/
-#define ESP8266_INTERVAL 5000
+#define ESP8266_INTERVAL 5
 
 #define ESP8266_WIFI_CONNECTED       (1<<0)
 #define ESP8266_TCP_CONNECTED        (1<<1)

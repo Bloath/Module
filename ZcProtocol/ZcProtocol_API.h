@@ -27,6 +27,7 @@ typedef struct
 extern ZcProtocol zcPrtc;
 extern TxBlockTypeDef Enthernet_TxBlockList[TX_BLOCK_COUNT];                      //模块的发送缓冲
 extern RxBlockTypeDef Enthernet_RxBlockList[RX_BLOCK_COUNT];                      //模块的接收缓冲
+extern ZcHandleStruct zcHandle;
 
 /* Public function prototypes ------------------------------------------------*/
 void ZcProtocol_Handle();

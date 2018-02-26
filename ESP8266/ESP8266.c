@@ -7,7 +7,7 @@
 #include "../UartDma/SimpleBuffer.h"
 #include "../Common/Convert.h"
 #include "../Common/Delay.h"
-#include "../Module/Common/Malloc.h"
+#include "../Common/Malloc.h"
 
 #include "../ZcProtocol/Http.h"
 #include "../ZcProtocol/ZcProtocol_Conf.h"
@@ -95,8 +95,8 @@ void ESP8266_Handle()
     //
     ESP8266_SendAtString("AT+CWMODE_DEF=1");
     ESP8266_SendAtString("AT+CWAUTOCONN=1");
-    ESP8266_SendAtString("ATE0");
-    time = sysTime;
+    //ESP8266_SendAtString("ATE0");
+    time = realTime;
     ESP8266_ConnectStatus = ConnectStatus_Idle;
     break;
     
@@ -104,7 +104,7 @@ void ESP8266_Handle()
     if((time + ESP8266_INTERVAL) < sysTime)
     { 
       ESP8266_SendAtString("AT+CWJAP?");
-      time = sysTime;
+      time = realTime;
       ESP8266_ConnectStatus = ConnectStatus_WaitAck;
     }
     break;
@@ -113,11 +113,11 @@ void ESP8266_Handle()
   case ConnectStatus_AirKiss:   //Airkiss
     ESP8266_SendAtString("AT+CWSTARTSMART=3");
     ESP8266_ConnectStatus = ConnectStatus_WaitAck;
-    time = sysTime;
+    time = realTime;
     break;
     
   case ConnectStatus_WaitAck:
-    if((time + ESP8266_INTERVAL) < sysTime)
+    if((time + ESP8266_INTERVAL) < realTime)
     { ESP8266_ErrorHandle(Error_transmitTimeout);}
     break;
     
@@ -155,7 +155,7 @@ void ESP8266_HttpTransmit(uint8_t *message, uint16_t length)
     ESP8266_SendString("\r\n");
 #endif
     ESP8266_TcpStatus = TcpStatus_WaitAck;
-    time = sysTime;
+    time = realTime;
     break;
   
     /* 发送数据数量，先发送数据数量, AT+CIPSEND=数量，等待模块回复 > */
@@ -165,7 +165,7 @@ void ESP8266_HttpTransmit(uint8_t *message, uint16_t length)
     ESP8266_SendString(count);
     ESP8266_SendString("\r\n");
     ESP8266_TcpStatus = TcpStatus_WaitAck;
-    time = sysTime;
+    time = realTime;
     Free(count);
     break;
     
@@ -173,11 +173,11 @@ void ESP8266_HttpTransmit(uint8_t *message, uint16_t length)
   case TcpStatus_StartTrans:    //开始传输
     ESP8266_SendData(message, length);
     ESP8266_TcpStatus = TcpStatus_WaitAck;
-    time = sysTime;
+    time = realTime;
     break;
   
   case TcpStatus_WaitAck:
-    if((time + ESP8266_INTERVAL) < sysTime)
+    if((time + ESP8266_INTERVAL) < realTime)
     { ESP8266_ErrorHandle(Error_CipSendError); }        //等待超时错误处理，（AT指令发送数据后，长时间没回复）
     
     break;
@@ -217,6 +217,9 @@ void ESP8266_RxMsgHandle(uint8_t *packet, uint16_t length)
     if(strstr(message, "CWSTARTSMART") != NULL)
     { ESP8266_ErrorHandle(Error_AirKissError); return; }
     
+     if(strstr(message, "CLOSED") != NULL)
+    { ESP8266_ErrorHandle(Error_CantConnectServer); return; }
+    
   }
   /**************TCP部分****************/
   
@@ -230,8 +233,8 @@ void ESP8266_RxMsgHandle(uint8_t *packet, uint16_t length)
   if(strstr(message, "OK\r\n>") != NULL)                      // > 开始接收发送数据
   { ESP8266_TcpStatus = TcpStatus_StartTrans; return; }
 
-  if(strstr(message, "Recv") != NULL)                   //SEND OK 发送成功
-  { ESP8266_TcpStatus = TcpStatus_SendOk;  }
+  if(strstr(message, "SEND OK") != NULL)                   //SEND OK 发送成功
+  { ESP8266_TcpStatus = TcpStatus_SendOk; }
   
   /***********收到数据处理****************/
   if(strstr(message, "+IPD") != NULL  || strstr(message, "+ID") != NULL)

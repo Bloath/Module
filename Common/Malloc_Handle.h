@@ -7,7 +7,6 @@
 /* Private macro --------------------------------------------------------------*/
 /* Private variables ----------------------------------------------------------*/
 /* Private function prototypes ------------------------------------------------*/
-void MallocError_OutOfMemory();
-void MallocError_OutOfBlocks();
+void Malloc_ErrorHandle(MallocErrorEnum  mallocError);
 
 #endif
