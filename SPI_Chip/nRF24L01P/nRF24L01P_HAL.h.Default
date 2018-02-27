@@ -1,0 +1,21 @@
+#ifndef _nRF24L01P_API_
+#define _nRF24L01P_API_
+
+/* Includes ------------------------------------------------------------------*/
+#include "../../Sys_Conf.h"
+#include "HAL/HAL_Config.h"
+
+/* Private typedef -----------------------------------------------------------*/
+/* Private define ------------------------------------------------------------*/
+#define CSN_LOW()       GPIO_WriteBit(CSN_PORT, CSN_PIN, RESET)
+#define CSN_HIGH()      GPIO_WriteBit(CSN_PORT, CSN_PIN, SET)
+
+#define CE_LOW()       GPIO_WriteBit(CE_PORT, CSN_PIN, RESET);
+#define CE_HIGH()      GPIO_WriteBit(CE_PORT, CSN_PIN, SET);
+/* Private macro --------------------------------------------------------------*/
+/* Private variables ----------------------------------------------------------*/
+/* Private function prototypes ------------------------------------------------*/
+uint8_t SPI_RW(uint8_t data);
+
+#endif
+

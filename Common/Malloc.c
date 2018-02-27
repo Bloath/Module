@@ -1,5 +1,5 @@
 /* Includes ------------------------------------------------------------------*/
-#include "stdint.h"
+#include "string.h"
 
 #include "../Sys_Conf.h"
 #include "Malloc.h"
