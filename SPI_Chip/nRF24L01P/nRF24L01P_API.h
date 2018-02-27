@@ -73,7 +73,7 @@ uint8_t nRF24L01P_Write_Buf(uint8_t reg, uint8_t *packet, uint8_t length);
 uint8_t nRF24L01P_Write_Reg(uint8_t reg, uint8_t value);
 
 uint8_t ReadTopFIFOWidth();
-uint8_t Wireless_ReadRXPayload(uint8_t *packet);
+uint8_t ReadRXPayload(uint8_t *packet);
 void WriteTXPayload_NoAck( uint8_t *packet, uint8_t length);
 uint8_t ReadTopFIFOWidth();
 void FlushTX();

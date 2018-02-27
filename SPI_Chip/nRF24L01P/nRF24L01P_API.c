@@ -15,14 +15,22 @@
 /*********************************************************************************************
   * @brief  读取接收缓冲数据
   * @param  pBuff：接收指针，将接收到的数据按个数写到接收指针中
-  * @retval 接收数据长度
+  * @retval 接收数据长度，如果出错，则返回0
   * @remark 
   ********************************************************************************************/
-uint8_t Wireless_ReadRXPayload(uint8_t *packet)
+uint8_t ReadRXPayload(uint8_t *packet)
 {
     uint8_t width, i;
-    width = ReadTopFIFOWidth( );
+    width = ReadTopFIFOWidth();
 
+    /* 如果长度大于32，说明长度有错误
+       则清除接收缓冲，长度返回为0 */
+    if(width > 32)
+    { 
+      FlushRX();
+      return 0; 
+    }
+    
     CSN_LOW( );
     SPI_RW( RD_RX_PLOAD );
     for( i = 0; i < width; i ++ )

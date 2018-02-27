@@ -8,7 +8,7 @@
 /* Private variables ----------------------------------------------------------*/
 /* Private function prototypes ------------------------------------------------*/
 void nRF24L01P_Initialization();
-uint8_t nRF24L01P_Receive(uint8_t *data, uint8_t *len);
+uint8_t nRF24L01P_Receive();
 void nRF24L01P_Transimit(uint8_t *packet, uint16_t len);
 void nRF24L01P_SetRxMode(void);
 

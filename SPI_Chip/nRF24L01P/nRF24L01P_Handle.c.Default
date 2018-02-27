@@ -13,7 +13,8 @@
 uint8_t ADDRESS[ADR_WIDTH] = {0x0F,0xFF,0xFF,0xFF,0xFF};  // 定义一个静态发送地址
 
 /* Private function prototypes -----------------------------------------------*/
-void nRF24L01P_SetRxMode();
+void nRF24L01P_RxPacketHandle(uint8_t *packet, uint8_t len, uint8_t pipeID);
+void nRF24L01P_SetRxMode(void);
 
 /* Private functions ---------------------------------------------------------*/
 /*********************************************************************************************
@@ -53,23 +54,38 @@ void nRF24L01P_Initialization()
   * @param  data：   接收缓冲
   * @param  len：   接收缓冲长度 
   * @retval 无
-  * @remark 
+  * @remark 0: 获取成功， 1：没有数据  2：数据数量不正确
   ********************************************************************************************/
-uint8_t nRF24L01P_Receive(uint8_t *data, uint8_t *len)
+uint8_t nRF24L01P_Receive()
 {
-  uint8_t status = nRF24L01P_Read_Reg(STATUS), i = 0;
-  if(status & (1<<6))
+  uint8_t status = nRF24L01P_Read_Reg(STATUS);
+  uint8_t packetLen = 0, packet[32] = {0};
+  
+  // PS：中断接收与轮训接收不能同时使用，有可能轮询接收SPI时，
+  //     进入中断再读取，会出现读取错误问题
+  if((status & RX_DR) != 0)
   {
-    *len = Wireless_ReadRXPayload(data);
-    if(*len > 32)
-    { return 1; }
+    packetLen = ReadRXPayload(packet);          // 读取缓存，获取缓存中的长度
+    if(packetLen == 0)                  
+    { return 2; }                               // 如果长度为0，则为长度出错
     
-    nRF24L01P_Write_Reg(STATUS, 0xFF);          //清除标志位
+    nRF24L01P_RxPacketHandle(packet, packetLen, (status & 0x0E) >> 1);  // 数据处理
     
     return 0;
     
   }
   return 1;
+}
+/*********************************************************************************************
+  * @brief  nrf24L01 接收数据处理
+  * @param  data：   接收缓冲
+  * @param  len：   接收缓冲长度 
+  * @retval 无
+  * @remark 0: 获取成功， 1：没有数据  2：数据数量不正确
+  ********************************************************************************************/
+void nRF24L01P_RxPacketHandle(uint8_t *packet, uint8_t len, uint8_t pipeID)
+{
+  
 }
 
 /*********************************************************************************************
@@ -81,6 +97,8 @@ uint8_t nRF24L01P_Receive(uint8_t *data, uint8_t *len)
   ********************************************************************************************/
 void nRF24L01P_Transimit(uint8_t *packet, uint16_t len)
 {
+  uint8_t status = 0;
+  
   CE_LOW();                                             // 拉低写入命令
   
   uint8_t controlreg = nRF24L01P_Read_Reg(CONFIG);
@@ -90,10 +108,20 @@ void nRF24L01P_Transimit(uint8_t *packet, uint16_t len)
   FlushRX();                                            // 清除缓存
   
   WriteTXPayload_NoAck(packet, len);
-  CE_HIGH(); 
   
-  Delay_ms(2);                                       //启动发送，等待2ms后直接拉低
-  CE_LOW();	
+  CE_HIGH(); 
+  Delay_ms(2);                                          //启动发送，等待2ms后直接拉低
+  CE_LOW();
+  
+  do
+  { 
+    status = nRF24L01P_Read_Reg(STATUS);
+  }
+  while((status & TX_DS) == 0);                         // 等待标志位置位
+  
+  nRF24L01P_Write_Reg(STATUS, 0xFF);                    // 清除所有标志位
+  
+  nRF24L01P_SetRxMode();	                        // 切换为接收模式
 }
 /*********************************************************************************************
   * @brief  nrf24L01 设置为接收模式
