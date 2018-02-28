@@ -7,12 +7,22 @@
 
 //在此下面是针对不同处理环境添加的头
 #include "../Module/Common/Malloc.h"
-#include "../ESP8266/ESP8266.h"
 #include "../UartDma/SimpleBuffer.h"
 #include "../Sys_Conf.h"
 #include "Http.h"
-#include "ZcProtocol_API.h"     
+#include "ZcProtocol_API.h"    
+#include "ZcProtocol_Conf.h"   
 #include "ZcProtocol_Handle.h"  //硬件相关处理
+
+// 不同平台
+#ifdef ZC_NET
+  #include "../ESP8266/ESP8266_Handle.h"
+#endif
+
+#ifdef ZC_24G
+  #include "../SPI_Chip/nRF24L01P/nRF24L01P_Handle.h"
+#endif
+
 
 /* private typedef ------------------------------------------------------------*/
 /* private define -------------------------------------------------------------*/
@@ -20,10 +30,10 @@
 /* private variables ----------------------------------------------------------*/
 ZcProtocol zcPrtc;      // 拙诚协议实例
 ZcHandleStruct zcHandle = {0};      //拙诚协议处理
-extern TxBlockTypeDef Enthernet_TxBlockList[TX_BLOCK_COUNT];     //网络协议发送缓冲
-extern RxBlockTypeDef Enthernet_RxBlockList[RX_BLOCK_COUNT];     //网络协议接收缓冲
 
 /* private function prototypes ------------------------------------------------*/
+void ZcProtocol_NetRxHandle(ZcProtocol *protocol);
+
 /*********************************************************************************************
 
   * @brief  协议初始化
@@ -64,14 +74,15 @@ uint32_t ZcProtocol_TimeStamp(uint32_t timeStamp)
     return 0;                           //返回0
   }
   else
-  { return zcPrtc.head.timestamp + (realTime - time) / 1000; } //获取时间戳，则是在之前记录的时间戳的基础上，加上后面跑过的系统时间
+  { return zcPrtc.head.timestamp + realTime - time; } //获取时间戳，则是在之前记录的时间戳的基础上，加上后面跑过的系统时间
     
 }
 
 /*********************************************************************************************
 
   * @brief  拙诚协议 网络通讯发送部分
-  * @param  cmd: 命令字
+  * @param  source：源，网络，24G， 485等
+            cmd: 命令字
             data:  报文指针
             dataLen：报文长度
             isUpdateId：是否需要更新ID
@@ -79,8 +90,10 @@ uint32_t ZcProtocol_TimeStamp(uint32_t timeStamp)
   * @remark 通过输入命令以及数据，并填写到发送缓冲当中
 
   ********************************************************************************************/
-void ZcProtocol_NetTransmit(uint8_t cmd, uint8_t *data, uint16_t dataLen, uint8_t isUpdateId)
+void ZcProtocol_Transmit(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint16_t dataLen, uint8_t isUpdateId)
 {
+  char* httpMsg = NULL;
+  
     /* 取一个新ID */
   if(isUpdateId)
   { zcPrtc.head.id ++; }  
@@ -88,9 +101,32 @@ void ZcProtocol_NetTransmit(uint8_t cmd, uint8_t *data, uint16_t dataLen, uint8_
   zcPrtc.head.timestamp = ZcProtocol_TimeStamp(0);      //更新时间戳
   zcPrtc.head.cmd = cmd;
   
-  char* httpMsg = ZcProtocol_ConvertHttpString(&zcPrtc, data, dataLen);         //转换为HTTP协议，
-  FillTxBlock(Enthernet_TxBlockList, (uint8_t*)httpMsg, strlen(httpMsg), TX_FLAG_MC|TX_FLAG_RT);        //填写到网络发送缓冲当中
-  Free(httpMsg);
+  /* 根据不同的源，进行不同的发送处理 */
+  switch(source)
+  {
+  case ZcSource_Net:
+#ifdef ZC_NET
+    httpMsg = ZcProtocol_ConvertHttpString(&zcPrtc, data, dataLen);         //转换为HTTP协议，
+    FillTxBlockWithId(Enthernet_TxBlockList, 
+                      (uint8_t*)httpMsg, 
+                      strlen(httpMsg), 
+                      TX_FLAG_MC|TX_FLAG_RT,
+                      zcPrtc.head.id);  
+    Free(httpMsg);
+#endif
+    break;
+  case ZcSource_24G:
+#ifdef ZC_24G
+    FillTxBlockWithId(nRF24L01_TxBlockList, 
+                      data, 
+                      dataLen, 
+                      TX_FLAG_MC|TX_FLAG_RT,
+                      zcPrtc.head.id);  
+#endif
+    break;
+  }
+      
+  
   
     /* 更新ID */
   if(isUpdateId)
@@ -125,7 +161,7 @@ void ZcProtocol_Handle()
     
     /* 空闲状态，填充查询暂存报文，切换为等待状态 */
   case ZcHandleStatus_Idle:
-    ZcProtocol_NetTransmit(00, NULL, 0, 0);     //发送暂存报文
+    ZcProtocol_Transmit(ZcSource_Net, 00, NULL, 0, 0);     //发送暂存报文
     zcHandle.holdId = zcPrtc.head.id;           //记录当前ID
     zcHandle.status = ZcHandleStatus_Wait;      //切换等待状态
     break;
@@ -146,59 +182,80 @@ void ZcProtocol_Handle()
   * @remark 
 
   ********************************************************************************************/
-void ZcProtocol_ReceiveHandle(uint8_t *message, uint16_t length)
+void ZcProtocol_ReceiveHandle(uint8_t *message, uint16_t length, ZcSourceEnum source)
 {
   ZcProtocol *protocol = ZcProtocol_Check(message, length);     //检查接收的回复是否准确
   
   if(protocol != NULL)
   {
     ZcProtocol_TimeStamp(protocol->head.timestamp);             //每次都更新时间戳
-    ClearSpecifyBlock(Enthernet_TxBlockList, ZcProtocol_SameId, &protocol->head.id);    //每次服务器回复后都要清除相应报文
     
-    /* 先查看是否有操作的报文
-       回复0：处理成功，不需要后续处理
-       回复1：非处理命令，进入通讯类报文处理
-       回复2：则处理失败，直接发送失败恢复命令 */
-    uint8_t operationRes = ZcProtocol_OperationCmdHandle(protocol);        //先查看是否有操作的报文
-
-    if(operationRes == 1)
+    
+    /* 根据不同的来源进行不同的处理 */
+    switch(source)
     {
-      switch(protocol->head.cmd)                          
-      { 
-      /* 查询暂存报文 */
-      case ZC_CMD_QUERY_HOLD:
-        zcHandle.status = ZcHandleStatus_Idle;  // 切换为空闲状态，继续发送查询暂存报文
-        break;
-        
-      /* 服务器下发确认报文 */
-      case ZC_CMD_SERVER_CONFIRM:
-        /* 当接收到确认报文且与之前的暂存报文ID相同 */
-        if(protocol->head.id == zcHandle.holdId)
-        { 
-          zcHandle.status = ZcHandleStatus_Idle;  // 切换为空闲状态，发送下一次查询暂存报文
-          zcPrtc.head.id++;                       // Id递增
-        }
-             
-        /* 当控制欲的SFD为1时，直接发送查询暂存报文,并切换为等待状态*/
-        if((protocol->head.control & (1<<7)) != 0)
-        { 
-          zcHandle.holdId = zcPrtc.head.id;
-          ZcProtocol_NetTransmit(00, NULL, 0, 0);
-          zcHandle.status = ZcHandleStatus_Wait; 
-        }   
-        break;
-        
-      /* 回复的命令 */
-      default:
-        ZcProtocol_NetTransmit(ZC_CMD_FAIL, NULL, 0, 0);
-        break;
-      }
+    case ZcSource_Net:
+      ZcProtocol_NetRxHandle(protocol);                   // 网络版通讯协议，关键点在于由设备发起，服务器单纯响应
+      break;
     }
-    else if(operationRes == 2)
-    { ZcProtocol_NetTransmit(ZC_CMD_FAIL, NULL, 0, 0); }        //操作类指令失败，发送失败回复
   }
 }
+/*********************************************************************************************
 
+  * @brief  接收协议报文的处理
+  * @param  message:  报文指针
+            length：报文长度
+  * @retval 报文数组结构体指针
+  * @remark 
+
+  ********************************************************************************************/
+void ZcProtocol_NetRxHandle(ZcProtocol *protocol)
+{
+#ifdef ZC_NET
+  FreeTxBlockById(Enthernet_TxBlockList, protocol->head.id);    //每次服务器回复后都要清除相应发送报文
+#endif
+    /* 先查看是否有操作的报文
+     回复0：处理成功，不需要后续处理
+     回复1：非处理命令，进入通讯类报文处理
+     回复2：则处理失败，直接发送失败恢复命令 */
+  uint8_t operationRes = ZcProtocol_NetOperationCmdHandle(protocol);        //先查看是否有操作的报文
+
+  if(operationRes == 1)
+  {
+    switch(protocol->head.cmd)                          
+    { 
+    /* 查询暂存报文 */
+    case ZC_CMD_QUERY_HOLD:
+      zcHandle.status = ZcHandleStatus_Idle;  // 切换为空闲状态，继续发送查询暂存报文
+      break;
+      
+    /* 服务器下发确认报文 */
+    case ZC_CMD_SERVER_CONFIRM:
+      /* 当接收到确认报文且与之前的暂存报文ID相同 */
+      if(protocol->head.id == zcHandle.holdId)
+      { 
+        zcHandle.status = ZcHandleStatus_Idle;  // 切换为空闲状态，发送下一次查询暂存报文
+        zcPrtc.head.id++;                       // Id递增
+      }
+           
+      /* 当控制欲的SFD为1时，直接发送查询暂存报文,并切换为等待状态*/
+      if((protocol->head.control & (1<<7)) != 0)
+      { 
+        zcHandle.holdId = zcPrtc.head.id;
+        ZcProtocol_Transmit(ZcSource_Net, 00, NULL, 0, 0);
+        zcHandle.status = ZcHandleStatus_Wait; 
+      }   
+      break;
+      
+    /* 回复的命令 */
+    default:
+      ZcProtocol_Transmit(ZcSource_Net, ZC_CMD_FAIL, NULL, 0, 0);
+      break;
+    }
+  }
+  else if(operationRes == 2)
+  { ZcProtocol_Transmit(ZcSource_Net, ZC_CMD_FAIL, NULL, 0, 0); }        //操作类指令失败，发送失败回复
+}
 /*********************************************************************************************
 
   * @brief  拙诚协议=》网络协议处理
@@ -208,11 +265,11 @@ void ZcProtocol_ReceiveHandle(uint8_t *message, uint16_t length)
   * @remark 
 
   ********************************************************************************************/
-void ZcProtocol_NetReceiveHandle(uint8_t *message, uint16_t length)
+void ZcProtocol_NetPacketHandle(uint8_t *message, uint16_t length)
 {
   ArrayStruct *msg = String2Msg(strstr(message, "68"), 0);      // 字符串转报文数组
   
-  ZcProtocol_ReceiveHandle(msg->packet, msg->length);           //协议的原始报文处理
+  ZcProtocol_ReceiveHandle(msg->packet, msg->length, ZcSource_Net);  //协议的原始报文处理
   
   Array_Free(msg);      // 释放报文数组空闲
 }

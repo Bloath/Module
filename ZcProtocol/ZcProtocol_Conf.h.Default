@@ -3,12 +3,15 @@
 
 /*********************协议相关 全局配置*********************/
 
+#define ZC_NET  1
+#define ZC_24G  1
+#define ZC_485  1
 
 //#define DOMAIN  "web.bloath.com"
-#define IP      "192.168.0.179"
-#define PORT    "8080"
-
-#define PATH    "/zc/device/"
-#define HTTP_MAX_LEN 200                //HTTP协议最大长度
+#define IP      "144.123.12.178"
+#define PORT    "5021"
+#define PATH    "/tx/jxxy"
+//#define PATH    "/zc/device/"
+#define HTTP_MAX_LEN 300                //HTTP协议最大长度
 
 #endif

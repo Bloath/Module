@@ -7,5 +7,5 @@
 /* Public macro --------------------------------------------------------------*/
 /* Public variables ----------------------------------------------------------*/
 /* Public function prototypes ------------------------------------------------*/
-uint8_t ZcProtocol_OperationCmdHandle(ZcProtocol *protocol);
+uint8_t ZcProtocol_NetOperationCmdHandle(ZcProtocol *protocol);
 #endif

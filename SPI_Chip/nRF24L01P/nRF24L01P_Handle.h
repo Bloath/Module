@@ -6,6 +6,9 @@
 /* Private define ------------------------------------------------------------*/
 /* Private macro --------------------------------------------------------------*/
 /* Private variables ----------------------------------------------------------*/
+extern TxBlockTypeDef nRF24L01_TxBlockList[BLOCK_COUNT];
+extern RxBlockTypeDef nRF24L01_RxBlockList[BLOCK_COUNT];
+
 /* Private function prototypes ------------------------------------------------*/
 void nRF24L01P_Initialization();
 uint8_t nRF24L01P_Receive();

@@ -14,18 +14,19 @@
 * Parameter       : 
 * Return          : 
 *******************************************************************************/
-void MallocError_OutOfMemory()
+void Malloc_ErrorHandle(MallocErrorEnum  mallocError)
 {
-  return;
-}
-/*******************************************************************************
-* Function Name   : MallocError_OutOfBlocks
-* Description     : 申请内存错误-->记录块数量不足
-* Parameter       : 
-* Return          : 
-*******************************************************************************/
-void MallocError_OutOfBlocks()
-{
- 
+  switch(mallocError)
+  {
+  case Malloc_OutOfMemory:
+    break;
+    
+  case Malloc_OutOfBlocks:
+    break;
+    
+  case Malloc_MemoryUnreasonable:
+    break;
+  }
+  
   return;
 }

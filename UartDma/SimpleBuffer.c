@@ -37,15 +37,15 @@ void ReceiveSingleByte(uint8_t data, RxBufferTypeDef *rxBuffer)
             packet：   要填入接收块的数据包指针
             len；长度
   * @retval 无
-  * @remark 
+  * @remark 返回填充队列号，如果为0xFFFF则为失败
 
   ********************************************************************************************/
-void FillRxBlock( RxBlockTypeDef *rxBlock, uint8_t *packet, uint16_t Len)
+uint16_t FillRxBlock( RxBlockTypeDef *rxBlock, uint8_t *packet, uint16_t Len)
 {
   uint8_t i = 0;
   
   if(Len == 0)
-  { return; }
+  { return 0xFFFF; }
   
   /* 找到空闲缓冲，填入 */
   for(i=0; i<RX_BLOCK_COUNT; i++)
@@ -61,12 +61,16 @@ void FillRxBlock( RxBlockTypeDef *rxBlock, uint8_t *packet, uint16_t Len)
       rxBlock[i].message[Len] = 0;              // 添加结束符，该缓冲块可以用作字符串处理 
       
       rxBlock[i].length = Len; 
-      break;
+      
+      return i;
+      //break;
     }
   }
   
   if(i == RX_BLOCK_COUNT)
   { RxBlock_ErrorHandle(rxBlock, BlockFull); }
+  
+  return 0xFFFF;
 }
 
 /*********************************************************************************************
@@ -155,11 +159,12 @@ void TxBlockListHandle(TxBlockTypeDef *txBlock, void (*Transmit)(uint8_t*, uint1
   * @param  txBlock：发送模块结构体指针
   * @param  message：报文指针
   * @param  length：报文长度
+  * @param  custom：自定义标志位，参考SimpleBuffer.h中的TX_FLAG
   * @return 
   * @remark 
 
   ********************************************************************************************/
-void FillTxBlock(TxBlockTypeDef *txBlock, uint8_t *message, uint16_t length,  uint8_t custom)
+uint16_t FillTxBlock(TxBlockTypeDef *txBlock, uint8_t *message, uint16_t length, uint8_t custom)
 {
   uint16_t i;
   
@@ -180,13 +185,36 @@ void FillTxBlock(TxBlockTypeDef *txBlock, uint8_t *message, uint16_t length,  ui
       /* 可以自定义标志位，自动添加占用标志位，默认只发送一次 */
       txBlock[i].flag |= custom;
       
-      break;
+      return i;
+      //break;
     }
-    
   }
   
   if(i == TX_BLOCK_COUNT)
   { TxBlock_ErrorHandle(txBlock, BlockFull); }
+  
+  return 0xFFFF;
+}
+/*********************************************************************************************
+
+  * @brief  填充发送结构体
+  * @param  txBlock：发送模块结构体指针
+  * @param  message：报文指针
+  * @param  length：报文长度
+  * @param  custom：自定义标志位，参考SimpleBuffer.h中的TX_FLAG
+  * @param  id：用于清除的标识
+  * @return 
+  * @remark 
+
+  ********************************************************************************************/
+uint16_t FillTxBlockWithId(TxBlockTypeDef *txBlock, uint8_t *message, uint16_t length, uint8_t custom, TX_ID_SIZE id)
+{
+  uint16_t blockId = FillTxBlock(txBlock, message, length, custom);
+  
+  if(blockId != 0xFFFF)
+  { txBlock[blockId].id = id; }
+  
+  return blockId;
 }
 /*********************************************************************************************
 
@@ -203,6 +231,7 @@ void FreeTxBlock(TxBlockTypeDef *txBlock)
   txBlock->flag = 0;
   txBlock->length = 0;
   txBlock->retransCounter = 0;
+  txBlock->id = 0;
   
 #ifdef TX_BLOCK_TIMEOUT  
   txBlock->time = 0;
@@ -211,14 +240,15 @@ void FreeTxBlock(TxBlockTypeDef *txBlock)
 
 /*********************************************************************************************
 
-  * @brief  清除指定发送缓冲
+  * @brief  通过自定义函数的方式清除相应发送缓冲块
   * @param  txBlock：发送结构体指针
             func，通过该func里的处理，将对应发送缓冲清除
+            *p：自定义函数参数传递
   * @return 
   * @remark 
 
   ********************************************************************************************/
-void ClearSpecifyBlock(TxBlockTypeDef *txBlock, uint8_t (*func)(uint8_t*, uint16_t, void*), void *p)
+void FreeTxBlockByFunc(TxBlockTypeDef *txBlock, uint8_t (*func)(uint8_t*, uint16_t, void*), void *p)
 {
   uint16_t i;
   
@@ -231,7 +261,28 @@ void ClearSpecifyBlock(TxBlockTypeDef *txBlock, uint8_t (*func)(uint8_t*, uint16
     }
   }
 }
+/*********************************************************************************************
 
+  * @brief  清除指定发送缓冲
+  * @param  txBlock：发送结构体指针
+            id：通过自定义标识的方式释放发送缓冲
+  * @return 
+  * @remark 
+
+  ********************************************************************************************/
+void FreeTxBlockById(TxBlockTypeDef *txBlock, TX_ID_SIZE id)
+{
+  uint16_t i;
+  
+  for(i=0; i<TX_BLOCK_COUNT; i++)
+  { 
+    if((txBlock[i].flag & TX_FLAG_USED) != 0)
+    {
+      if(txBlock[i].id == id)
+      { FreeTxBlock(txBlock + i); }
+    }
+  }
+}
 /*********************************************************************************************
 
   * @brief  判断数据包

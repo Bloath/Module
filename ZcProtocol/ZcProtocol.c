@@ -95,32 +95,6 @@ ZcProtocol* ZcProtocol_Check(uint8_t *message, uint16_t length)
 
   return protocol;
 }
-/*********************************************************************************************
-
-  * @brief  判断协议ID是否相同
-  * @param  message:  报文指针
-            length：报文长度
-  * @retval 相同返回0，不同返回1
-  * @remark 用于发送缓冲的清除
-
-  ********************************************************************************************/
-uint8_t ZcProtocol_SameId(uint8_t *message, uint16_t length, void *p)
-{
-  uint8_t res=1;
- 
-  char* index = strstr( (char *)message, "message=");
-  ArrayStruct* msg = String2Msg(index + 8, ZC_HEAD_LEN * 2);
-  
-  ZcProtocol *protocol = (ZcProtocol*)msg->packet;
-
-  if(protocol->head.id == *((uint8_t *)p))
-  { res = 0; }
-  
-  Array_Free(msg);
-  
-  return res;
-}
-
 
 /*********************************************************************************************
 
