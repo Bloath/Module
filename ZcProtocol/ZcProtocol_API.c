@@ -78,9 +78,10 @@ uint32_t ZcProtocol_TimeStamp(uint32_t timeStamp)
     
 }
 
+
 /*********************************************************************************************
 
-  * @brief  拙诚协议 网络通讯发送部分
+  * @brief  拙诚协议 发送请求
   * @param  source：源，网络，24G， 485等
             cmd: 命令字
             data:  报文指针
@@ -90,9 +91,10 @@ uint32_t ZcProtocol_TimeStamp(uint32_t timeStamp)
   * @remark 通过输入命令以及数据，并填写到发送缓冲当中
 
   ********************************************************************************************/
-void ZcProtocol_Transmit(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint16_t dataLen, uint8_t isUpdateId)
+void ZcProtocol_Request(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint16_t dataLen, uint8_t isUpdateId)
 {
-  char* httpMsg = NULL;
+  char* httpMsg;
+  ArrayStruct *msg;
   
     /* 取一个新ID */
   if(isUpdateId)
@@ -107,7 +109,7 @@ void ZcProtocol_Transmit(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint16
   case ZcSource_Net:
 #ifdef ZC_NET
     httpMsg = ZcProtocol_ConvertHttpString(&zcPrtc, data, dataLen);         //转换为HTTP协议，
-    FillTxBlockWithId(&Enthernet_TxQueue, 
+    TxQueue_AddWithId(&Enthernet_TxQueue, 
                       (uint8_t*)httpMsg, 
                       strlen(httpMsg), 
                       TX_FLAG_MC|TX_FLAG_RT,
@@ -117,20 +119,60 @@ void ZcProtocol_Transmit(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint16
     break;
   case ZcSource_24G:
 #ifdef ZC_24G
-    FillTxBlockWithId(&nRF24L01_TxQueue, 
+    msg = ZcProtocol_ConvertMsg(&zcPrtc, data ,dataLen);
+    TxQueue_AddWithId(&nRF24L01_TxQueue, 
                       data, 
                       dataLen, 
                       TX_FLAG_MC|TX_FLAG_RT,
                       zcPrtc.head.id);  
+    Array_Free(msg);
 #endif
     break;
   }
-      
+}
+/*********************************************************************************************
+
+  * @brief  拙诚协议 回复，在接收到命令后的回复
+  * @param  source：源，网络，24G， 485等
+            cmd: 命令字
+            data:  报文指针
+            dataLen：报文长度
+            isUpdateId：是否需要更新ID
+  * @retval 
+  * @remark 通过输入命令以及数据，并填写到发送缓冲当中
+
+  ********************************************************************************************/
+void ZcProtocol_Response(ZcSourceEnum source, ZcProtocol *zcProtocol, uint8_t *data, uint16_t dataLen)
+{
+  char* httpMsg;
+  ArrayStruct *msg;
   
-  
-    /* 更新ID */
-  if(isUpdateId)
-  { zcPrtc.head.id ++; } 
+  /* 根据不同的源，进行不同的发送处理 */
+  switch(source)
+  {
+  case ZcSource_Net:
+#ifdef ZC_NET
+    httpMsg = ZcProtocol_ConvertHttpString(zcProtocol, data, dataLen);         //转换为HTTP协议，
+    TxQueue_AddWithId(&Enthernet_TxQueue, 
+                      (uint8_t*)httpMsg, 
+                      strlen(httpMsg), 
+                      TX_FLAG_MC|TX_FLAG_RT,
+                      zcPrtc.head.id);  
+    Free(httpMsg);
+#endif
+    break;
+  case ZcSource_24G:
+#ifdef ZC_24G
+    msg = ZcProtocol_ConvertMsg(zcProtocol, data ,dataLen);
+    TxQueue_AddWithId(&nRF24L01_TxQueue, 
+                      msg->packet, 
+                      msg->length, 
+                      0,
+                      zcPrtc.head.id);  
+    Array_Free(msg);
+#endif
+    break;
+  }
 }
 /*********************************************************************************************
 
@@ -164,7 +206,7 @@ void ZcProtocol_Handle()
   
   /* 空闲状态，填充查询暂存报文，切换为等待状态 */
   case ZcHandleStatus_Trans:
-    ZcProtocol_Transmit(ZcSource_Net, 00, NULL, 0, 0);     //发送暂存报文
+    ZcProtocol_Request(ZcSource_Net, 00, NULL, 0, 0);     //发送暂存报文
     zcHandle.status = ZcHandleStatus_Wait;      //切换等待状态
     break;
     
@@ -244,12 +286,12 @@ void ZcProtocol_NetRxHandle(ZcProtocol *protocol)
       
     /* 回复的命令 */
     default:
-      ZcProtocol_Transmit(ZcSource_Net, ZC_CMD_FAIL, NULL, 0, 0);
+      ZcProtocol_Request(ZcSource_Net, ZC_CMD_FAIL, NULL, 0, 0);
       break;
     }
   }
   else if(operationRes == 2)
-  { ZcProtocol_Transmit(ZcSource_Net, ZC_CMD_FAIL, NULL, 0, 0); }        //操作类指令失败，发送失败回复
+  { ZcProtocol_Request(ZcSource_Net, ZC_CMD_FAIL, NULL, 0, 0); }        //操作类指令失败，发送失败回复
 }
 /*********************************************************************************************
 
@@ -262,7 +304,7 @@ void ZcProtocol_NetRxHandle(ZcProtocol *protocol)
   ********************************************************************************************/
 void ZcProtocol_NetPacketHandle(uint8_t *message, uint16_t length)
 {
-  ArrayStruct *msg = String2Msg(strstr(message, "68"), 0);      // 字符串转报文数组
+  ArrayStruct *msg = String2Msg(strstr((const char*)message, "68"), 0);      // 字符串转报文数组
   
   ZcProtocol_ReceiveHandle(msg->packet, msg->length, ZcSource_Net);  //协议的原始报文处理
   
