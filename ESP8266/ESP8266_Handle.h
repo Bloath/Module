@@ -14,8 +14,8 @@
 
 /* Public macro --------------------------------------------------------------*/
 /* Public variables ----------------------------------------------------------*/
-extern TxBlockTypeDef Enthernet_TxBlockList[TX_BLOCK_COUNT];                      //模块的发送缓冲
-extern RxBlockTypeDef Enthernet_RxBlockList[RX_BLOCK_COUNT];                      //模块的接收缓冲
+extern TxQueueStruct Enthernet_TxQueue;                      //模块的发送缓冲
+extern RxQueueStruct Enthernet_RxQueue;                      //模块的接收缓冲
 
 /* Public function prototypes ------------------------------------------------*/
 

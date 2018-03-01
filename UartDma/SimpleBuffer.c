@@ -22,7 +22,7 @@ void TxBlockErrorHandle(TxBlockError error);
   * @remark 
 
   ********************************************************************************************/
-void ReceiveSingleByte(uint8_t data, RxBufferTypeDef *rxBuffer)
+void ReceiveSingleByte(uint8_t data, RxBufferStruct *rxBuffer)
 {
   rxBuffer->buffer[rxBuffer->count] = data;         //填入缓冲 
   rxBuffer->count ++;                               //计数器递增
@@ -40,7 +40,7 @@ void ReceiveSingleByte(uint8_t data, RxBufferTypeDef *rxBuffer)
   * @remark 返回填充队列号，如果为0xFFFF则为失败
 
   ********************************************************************************************/
-uint16_t FillRxBlock( RxBlockTypeDef *rxBlock, uint8_t *packet, uint16_t Len)
+uint16_t RxQueue_Add(RxQueueStruct *rxQueue, uint8_t *packet, uint16_t Len)
 {
   uint8_t i = 0;
   
@@ -48,27 +48,27 @@ uint16_t FillRxBlock( RxBlockTypeDef *rxBlock, uint8_t *packet, uint16_t Len)
   { return 0xFFFF; }
   
   /* 找到空闲缓冲，填入 */
-  for(i=0; i<RX_BLOCK_COUNT; i++)
+  for(i=0; i<BLOCK_COUNT; i++)
   {
-    if(!(rxBlock[i].flag & RX_FLAG_USED))                                      //查找空闲报文队列
+    if(!(rxQueue->rxBlocks[i].flag & RX_FLAG_USED))                                      //查找空闲报文队列
     {
-      rxBlock[i].flag |= RX_FLAG_USED;                                              //报文块使用标志位置位
+      rxQueue->rxBlocks[i].flag |= RX_FLAG_USED;                                              //报文块使用标志位置位
     
-      rxBlock[i].message = (uint8_t*)Malloc((Len + 1) * sizeof(uint8_t));         //根据缓冲长度申请内存，多一个字节，用于填写字符串停止符
+      rxQueue->rxBlocks[i].message = (uint8_t*)Malloc((Len + 1) * sizeof(uint8_t));         //根据缓冲长度申请内存，多一个字节，用于填写字符串停止符
       
-      memcpy(rxBlock[i].message, packet, Len);  
+      memcpy(rxQueue->rxBlocks[i].message, packet, Len);  
       
-      rxBlock[i].message[Len] = 0;              // 添加结束符，该缓冲块可以用作字符串处理 
+      rxQueue->rxBlocks[i].message[Len] = 0;              // 添加结束符，该缓冲块可以用作字符串处理 
       
-      rxBlock[i].length = Len; 
+      rxQueue->rxBlocks[i].length = Len; 
       
       return i;
       //break;
     }
   }
   
-  if(i == RX_BLOCK_COUNT)
-  { RxBlock_ErrorHandle(rxBlock, BlockFull); }
+  if(i == BLOCK_COUNT)
+  { RxBlock_ErrorHandle(rxQueue, BlockFull); }
   
   return 0xFFFF;
 }
@@ -83,71 +83,70 @@ uint16_t FillRxBlock( RxBlockTypeDef *rxBlock, uint8_t *packet, uint16_t Len)
   * @remark 
 
   ********************************************************************************************/
-void RxBlockListHandle(RxBlockTypeDef *rxBlock, void (*f)(uint8_t*, uint16_t))
+void RxQueue_Handle(RxQueueStruct *rxQueue, void (*f)(uint8_t*, uint16_t))
 {
-  for(uint16_t i=0; i<RX_BLOCK_COUNT; i++)
+  for(uint16_t i=0; i<BLOCK_COUNT; i++)
   {
-    if(rxBlock[i].flag & RX_FLAG_USED)                     //查找需要处理的报文
+    if(rxQueue->rxBlocks[i].flag & RX_FLAG_USED)                     //查找需要处理的报文
     {
-      (*f)(rxBlock[i].message, rxBlock[i].length);
+      (*f)(rxQueue->rxBlocks[i].message, rxQueue->rxBlocks[i].length);
       
-      Free(rxBlock[i].message);                             //释放申请的内存
+      Free(rxQueue->rxBlocks[i].message);                             //释放申请的内存
     
-      rxBlock[i].flag &= ~RX_FLAG_USED;                    //清空已使用标志位
+      rxQueue->rxBlocks[i].flag &= ~RX_FLAG_USED;                    //清空已使用标志位
     }
   }
 }
 
 /*********************************************************************************************
-  * @brief  无线发送缓冲处理
+  * @brief  发送缓冲处理
   * @param  txBlock：发送缓冲块，发送缓冲队列头
   * @param  Transmit：发送函数指针（调用底层发送函数）
   * @param  interval：发送缓冲函数调用间隔时间
   * @retval 无
   * @remark 
   ********************************************************************************************/
-void TxBlockListHandle(TxBlockTypeDef *txBlock, void (*Transmit)(uint8_t*, uint16_t), uint32_t interval)
+void TxQueue_Handle(TxQueueStruct *txQueue, void (*Transmit)(uint8_t*, uint16_t), uint32_t interval)
 {
   uint16_t i;
-  static uint32_t time = 0;
   
-  if((time + interval) > sysTime)
+  if((txQueue->time + interval) > sysTime)
   { return; }
   else
-  {  time = sysTime; }
+  {  txQueue->time = sysTime; }
   
-  for(i=0; i<TX_BLOCK_COUNT; i++)
+  for(i=0; i<BLOCK_COUNT; i++)
   {
-      if(txBlock[i].flag & TX_FLAG_USED)            
+      if(txQueue->txBlocks[i].flag & TX_FLAG_USED)            
       {
         
 #ifdef TX_BLOCK_TIMEOUT
           /* 发送超时，进入错误处理，并释放发送缓冲块 */
-          if((txBlock[i].time + TX_TIME_OUT) < sysTime && txBlock[i].flag & TX_FLAG_TIMEOUT)
+          if((txQueue->txBlocks[i].time + TX_TIME_OUT) < sysTime && txQueue->txBlocks[i].flag & TX_FLAG_TIMEOUT)
           {
             TxBlockErrorHandle(TxBlockError_TimeOut);
-            FreeTxBlock(&txBlock[i]);
+            TxQueue_FreeBlock(txQueue->txBlock + i);
             continue;
           }
 #endif
         
           /*在已发送标志位为0，或者重复发送为真时
             进行数据的发送，并置位已发送标志位*/
-          if(!(txBlock[i].flag & TX_FLAG_SENDED) || txBlock[i].flag & TX_FLAG_RT)
+          if(!(txQueue->txBlocks[i].flag & TX_FLAG_SENDED) || txQueue->txBlocks[i].flag & TX_FLAG_RT)
           {
-            Transmit(txBlock[i].message, txBlock[i].length);             //发送数据
-            txBlock[i].flag |= TX_FLAG_SENDED;
+            Transmit(txQueue->txBlocks[i].message, txQueue->txBlocks[i].length);             //发送数据
+            txQueue->txBlocks[i].flag |= TX_FLAG_SENDED;
             //break;              //注意这个位置
           }
         
-          txBlock[i].retransCounter ++;                            //重发次数递增
+          txQueue->txBlocks[i].retransCounter ++;                            //重发次数递增
           
           /* 非手动清除 且 (重发超过200次 或者 不需要重发) 的情况下
              清除缓存释放模块 */
-          if(!(txBlock[i].flag & TX_FLAG_MC) 
-             && (txBlock[i].retransCounter > 200 || !(txBlock[i].flag & TX_FLAG_RT)))
+          if(!(txQueue->txBlocks[i].flag & TX_FLAG_MC) 
+             && (txQueue->txBlocks[i].retransCounter > 200 || !(txQueue->txBlocks[i].flag & TX_FLAG_RT)))
           {
-            FreeTxBlock(&txBlock[i]);
+            TxQueue_FreeBlock(&(txQueue->txBlocks[i]));
           }  
       }
   }
@@ -164,34 +163,34 @@ void TxBlockListHandle(TxBlockTypeDef *txBlock, void (*Transmit)(uint8_t*, uint1
   * @remark 
 
   ********************************************************************************************/
-uint16_t FillTxBlock(TxBlockTypeDef *txBlock, uint8_t *message, uint16_t length, uint8_t custom)
+uint16_t TxQueue_Add(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, uint8_t custom)
 {
   uint16_t i;
   
-  for(i=0; i<TX_BLOCK_COUNT; i++)
+  for(i=0; i<BLOCK_COUNT; i++)
   { 
-    if((txBlock[i].flag & TX_FLAG_USED) == 0)
+    if((txQueue->txBlocks[i].flag & TX_FLAG_USED) == 0)
     {
-      txBlock[i].message = (uint8_t*)Malloc(length * sizeof(uint8_t));
+      txQueue->txBlocks[i].message = (uint8_t*)Malloc(length * sizeof(uint8_t));
 
-      memcpy(txBlock[i].message, message, length);
-      txBlock[i].length = length;
-      txBlock[i].flag |= TX_FLAG_USED;
+      memcpy(txQueue->txBlocks[i].message, message, length);
+      txQueue->txBlocks[i].length = length;
+      txQueue->txBlocks[i].flag |= TX_FLAG_USED;
       
 #ifdef TX_BLOCK_TIMEOUT
-      txBlock[i].time = sysTime;
+      txQueue->txBlocks[i].time = sysTime;
 #endif
       
       /* 可以自定义标志位，自动添加占用标志位，默认只发送一次 */
-      txBlock[i].flag |= custom;
+      txQueue->txBlocks[i].flag |= custom;
       
       return i;
       //break;
     }
   }
   
-  if(i == TX_BLOCK_COUNT)
-  { TxBlock_ErrorHandle(txBlock, BlockFull); }
+  if(i == BLOCK_COUNT)
+  { TxBlock_ErrorHandle(txQueue, BlockFull); }
   
   return 0xFFFF;
 }
@@ -207,12 +206,12 @@ uint16_t FillTxBlock(TxBlockTypeDef *txBlock, uint8_t *message, uint16_t length,
   * @remark 
 
   ********************************************************************************************/
-uint16_t FillTxBlockWithId(TxBlockTypeDef *txBlock, uint8_t *message, uint16_t length, uint8_t custom, TX_ID_SIZE id)
+uint16_t FillTxBlockWithId(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, uint8_t custom, TX_ID_SIZE id)
 {
-  uint16_t blockId = FillTxBlock(txBlock, message, length, custom);
+  uint16_t blockId = TxQueue_Add(txQueue, message, length, custom);
   
   if(blockId != 0xFFFF)
-  { txBlock[blockId].id = id; }
+  { txQueue->txBlocks[blockId].id = id; }
   
   return blockId;
 }
@@ -224,7 +223,7 @@ uint16_t FillTxBlockWithId(TxBlockTypeDef *txBlock, uint8_t *message, uint16_t l
   * @remark 
 
   ********************************************************************************************/
-void FreeTxBlock(TxBlockTypeDef *txBlock)
+void TxQueue_FreeBlock(TxBaseBlockStruct *txBlock)
 {
   Free(txBlock->message);
   
@@ -248,16 +247,16 @@ void FreeTxBlock(TxBlockTypeDef *txBlock)
   * @remark 
 
   ********************************************************************************************/
-void FreeTxBlockByFunc(TxBlockTypeDef *txBlock, uint8_t (*func)(uint8_t*, uint16_t, void*), void *p)
+void TxQueue_FreeByFunc(TxQueueStruct *txQueue, uint8_t (*func)(uint8_t*, uint16_t, void*), void *p)
 {
   uint16_t i;
   
-  for(i=0; i<TX_BLOCK_COUNT; i++)
+  for(i=0; i<BLOCK_COUNT; i++)
   { 
-    if((txBlock[i].flag & TX_FLAG_USED) != 0)
+    if((txQueue->txBlocks[i].flag & TX_FLAG_USED) != 0)
     {
-      if(!func(txBlock[i].message, txBlock[i].length, p))
-      { FreeTxBlock(txBlock + i); }
+      if(!func(txQueue->txBlocks[i].message, txQueue->txBlocks[i].length, p))
+      { TxQueue_FreeBlock(txQueue->txBlocks + i); }
     }
   }
 }
@@ -270,16 +269,16 @@ void FreeTxBlockByFunc(TxBlockTypeDef *txBlock, uint8_t (*func)(uint8_t*, uint16
   * @remark 
 
   ********************************************************************************************/
-void FreeTxBlockById(TxBlockTypeDef *txBlock, TX_ID_SIZE id)
+void TxQueue_FreeById(TxQueueStruct *txQueue, TX_ID_SIZE id)
 {
   uint16_t i;
   
-  for(i=0; i<TX_BLOCK_COUNT; i++)
+  for(i=0; i<BLOCK_COUNT; i++)
   { 
-    if((txBlock[i].flag & TX_FLAG_USED) != 0)
+    if((txQueue->txBlocks[i].flag & TX_FLAG_USED) != 0)
     {
-      if(txBlock[i].id == id)
-      { FreeTxBlock(txBlock + i); }
+      if(txQueue->txBlocks[i].id == id)
+      { TxQueue_FreeBlock(txQueue->txBlocks + i); }
     }
   }
 }

@@ -107,7 +107,7 @@ void ZcProtocol_Transmit(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint16
   case ZcSource_Net:
 #ifdef ZC_NET
     httpMsg = ZcProtocol_ConvertHttpString(&zcPrtc, data, dataLen);         //转换为HTTP协议，
-    FillTxBlockWithId(Enthernet_TxBlockList, 
+    FillTxBlockWithId(&Enthernet_TxQueue, 
                       (uint8_t*)httpMsg, 
                       strlen(httpMsg), 
                       TX_FLAG_MC|TX_FLAG_RT,
@@ -117,7 +117,7 @@ void ZcProtocol_Transmit(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint16
     break;
   case ZcSource_24G:
 #ifdef ZC_24G
-    FillTxBlockWithId(nRF24L01_TxBlockList, 
+    FillTxBlockWithId(&nRF24L01_TxQueue, 
                       data, 
                       dataLen, 
                       TX_FLAG_MC|TX_FLAG_RT,
@@ -144,30 +144,32 @@ void ZcProtocol_Handle()
 {
   static uint32_t time=0;
   
-  /* 间隔一段时间 */
-  if((time + zcHandle.loopInterval) > realTime)
-  { return; }
-  else
-  { time = realTime; }
-  
   /* 根据主状态进行处理 */
   switch(zcHandle.status)
   {
-    /* 初始化 */
+  /* 初始化 */
   case ZcHandleStatus_Init:
-    zcHandle.loopInterval = 60;
-    zcHandle.status = ZcHandleStatus_Idle;
+    zcHandle.loopInterval = ZC_NET_POLL_INTERVAL;
+    zcHandle.status = ZcHandleStatus_PollInterval;
+    time = realTime;
     break;
-    
-    /* 空闲状态，填充查询暂存报文，切换为等待状态 */
-  case ZcHandleStatus_Idle:
+  
+  /* 轮训间隔时间 */
+  case ZcHandleStatus_PollInterval:
+     /* 间隔一段时间 */
+    if((time + zcHandle.loopInterval) > realTime)
+    { break; }
+    else
+    { zcHandle.status = ZcHandleStatus_Trans; }
+  
+  /* 空闲状态，填充查询暂存报文，切换为等待状态 */
+  case ZcHandleStatus_Trans:
     ZcProtocol_Transmit(ZcSource_Net, 00, NULL, 0, 0);     //发送暂存报文
-    zcHandle.holdId = zcPrtc.head.id;           //记录当前ID
     zcHandle.status = ZcHandleStatus_Wait;      //切换等待状态
     break;
     
-    /* 等待状态，发送缓冲为手动清除，如果没有回复的话是不会清除的 
-       等待状态为死锁，直到接收到确认报文或者查询暂存回复*/
+  /* 等待状态，发送缓冲为手动清除，如果没有回复的话是不会清除的 
+     等待状态为死锁，直到接收到确认报文或者查询暂存回复*/
   case ZcHandleStatus_Wait:
     time = realTime;
     break;
@@ -212,7 +214,7 @@ void ZcProtocol_ReceiveHandle(uint8_t *message, uint16_t length, ZcSourceEnum so
 void ZcProtocol_NetRxHandle(ZcProtocol *protocol)
 {
 #ifdef ZC_NET
-  FreeTxBlockById(Enthernet_TxBlockList, protocol->head.id);    //每次服务器回复后都要清除相应发送报文
+  TxQueue_FreeById(&Enthernet_TxQueue, protocol->head.id);    //每次服务器回复后都要清除相应发送报文
 #endif
     /* 先查看是否有操作的报文
      回复0：处理成功，不需要后续处理
@@ -226,25 +228,18 @@ void ZcProtocol_NetRxHandle(ZcProtocol *protocol)
     { 
     /* 查询暂存报文 */
     case ZC_CMD_QUERY_HOLD:
-      zcHandle.status = ZcHandleStatus_Idle;  // 切换为空闲状态，继续发送查询暂存报文
+      zcHandle.status = ZcHandleStatus_Init;  // 切换为初始化状态，根据预定轮训时间进行轮训
       break;
       
     /* 服务器下发确认报文 */
     case ZC_CMD_SERVER_CONFIRM:
-      /* 当接收到确认报文且与之前的暂存报文ID相同 */
-      if(protocol->head.id == zcHandle.holdId)
-      { 
-        zcHandle.status = ZcHandleStatus_Idle;  // 切换为空闲状态，发送下一次查询暂存报文
-        zcPrtc.head.id++;                       // Id递增
-      }
+      zcPrtc.head.id++;                       // Id递增
            
       /* 当控制欲的SFD为1时，直接发送查询暂存报文,并切换为等待状态*/
       if((protocol->head.control & (1<<7)) != 0)
-      { 
-        zcHandle.holdId = zcPrtc.head.id;
-        ZcProtocol_Transmit(ZcSource_Net, 00, NULL, 0, 0);
-        zcHandle.status = ZcHandleStatus_Wait; 
-      }   
+      { zcHandle.status = ZcHandleStatus_Trans; }       // 直接切换为发送状态   
+      else
+      { zcHandle.status = ZcHandleStatus_Init; }        // 切换为初始化状态，根据预定轮训时间进行轮训
       break;
       
     /* 回复的命令 */

@@ -63,8 +63,8 @@ ESP8266_ConnectStatusEnum ESP8266_ConnectStatus = ConnectStatus_Init;   //WIFI连
 ESP8266_TcpStatusEnum ESP8266_TcpStatus = TcpStatus_Init;               // TCP发送状态
 uint16_t ESP8266_Status = 0;
 
-TxBlockTypeDef Enthernet_TxBlockList[TX_BLOCK_COUNT];                      //模块的发送缓冲
-RxBlockTypeDef Enthernet_RxBlockList[RX_BLOCK_COUNT];                      //模块的接收缓冲
+TxQueueStruct Enthernet_TxQueue;                      //模块的发送缓冲
+RxQueueStruct Enthernet_RxQueue;                      //模块的接收缓冲
 
 /* Private function prototypes -----------------------------------------------*/
 void ESP8266_SendAtCmd(uint8_t *data, uint16_t length);
@@ -122,7 +122,7 @@ void ESP8266_Handle()
     break;
     
   case ConnectStatus_Connected:
-    TxBlockListHandle(Enthernet_TxBlockList, ESP8266_HttpTransmit, 10);
+    TxQueue_Handle(&Enthernet_TxQueue, ESP8266_HttpTransmit, 10);
     break;
   }
 }
@@ -244,7 +244,7 @@ void ESP8266_RxMsgHandle(uint8_t *packet, uint16_t length)
       char* index = (char *)Http_GetResponse(message);  //通过两次换行找到回复体
      
       if(index != NULL)
-      { FillRxBlock(Enthernet_RxBlockList, (uint8_t*)index, strlen(index)); }     // 回复体处理
+      { RxQueue_Add(&Enthernet_RxQueue, (uint8_t*)index, strlen(index)); }     // 回复体处理
     }
   }  
 

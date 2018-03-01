@@ -31,10 +31,10 @@ void Stm32_UartRxDma_Init(UartRxDmaStruct *uartRxDma, DMA_HandleTypeDef *rxDma, 
   
   HAL_DMA_Start_IT(uartRxDma->rxDma, 
                    (uint32_t)&(uartRxDma->uart->Instance->RDR), 
-                   (uint32_t)uartRxDma->bufferBlock.rxBuffer.buffer, 
+                   (uint32_t)uartRxDma->rxBuffer.buffer, 
                    uartRxDma->bufferLength);
   
-  HAL_UART_Receive_DMA(uartRxDma->uart, uartRxDma->bufferBlock.rxBuffer.buffer, uartRxDma->bufferLength);
+  HAL_UART_Receive_DMA(uartRxDma->uart, uartRxDma->rxBuffer.buffer, uartRxDma->bufferLength);
   
   uartRxDma->uart->Instance->CR1 |= USART_CR1_IDLEIE;
 }
@@ -52,22 +52,22 @@ void Stm32_UartRxDma_IntHandle(UartRxDmaStruct *uartRxDma)
   
   /* 通过判断end与start的位置，进行不同的处理 */
   if(uartRxDma->end > uartRxDma->start)
-  { FillRxBlock(uartRxDma->bufferBlock.rxBlockList, 
-                uartRxDma->bufferBlock.rxBuffer.buffer + uartRxDma->start, 
+  { RxQueue_Add(&uartRxDma->rxQueue, 
+                uartRxDma->rxBuffer.buffer + uartRxDma->start, 
                 uartRxDma->end - uartRxDma->start); }
   else if(uartRxDma->end < uartRxDma->start)
   {
     uint8_t *message = (uint8_t *)Malloc(uartRxDma->bufferLength - uartRxDma->start + uartRxDma->end );
     
     memcpy(message, 
-           uartRxDma->bufferBlock.rxBuffer.buffer + uartRxDma->start,     
+           uartRxDma->rxBuffer.buffer + uartRxDma->start,     
            uartRxDma->bufferLength - uartRxDma->start);
     
     memcpy(message + uartRxDma->bufferLength - uartRxDma->start - 1, 
-           uartRxDma->bufferBlock.rxBuffer.buffer,     
+           uartRxDma->rxBuffer.buffer,     
            uartRxDma->end + 1);
     
-    FillRxBlock(uartRxDma->bufferBlock.rxBlockList,
+    RxQueue_Add(&uartRxDma->rxQueue,
                 message, 
                 uartRxDma->bufferLength - uartRxDma->start + uartRxDma->end);
     Free(message);

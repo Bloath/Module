@@ -6,8 +6,8 @@
 /* Private define ------------------------------------------------------------*/
 /* Private macro --------------------------------------------------------------*/
 /* Private variables ----------------------------------------------------------*/
-extern TxBlockTypeDef nRF24L01_TxBlockList[BLOCK_COUNT];
-extern RxBlockTypeDef nRF24L01_RxBlockList[BLOCK_COUNT];
+extern TxQueueStruct nRF24L01_TxQueue;
+extern RxQueueStruct nRF24L01_RxQueue;
 
 /* Private function prototypes ------------------------------------------------*/
 void nRF24L01P_Initialization();

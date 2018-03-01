@@ -21,7 +21,7 @@
   * @remark 
 
   ********************************************************************************************/
-void TxBlock_ErrorHandle(TxBlockTypeDef *txBlock, BlockErrorEnum error)
+void TxBlock_ErrorHandle(TxQueueStruct *rxQueue, BlockErrorEnum error)
 {
   switch(error)
   {
@@ -41,7 +41,7 @@ void TxBlock_ErrorHandle(TxBlockTypeDef *txBlock, BlockErrorEnum error)
   * @remark 
 
   ********************************************************************************************/
-void RxBlock_ErrorHandle(RxBlockTypeDef *rxBlock, BlockErrorEnum error)
+void RxBlock_ErrorHandle(RxQueueStruct *rxQueue, BlockErrorEnum error)
 {
   switch(error)
   {

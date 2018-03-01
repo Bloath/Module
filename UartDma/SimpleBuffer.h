@@ -7,10 +7,6 @@
 
 /* Public define -------------------------------------------------------------*/
 
-
-#define RX_BLOCK_COUNT BLOCK_COUNT
-#define TX_BLOCK_COUNT BLOCK_COUNT
-
 #define RX_FLAG_USED    (1<<0)          //被占用
 
 #define TX_FLAG_USED    (1<<0)          //被占用
@@ -24,15 +20,15 @@ typedef struct
 {
   uint8_t buffer[BUFFER_LENGTH];
   uint16_t count;
-}RxBufferTypeDef;       //接收缓冲，包含N字节的缓冲池以及计数器
+}RxBufferStruct;       //接收缓冲，包含N字节的缓冲池以及计数器
 
+//*************************基础块单位*******************
 typedef struct
 {
   uint8_t flag;
   uint8_t *message;
   uint16_t length;
-}RxBlockTypeDef;        //接收块
-
+}RxBaseBlockStruct;        //接收块
 
 typedef struct
 {
@@ -44,14 +40,22 @@ typedef struct
 #ifdef TX_BLOCK_TIMEOUT
     uint32_t time;
 #endif
-}TxBlockTypeDef;        // 发送块     
+}TxBaseBlockStruct;        // 发送块     
 
+//***********************高级块缓冲单位************************
+typedef struct
+{
+  uint32_t time;                                //对不同的发送函数来说，有着不同的发送间隔，需要进行单独设置
+  TxBaseBlockStruct txBlocks[BLOCK_COUNT];
+}TxQueueStruct;             // 发送块缓冲队列
 
 typedef struct
 {
-  RxBufferTypeDef rxBuffer;
-  RxBlockTypeDef rxBlockList[RX_BLOCK_COUNT];
-}RxBufferStruct;
+  uint32_t time;        
+  RxBaseBlockStruct rxBlocks[BLOCK_COUNT];
+}RxQueueStruct;             //接收块缓冲队列
+
+//*********************错误枚举**************************
 typedef enum
 {
   TxBlockError_TimeOut = 0
@@ -62,17 +66,17 @@ typedef enum
 /* Public function prototypes ------------------------------------------------*/
 
 /* 接收需要的函数 */
-void ReceiveSingleByte(uint8_t rxByte, RxBufferTypeDef *rxBuffer);                                      //接收单字节数据，填充至缓冲中
-uint16_t FillRxBlock( RxBlockTypeDef *rxBlock, uint8_t *packet, uint16_t Len);                          //将接收缓冲中的数据填充到接收报文队列中
-void RxBlockListHandle(RxBlockTypeDef *rxBlock, void (*f)(uint8_t*, uint16_t));                         //接收报文队列处理
+void ReceiveSingleByte(uint8_t rxByte, RxBufferStruct *rxBuffer);                                      //接收单字节数据，填充至缓冲中
+uint16_t RxQueue_Add(RxQueueStruct *rxQueue, uint8_t *packet, uint16_t Len);                          //将接收缓冲中的数据填充到接收报文队列中
+void RxQueue_Handle(RxQueueStruct *rxQueue, void (*f)(uint8_t*, uint16_t));                         //接收报文队列处理
 
 /* 发送需要的函数 */
-uint16_t FillTxBlock(TxBlockTypeDef *txBlock, uint8_t *message, uint16_t length, uint8_t custom);               //填充发送队列，包含清除重发以及未使用标志位为1
-uint16_t FillTxBlockWithId(TxBlockTypeDef *txBlock, uint8_t *message, uint16_t length, uint8_t custom, TX_ID_SIZE id);
-void TxBlockListHandle(TxBlockTypeDef *txBlock, void (*Transmit)(uint8_t*, uint16_t), uint32_t timeout);        //发送报文队列处理
-void FreeTxBlock(TxBlockTypeDef *txBlock);                                                                      //释放发送块，释放内存清除标志位
-void FreeTxBlockByFunc(TxBlockTypeDef *txBlock, uint8_t (*func)(uint8_t*, uint16_t, void*), void *p);           //通过指定函数，释放指定发送块
-void FreeTxBlockById(TxBlockTypeDef *txBlock,  TX_ID_SIZE id);                                                  //通过ID，释放指定发送块
+uint16_t TxQueue_Add(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, uint8_t custom);               //填充发送队列，包含清除重发以及未使用标志位为1
+uint16_t TxQueue_AddWithId(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, uint8_t custom, TX_ID_SIZE id);
+void TxQueue_Handle(TxQueueStruct *txQueue, void (*Transmit)(uint8_t*, uint16_t), uint32_t timeout);        //发送报文队列处理
+void TxQueue_FreeBlock(TxBaseBlockStruct *txBlock);                                                                      //释放发送块，释放内存清除标志位
+void TxQueue_FreeByFunc(TxQueueStruct *txQueue, uint8_t (*func)(uint8_t*, uint16_t, void*), void *p);           //通过指定函数，释放指定发送块
+void TxQueue_FreeById(TxQueueStruct *txQueue,  TX_ID_SIZE id);                                                  //通过ID，释放指定发送块
 
 /* 小功能 */
 uint8_t isPacketSame(uint8_t *srcPacket, uint8_t *desPacket, uint16_t length);

@@ -3,15 +3,15 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "../../Sys_Conf.h"
-#include "HAL/HAL_Config.h"
+#include "main.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
-#define CSN_LOW()       GPIO_WriteBit(CSN_PORT, CSN_PIN, RESET)
-#define CSN_HIGH()      GPIO_WriteBit(CSN_PORT, CSN_PIN, SET)
+#define CSN_LOW()       HAL_GPIO_WritePin(CSN_GPIO_Port, CSN_Pin, GPIO_PIN_RESET)
+#define CSN_HIGH()      HAL_GPIO_WritePin(CSN_GPIO_Port, CSN_Pin, GPIO_PIN_SET)
 
-#define CE_LOW()       GPIO_WriteBit(CE_PORT, CSN_PIN, RESET);
-#define CE_HIGH()      GPIO_WriteBit(CE_PORT, CSN_PIN, SET);
+#define CE_LOW()       HAL_GPIO_WritePin(CE_GPIO_Port, CE_Pin, GPIO_PIN_RESET);
+#define CE_HIGH()      HAL_GPIO_WritePin(CE_GPIO_Port, CE_Pin, GPIO_PIN_SET);
 /* Private macro --------------------------------------------------------------*/
 /* Private variables ----------------------------------------------------------*/
 /* Private function prototypes ------------------------------------------------*/

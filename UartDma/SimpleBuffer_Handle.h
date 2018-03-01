@@ -17,8 +17,8 @@ typedef enum
 /* Public macro --------------------------------------------------------------*/
 /* Public variables ----------------------------------------------------------*/
 /* Public function prototypes ------------------------------------------------*/
-void TxBlock_ErrorHandle(TxBlockTypeDef *txBlock, BlockErrorEnum error);
-void RxBlock_ErrorHandle(RxBlockTypeDef *rxBlock, BlockErrorEnum error);
+void TxBlock_ErrorHandle(TxQueueStruct *rxQueue, BlockErrorEnum error);
+void RxBlock_ErrorHandle(RxQueueStruct *rxQueue, BlockErrorEnum error);
 void BufferOverFlow();
 
 #endif

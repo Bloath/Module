@@ -10,7 +10,8 @@
 typedef enum
 {
   ZcHandleStatus_Init = 0,
-  ZcHandleStatus_Idle,
+  ZcHandleStatus_PollInterval,
+  ZcHandleStatus_Trans,
   ZcHandleStatus_Wait
 }ZcProtocolStatus;
 

@@ -8,7 +8,6 @@
 #include "../../Sys_Conf.h"
 
 // 自定义添加
-#include "./Process/Global.h"
 #include "../Module/UartDma/SimpleBuffer.h"
 
 
@@ -18,8 +17,8 @@
 /* Private variables ---------------------------------------------------------*/
 uint8_t ADDRESS[ADR_WIDTH] = {0x0F,0xFF,0xFF,0xFF,0xFF};  // 定义一个静态发送地址
 
-TxBlockTypeDef nRF24L01_TxBlockList[BLOCK_COUNT];
-RxBlockTypeDef nRF24L01_RxBlockList[BLOCK_COUNT];
+TxQueueStruct nRF24L01_TxQueue;
+RxQueueStruct nRF24L01_RxQueue;
 
 /* Private function prototypes -----------------------------------------------*/
 void nRF24L01P_RxPacketHandle(uint8_t *packet, uint8_t len, uint8_t pipeID);
@@ -94,7 +93,7 @@ uint8_t nRF24L01P_Receive()
   ********************************************************************************************/
 void nRF24L01P_RxPacketHandle(uint8_t *packet, uint8_t len, uint8_t pipeID)
 {
-  FillRxBlock(nRF24L01_RxBlockList, packet, len);
+  RxQueue_Add(&nRF24L01_RxQueue, packet, len);
 }
 
 /*********************************************************************************************

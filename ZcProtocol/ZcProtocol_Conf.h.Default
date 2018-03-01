@@ -7,6 +7,8 @@
 #define ZC_24G  1
 #define ZC_485  1
 
+#define ZC_NET_POLL_INTERVAL 10
+
 //#define DOMAIN  "web.bloath.com"
 #define IP      "144.123.12.178"
 #define PORT    "5021"

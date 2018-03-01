@@ -11,7 +11,8 @@ typedef struct
 {
   DMA_HandleTypeDef *rxDma;
   UART_HandleTypeDef *uart;
-  RxBufferStruct bufferBlock;
+  RxBufferStruct rxBuffer;
+  RxQueueStruct rxQueue;
   uint16_t bufferLength;
   uint16_t start;
   uint16_t end;
