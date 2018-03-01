@@ -3,7 +3,8 @@
 
 #include "../Common/Array.h"
 #include "../Common/Convert.h"
-#include "../Module/Common/Malloc.h"
+#include "../Common/Malloc.h"
+#include "../Sys_Conf.h"
 #include "ZcProtocol.h"
 #include "Http.h"
 
@@ -86,10 +87,12 @@ ZcProtocol* ZcProtocol_Check(uint8_t *message, uint16_t length)
   /* Ê×Î²ÅÐ¶Ï */
   if(protocol->head.head != ZC_HEAD || tail->end != ZC_END)
   {     return NULL;  }
-  
+
+#ifndef DEBUG
   /* CRCÅÐ¶Ï */
   if(tail->crc != ZcProtocol_GetCrc(message, protocol->head.length))
   { return NULL;  }
+#endif
 
   return protocol;
 }

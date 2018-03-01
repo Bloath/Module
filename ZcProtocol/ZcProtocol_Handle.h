@@ -8,4 +8,5 @@
 /* Public variables ----------------------------------------------------------*/
 /* Public function prototypes ------------------------------------------------*/
 uint8_t ZcProtocol_NetOperationCmdHandle(ZcProtocol *protocol);
+uint8_t ZcProtocol_24GOperationCmdHandle(ZcProtocol *zcProtocol);
 #endif

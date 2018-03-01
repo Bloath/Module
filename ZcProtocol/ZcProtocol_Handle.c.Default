@@ -153,3 +153,42 @@ uint8_t ZcProtocol_NetOperationCmdHandle(ZcProtocol *zcProtocol)
   
   return res;
 }
+/*********************************************************************************************
+
+  * @brief  拙诚协议=》操作类指令处理
+  * @param  protocol：协议指针
+  * @retval 0：处理成功
+            1：没发现操作类指令
+            2：处理失败
+  * @remark 
+
+  ********************************************************************************************/
+uint8_t ZcProtocol_24GOperationCmdHandle(ZcProtocol *zcProtocol)
+{
+  uint8_t res = 0;              
+  ArrayStruct *message = Array_New(100);
+  
+  switch(zcProtocol->head.cmd)                          
+  { 
+    /* 地址域 */
+    case ZC_CMD_ADDRESS:
+      ZcProtocol_Response(ZcSource_24G, zcProtocol, zcPrtc.head.address, 7);
+      break;
+      
+    /* 阀门开关操作 */
+    case ZC_CMD_VALVE_OPRT:
+      message->packet[0] = 2;
+      ZcProtocol_Response(ZcSource_24G, zcProtocol, message->packet, 1); 
+      //res = 2;
+      break;
+      
+    /* 并非操作指令，返回1 */
+    default:
+      res = 1;
+      break;
+    }
+  
+  Array_Free(message);
+  
+  return res;
+}
