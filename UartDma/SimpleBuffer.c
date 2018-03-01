@@ -206,7 +206,7 @@ uint16_t TxQueue_Add(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, 
   * @remark 
 
   ********************************************************************************************/
-uint16_t FillTxBlockWithId(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, uint8_t custom, TX_ID_SIZE id)
+uint16_t TxQueue_AddWithId(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, uint8_t custom, TX_ID_SIZE id)
 {
   uint16_t blockId = TxQueue_Add(txQueue, message, length, custom);
   
