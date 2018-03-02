@@ -19,15 +19,6 @@
 /* Private typedef -----------------------------------------------------------*/
 typedef enum
 {
-  ConnectStatus_Init = 0,
-  ConnectStatus_Idle,
-  ConnectStatus_AirKiss,
-  ConnectStatus_Connected,
-  ConnectStatus_WaitAck,
-}ESP8266_ConnectStatusEnum;
-
-typedef enum
-{
   Error_ReceiveTimeout,
   Error_transmitTimeout,
   Error_CantConnectServer,
@@ -88,7 +79,6 @@ void ESP8266_Handle()
 {
   static uint32_t time = 0;
   
-  
   switch(ESP8266_ConnectStatus)
   {
   case ConnectStatus_Init:      //初始化，关闭回显
@@ -101,7 +91,7 @@ void ESP8266_Handle()
     break;
     
   case ConnectStatus_Idle:      //空闲处理
-    if((time + ESP8266_INTERVAL) < sysTime)
+    if((time + ESP8266_INTERVAL) < realTime)
     { 
       ESP8266_SendAtString("AT+CWJAP?");
       time = realTime;
@@ -109,20 +99,28 @@ void ESP8266_Handle()
     }
     break;
     
-  
   case ConnectStatus_AirKiss:   //Airkiss
     ESP8266_SendAtString("AT+CWSTARTSMART=3");
     ESP8266_ConnectStatus = ConnectStatus_WaitAck;
     time = realTime;
     break;
     
+  /* AirKiss等待 */
+  case ConnectStatus_AirKissWait:
+    if((time + 20) < realTime)
+    { 
+      ESP8266_SendAtString("AT+CWSTOPSMART");
+      ESP8266_ErrorHandle(Error_transmitTimeout);
+    }
+    break;
+  
   case ConnectStatus_WaitAck:
     if((time + ESP8266_INTERVAL) < realTime)
     { ESP8266_ErrorHandle(Error_transmitTimeout);}
     break;
     
   case ConnectStatus_Connected:
-    TxQueue_Handle(&Enthernet_TxQueue, ESP8266_HttpTransmit, 10);
+    TxQueue_Handle(&Enthernet_TxQueue, ESP8266_HttpTransmit, 300);
     break;
   }
 }
@@ -201,21 +199,40 @@ void ESP8266_RxMsgHandle(uint8_t *packet, uint16_t length)
 {
   char *message = (char *)packet;
   
+  /***********airkiss部分****************/
+  if(strstr(message, "AT+CWSTARTSMART=3") != NULL)
+  {
+    if(strstr(message,"ERROR") != NULL)
+    { ESP8266_ErrorHandle(Error_AirKissError); }
+    else
+    { ESP8266_ConnectStatus = ConnectStatus_AirKissWait; }
+  }
+  
+  if(strstr(message, "smartconfig connected") != NULL)  // smartconfig connected，则需要释放 AT+CWSTOPSMART
+  { 
+    ESP8266_SendAtString("AT+CWSTOPSMART"); 
+    ESP8266_ConnectStatus = ConnectStatus_Idle;         // 连接成功，返回
+    return; 
+  }
+  
+  
   /***********连接wifi部分****************/
-  if(strstr(message, "+CWJAP") != NULL || strstr(message, "WIFI CONNECTED") != NULL)
-  { ESP8266_ConnectStatus = ConnectStatus_Connected; return; }         //+CWJAP/CONNECTED，置位连接标志位
-  
-  if(strstr(message, "+smartconfig connected") != NULL)  // smartconfig connected，则需要释放 AT+CWSTOPSMART
-  { ESP8266_SendAtString("AT+CWSTOPSMART"); return; }
-  
-  if(strstr(message, "No AP") != NULL)                  // No AP，清除连接标志位 
-  { ESP8266_Status &= ~ESP8266_WIFI_CONNECTED; return; }
-  
+  /* 在模块上电时，接收到WIFI CONNECT时，不一定真正连接，必须通过CWJAP判断 */
+  if(strstr(message, "CWJAP") != NULL)
+  { 
+    if(strstr(message, "No AP") == NULL)
+    {
+      ESP8266_ConnectStatus = ConnectStatus_Connected; 
+      Enthernet_TxQueue.time = sysTime;           // 更新TCP发送队列时间，发送太快出问题
+    }
+    else
+    { ESP8266_ConnectStatus = ConnectStatus_Idle; }
+    return;
+  }         
+
   /************错误ERROR处理************/
   if(strstr(message,"ERROR") != NULL)
   { 
-    if(strstr(message, "CWSTARTSMART") != NULL)
-    { ESP8266_ErrorHandle(Error_AirKissError); return; }
     
      if(strstr(message, "CLOSED") != NULL)
     { ESP8266_ErrorHandle(Error_CantConnectServer); return; }
@@ -226,7 +243,7 @@ void ESP8266_RxMsgHandle(uint8_t *packet, uint16_t length)
   if(strstr(message, "CLOSED") != NULL)                 //CLOSED 链接关闭
   { ESP8266_TcpStatus = TcpStatus_Init; return; }
     
-  if(strstr(message, "CONNECT\r\n") != NULL ||
+  if(strstr(message, "CONNECT\r\n\r\nOK") != NULL ||
      strstr(message, "ALREADY CONNECTED") != NULL)            //CONNECT 连接成功
   { ESP8266_TcpStatus = TcpStatus_Connected; return; }
   
@@ -249,7 +266,6 @@ void ESP8266_RxMsgHandle(uint8_t *packet, uint16_t length)
   }  
 
 }
-
 
 /*********************************************************************************************
 
@@ -279,9 +295,8 @@ void ESP8266_SendAtCmd(uint8_t *data, uint16_t length)
 void ESP8266_SendAtString(const char* cmd)
 {
   ESP8266_SendAtCmd((uint8_t *)cmd, strlen(cmd));
+  Delay_ms(10);
 }
-
-
 /*********************************************************************************************
 
   * @brief  模块的错误处理

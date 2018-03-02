@@ -6,6 +6,16 @@
 #include "ESP8266_Handle.h"
 
 /* Public typedef ------------------------------------------------------------*/
+typedef enum
+{
+  ConnectStatus_Init = 0,
+  ConnectStatus_Idle,
+  ConnectStatus_AirKiss,
+  ConnectStatus_AirKissWait,
+  ConnectStatus_Connected,
+  ConnectStatus_WaitAck,
+}ESP8266_ConnectStatusEnum;
+
 /* Public define -------------------------------------------------------------*/
 #define ESP8266_INTERVAL 5
 
@@ -16,7 +26,7 @@
 /* Public variables ----------------------------------------------------------*/
 extern TxQueueStruct Enthernet_TxQueue;                      //模块的发送缓冲
 extern RxQueueStruct Enthernet_RxQueue;                      //模块的接收缓冲
-
+extern ESP8266_ConnectStatusEnum ESP8266_ConnectStatus;
 /* Public function prototypes ------------------------------------------------*/
 
 void ESP8266_Handle();
