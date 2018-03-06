@@ -101,6 +101,9 @@ void* Malloc(uint16_t size)
   
   if(index != 0xFFFF)
   {
+#ifdef DEBUG
+    mallocBlocks[usedBlockCount].pointer = &mallocPool[index];
+#endif
     mallocBlocks[usedBlockCount].startIndex = index;
     mallocBlocks[usedBlockCount].endIndex = index + size - 1;
     surplusMemory -= size;
@@ -132,6 +135,9 @@ void Free(void* pointer)
       surplusMemory += mallocBlocks[i].endIndex - mallocBlocks[i].startIndex + 1;     // 剩余大小恢复
       mallocBlocks[i].endIndex = 0xFFFF;       //清空
       mallocBlocks[i].startIndex = 0xFFFF;       
+#ifdef DEBUG
+      mallocBlocks[i].pointer = NULL;
+#endif
       usedBlockCount -= 1;                // 计数器递减
       break;
     }

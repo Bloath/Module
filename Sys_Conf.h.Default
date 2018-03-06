@@ -1,14 +1,28 @@
 #ifndef _SYS_CONF_H_
 #define _SYS_CONF_H_
 
+/* Includes ------------------------------------------------------------------*/
 #include "stm32f0xx_hal.h"
 #include "stdint.h"
 #include "main.h"
 
+/* Public typedef ------------------------------------------------------------*/
+typedef enum
+{
+  FALSE = 0,
+  TRUE = 1
+}BoolEnum;
+
+/* Public variables ----------------------------------------------------------*/
 extern uint32_t realTimeCounter;
 
+/* Public define -------------------------------------------------------------*/
 #define sysTime HAL_GetTick()
 #define realTime realTimeCounter
 
+#define DEBUG   1       
+
+/* Public macro --------------------------------------------------------------*/
+/* Public function prototypes ------------------------------------------------*/
 
 #endif

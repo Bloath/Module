@@ -1,9 +1,12 @@
 /* Includes ------------------------------------------------------------------*/
 #include "string.h"
 
-#include "stm32f0xx_hal.h"
 #include "../UartDma/SimpleBuffer.h"
+#include "../Sys_Conf.h"
+#include "../Common/Delay.h"
+
 #include "ESP8266_HAL.h"
+#include "main.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -47,5 +50,21 @@ void ESP8266_SendString(const char *string)
   ********************************************************************************************/
 void ESP8266_HardWareReset()
 {
-  
+  char *rst = "AT+RST\r\n";
+  ESP8266_SendData((uint8_t *)rst, strlen(rst));
+}
+/*********************************************************************************************
+
+  * @brief  开关ESP8266 的串口
+  * @param  isOn：是否开启
+  * @return 无
+  * @remark 
+
+  ********************************************************************************************/
+void ESP8266_UART(BoolEnum isOn)
+{
+  if(isOn == TRUE)
+  { __HAL_UART_ENABLE(&huart2);   }
+  else
+  { __HAL_UART_DISABLE(&huart2); }   
 }

@@ -10,6 +10,8 @@ typedef enum
 {
   ConnectStatus_Init = 0,
   ConnectStatus_Idle,
+  ConnectStatus_Reset,
+  ConnectStatus_ResetWait,
   ConnectStatus_AirKiss,
   ConnectStatus_AirKissWait,
   ConnectStatus_Connected,

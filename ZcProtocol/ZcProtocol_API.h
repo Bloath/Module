@@ -39,7 +39,7 @@ extern ZcHandleStruct zcHandle;
 void ZcProtocol_Handle();
 
 void ZcProtocol_InstanceInit(uint8_t DeviceType, uint8_t* address);     //全局变量ZcPrtc初始化，用于协议头部一些常用数据的写入
-void ZcProtocol_Request(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint16_t dataLen, uint8_t isUpdateId);         // 发送请求
+void ZcProtocol_Request(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint16_t dataLen, BoolEnum isUpdateId);         // 发送请求
 void ZcProtocol_Response(ZcSourceEnum source, ZcProtocol *zcProtocol, uint8_t *data, uint16_t dataLen);                 // 发送回复
 void ZcProtocol_ReceiveHandle(uint8_t *message, uint16_t length, ZcSourceEnum source);
 void ZcProtocol_NetPacketHandle(uint8_t *message, uint16_t length);    // 网络接收处理，先解包，然后再处理

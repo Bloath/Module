@@ -282,24 +282,3 @@ void TxQueue_FreeById(TxQueueStruct *txQueue, TX_ID_SIZE id)
     }
   }
 }
-/*********************************************************************************************
-
-  * @brief  判断数据包
-  * @param  srcPacket：源数据包指针
-  * @param  desPacket：目的数据包指针
-  * @param  length：长度
-  * @return 
-  * @remark 判断数据包是否相同，相同为0，不同为1
-
-  ********************************************************************************************/
-uint8_t isPacketSame(uint8_t *srcPacket, uint8_t *desPacket, uint16_t length)
-{
-  uint16_t i = 0;
-  for(i=0; i<length; i++)
-  { 
-    if(desPacket[i] != srcPacket[i])
-    { break; } 
-  }
-  
-  return (i==length)? 0 : 1;
-}

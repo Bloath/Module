@@ -78,8 +78,5 @@ void TxQueue_FreeBlock(TxBaseBlockStruct *txBlock);                             
 void TxQueue_FreeByFunc(TxQueueStruct *txQueue, uint8_t (*func)(uint8_t*, uint16_t, void*), void *p);           //通过指定函数，释放指定发送块
 void TxQueue_FreeById(TxQueueStruct *txQueue,  TX_ID_SIZE id);                                                  //通过ID，释放指定发送块
 
-/* 小功能 */
-uint8_t isPacketSame(uint8_t *srcPacket, uint8_t *desPacket, uint16_t length);
-
 #endif
 

@@ -89,13 +89,13 @@ uint32_t ZcProtocol_TimeStamp(uint32_t timeStamp)
   * @remark 通过输入命令以及数据，并填写到发送缓冲当中
 
   ********************************************************************************************/
-void ZcProtocol_Request(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint16_t dataLen, uint8_t isUpdateId)
+void ZcProtocol_Request(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint16_t dataLen, BoolEnum isUpdateId)
 {
   char* httpMsg;
   ArrayStruct *msg;
   
     /* 取一个新ID */
-  if(isUpdateId)
+  if(isUpdateId == TRUE)
   { zcPrtc.head.id ++; }  
   
   zcPrtc.head.timestamp = ZcProtocol_TimeStamp(0);      //更新时间戳
@@ -203,7 +203,7 @@ void ZcProtocol_Handle()
   
   /* 空闲状态，填充查询暂存报文，切换为等待状态 */
   case ZcHandleStatus_Trans:
-    ZcProtocol_Request(ZcSource_Net, 00, NULL, 0, 0);     //发送暂存报文
+    ZcProtocol_Request(ZcSource_Net, 00, NULL, 0, FALSE);     //发送暂存报文
     zcHandle.status = ZcHandleStatus_Wait;      //切换等待状态
     break;
     
@@ -285,12 +285,12 @@ void ZcProtocol_NetRxHandle(ZcProtocol *zcProtocol)
       
     /* 回复的命令 */
     default:
-      ZcProtocol_Request(ZcSource_Net, ZC_CMD_FAIL, NULL, 0, 0);
+      ZcProtocol_Request(ZcSource_Net, ZC_CMD_FAIL, NULL, 0, FALSE);
       break;
     }
   }
   else if(operationRes == 2)
-  { ZcProtocol_Request(ZcSource_Net, ZC_CMD_FAIL, NULL, 0, 0); }        //操作类指令失败，发送失败回复
+  { ZcProtocol_Request(ZcSource_Net, ZC_CMD_FAIL, NULL, 0, FALSE); }        //操作类指令失败，发送失败回复
 #endif
 }
 /*********************************************************************************************

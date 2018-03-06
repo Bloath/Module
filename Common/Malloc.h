@@ -9,6 +9,9 @@ typedef struct
 {
   uint16_t startIndex;       
   uint16_t endIndex;   
+#ifdef DEBUG
+  uint8_t* pointer;
+#endif
 }MallocBlockStruct;
 
 typedef enum

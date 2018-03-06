@@ -81,16 +81,31 @@ void ESP8266_Handle()
   
   switch(ESP8266_ConnectStatus)
   {
-  case ConnectStatus_Init:      //初始化，关闭回显
-    //
+  case ConnectStatus_Init:      //初始化
     ESP8266_SendAtString("AT+CWMODE_DEF=1");
     ESP8266_SendAtString("AT+CWAUTOCONN=1");
-    //ESP8266_SendAtString("ATE0");
     time = realTime;
     ESP8266_ConnectStatus = ConnectStatus_Idle;
     break;
+  
+  /****** 复位相关，如果复位则先发送复位，再等待2S后开UART ********/
+  case ConnectStatus_Reset:
+    ESP8266_HardWareReset();
+    ESP8266_UART(FALSE);
+    time = realTime;
+    ESP8266_ConnectStatus = ConnectStatus_ResetWait;
+    break;
     
-  case ConnectStatus_Idle:      //空闲处理
+  case ConnectStatus_ResetWait:
+    if((time + 2) < realTime)
+    { 
+      ESP8266_UART(TRUE);
+      time = realTime;
+      ESP8266_ConnectStatus = ConnectStatus_Idle;
+    }
+  
+  /********** 空闲状态、检查是否连接wifi ****************/
+  case ConnectStatus_Idle:     
     if((time + ESP8266_INTERVAL) < realTime)
     { 
       ESP8266_SendAtString("AT+CWJAP?");
@@ -98,14 +113,14 @@ void ESP8266_Handle()
       ESP8266_ConnectStatus = ConnectStatus_WaitAck;
     }
     break;
-    
+  
+  /***************** airkiss相关 **********************/
   case ConnectStatus_AirKiss:   //Airkiss
     ESP8266_SendAtString("AT+CWSTARTSMART=3");
     ESP8266_ConnectStatus = ConnectStatus_WaitAck;
     time = realTime;
     break;
     
-  /* AirKiss等待 */
   case ConnectStatus_AirKissWait:
     if((time + 20) < realTime)
     { 
@@ -114,11 +129,13 @@ void ESP8266_Handle()
     }
     break;
   
+  /***************** 等待回复 **********************/
   case ConnectStatus_WaitAck:
     if((time + ESP8266_INTERVAL) < realTime)
     { ESP8266_ErrorHandle(Error_transmitTimeout);}
     break;
-    
+  
+  /***************** 已连接 **********************/
   case ConnectStatus_Connected:
     TxQueue_Handle(&Enthernet_TxQueue, ESP8266_HttpTransmit, 300);
     break;
@@ -281,8 +298,6 @@ void ESP8266_SendAtCmd(uint8_t *data, uint16_t length)
   uint8_t end[2] = {0x0D, 0x0A};
   ESP8266_SendData(data, length);       //发送数据
   ESP8266_SendData(end, 2);             //发送换行
-  
-  Delay_ms(20);
 }
 /*********************************************************************************************
 
@@ -295,7 +310,6 @@ void ESP8266_SendAtCmd(uint8_t *data, uint16_t length)
 void ESP8266_SendAtString(const char* cmd)
 {
   ESP8266_SendAtCmd((uint8_t *)cmd, strlen(cmd));
-  Delay_ms(10);
 }
 /*********************************************************************************************
 
@@ -308,7 +322,8 @@ void ESP8266_SendAtString(const char* cmd)
 void ESP8266_ErrorHandle(ESP8266_Error errorType)
 {
   
-  ESP8266_HardWareReset();                                                      //硬件复位
+  ESP8266_ConnectStatus = ConnectStatus_Reset;                                 //初始化连接
+  ESP8266_TcpStatus = TcpStatus_Init;
   
   switch(errorType)
   {
@@ -331,12 +346,10 @@ void ESP8266_ErrorHandle(ESP8266_Error errorType)
     
   /* 启动发送时 */
   case Error_CipSendError:
-    ESP8266_ConnectStatus = ConnectStatus_Init;                                 //初始化连接
-    ESP8266_TcpStatus = TcpStatus_Init;
+
     break;
     
   case Error_AirKissError:
-    ESP8266_SendAtString("AT+RST");
     break;
     
   default:break;

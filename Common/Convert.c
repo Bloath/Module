@@ -89,7 +89,7 @@ char* Msg2String(uint8_t *message, uint16_t length)
   ********************************************************************************************/
 char* Uint2String(uint32_t number)
 {
-  uint8_t len = log10((double)number) + 1;
+  uint8_t len = (uint8_t)log10((double)number) + 1;
   uint32_t temp = 0;
   
   /* 申请内存准备放置字符串 */ 
@@ -108,24 +108,30 @@ char* Uint2String(uint32_t number)
 }
 /*********************************************************************************************
 
-  * @brief  字符串拼接
-  * @param  src,源字符串
-            str：后面拼接的字符串
-  * @retval 
-  * @remark 有的编译器对strcat的支持不好，
+  * @brief  数字转换为数字 4321 => {4,3,2,1}
+  * @param  number：需要转换的数字
+            isPositiveSequence：是否为正序，4321 => {4,3,2,1} 倒序 {1,2,3,4}
+  * @retval 根据数据转换为数组
+  * @remark 
 
   ********************************************************************************************/
-void StrCat(char* src, char* str)
+ArrayStruct* Number2Array(uint32_t number, BoolEnum isPositiveSequence)
 {
-  char* p = src;
+  uint8_t powIndex = (uint8_t)log10(number);
+  uint32_t temp32 = number;
   
-  while(1)
+  /* 申请内存并填充 */
+  ArrayStruct* numArray = Array_New(powIndex + 1);     // 申请对应内存
+  
+  for(int8_t i=powIndex; i>=0; i--)
   {
-    if(*p == 0)
-    { break; }
+    if(isPositiveSequence == TRUE)
+    { numArray->packet[powIndex - i] = temp32 / (uint32_t)pow(10, i); }
     else
-    { p += 1; }
+    { numArray->packet[i] = temp32 / (uint32_t)pow(10, i); }
+    
+    temp32 = temp32 % (uint32_t)pow(10, i);
   }
   
-  memcpy(p, str, strlen(str));
+  return numArray;
 }
