@@ -127,6 +127,10 @@ void ZcProtocol_Request(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint16_
 #endif
     break;
   }
+  
+  /* 取一个新ID */
+  if(isUpdateId == TRUE)
+  { zcPrtc.head.id ++; } 
 }
 /*********************************************************************************************
 
