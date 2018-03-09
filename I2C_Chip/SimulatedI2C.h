@@ -2,7 +2,6 @@
 #define _SIMULATEDI2C_H_
 
 /* Includes ------------------------------------------------------------------*/
-#include "stdint.h"
 #include "SimulatedI2C_HAL.h"
 
 /* Public typedef -----------------------------------------------------------*/

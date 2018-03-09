@@ -73,24 +73,29 @@ void SimulatedI2C_Stop(I2C_PinStruct *i2cPinStruct)
 
 /*******************************************************************************
 * Function Name   : SimulatedI2C_Ack
-* Description     : 模拟I2C的应答
+* Description     : 模拟I2C的应答，在第九位的SCL的上升沿，判断SDA为高还是低
+                    先设置高低再拉高SCL并恢复
 * Parameter       : i2cPinStruct：模拟I2C的IO结构体
-                    status：0：在第九个时钟时不产生停止信号
-                            1：在第九个时钟时产生停止信号
+                    status：ENABLE：送出应答
+                            DISENABLE：不送出应答
 * Return          : None
 *******************************************************************************/
 void SimulatedI2C_Ack(I2C_PinStruct *i2cPinStruct, uint8_t Status)
 {  
-  SCL_Set();              //先拉高SCL
-  I2C_Delay();
-  
+                                
   if(Status)              //在需要产生应答时，将SDA拉低
   { SDA_Clr();  }
   else                    //不需要则拉高(接收最后一个字节)
   { SDA_Set();  }
   I2C_Delay();
+
+  SCL_Set();              //先拉高SCL
+  I2C_Delay();
   
   SCL_Clr();              //拉低SCL 
+  I2C_Delay();
+  
+  SDA_Set();                    // PS：非常重要，在发送ACK之后要把总线抬高，因为是开漏，所以必须通过输出抬高后，芯片才能控制总线
   I2C_Delay();
 }
 
@@ -170,6 +175,7 @@ uint8_t SimulatedI2C_ReceiveByte(I2C_PinStruct *i2cPinStruct)
     if(SDA_Status)
     { Temp |= 1;  }
     I2C_Delay();
+
   }
   SCL_Clr(); 
   I2C_Delay();
@@ -417,7 +423,7 @@ uint8_t SimulatedI2C_Read(I2C_PinStruct *i2cPinStruct, uint8_t deviceAddr, uint8
   for(i=0; i<Len; i++)                                         
   {
     data[i] = SimulatedI2C_ReceiveByte(i2cPinStruct); 
-    if(i = (Len - 1))                                           
+    if(i == (Len - 1))                                           
     { SimulatedI2C_Ack(i2cPinStruct, DISABLE); }
     else
     { SimulatedI2C_Ack(i2cPinStruct, ENABLE);  }
