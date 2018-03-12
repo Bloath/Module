@@ -42,19 +42,19 @@ typedef struct
 #define ZC_DATA_LEN
 
 #define ZC_CMD_QUERY_HOLD       0x00    // 暂存
-#define ZC_CMD_ADDRESS          0x10    //地址域
-#define ZC_CMD_DEVICE_ATTR      0x11    //设备属性
-#define ZC_CMD_MEASURE_ATTR     0x21    //计量属性
-#define ZC_CMD_LADIR_PRICE      0x22    //阶梯费用
-#define ZC_CMD_RECHARGE         0x23    //充值记录
-#define ZC_CMD_USE_HISTORY      0x24    //用气历史记录
-#define ZC_CMD_ALARM            0x81    //报警事件
-#define ZC_CMD_ENVIROMENT       0x82    //环境参数
-#define ZC_CMD_PIPE_STATUS      0x83    //管道状态
-#define ZC_CMD_VALVE_RECORD     0x84    //阀门开关记录
-#define ZC_CMD_VALVE_OPRT       0xE1    //阀门开关阀
-#define ZC_CMD_FAIL             0xFE    //失败报文
-#define ZC_CMD_SERVER_CONFIRM   0xFF    //服务器确认报文
+#define ZC_CMD_ADDRESS          0x10    // 地址域
+#define ZC_CMD_DEVICE_ATTR      0x11    // 设备属性
+#define ZC_CMD_MEASURE_ATTR     0x21    // 计量属性
+#define ZC_CMD_LADIR_PRICE      0x22    // 阶梯费用
+#define ZC_CMD_RECHARGE         0x23    // 充值记录
+#define ZC_CMD_USE_HISTORY      0x24    // 用气历史记录
+#define ZC_CMD_ALARM            0x81    // 报警事件
+#define ZC_CMD_ENVIROMENT       0x82    // 环境参数
+#define ZC_CMD_PIPE_STATUS      0x83    // 管道状态
+#define ZC_CMD_VALVE_RECORD     0x84    // 阀门开关记录
+#define ZC_CMD_VALVE_OPRT       0xE1    // 阀门开关阀
+#define ZC_CMD_FAIL             0xFE    // 失败报文
+#define ZC_CMD_SERVER_CONFIRM   0xFF    // 服务器确认报文
 
 /* Public macro -------------------------------------------------------------*/
 /* Public variables ---------------------------------------------------------*/

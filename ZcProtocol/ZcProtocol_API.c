@@ -34,6 +34,7 @@ ZcHandleStruct zcHandle = {0};      //拙诚协议处理
 /* private function prototypes ------------------------------------------------*/
 void ZcProtocol_NetRxHandle(ZcProtocol *zcProtocol);
 void ZcProtocol_24GRxHandle(ZcProtocol *zcProtocol);
+void ZcProtocol_HeadIdIncrease();
 
 /*********************************************************************************************
 
@@ -48,7 +49,7 @@ void ZcProtocol_InstanceInit(uint8_t DeviceType, uint8_t* address)
 {
   zcPrtc.head.head = 0x68;
   zcPrtc.head.control = DeviceType;
-  zcPrtc.head.id = 0;
+  zcPrtc.head.id = 1;                           // 0是预留给无线设备请求
   zcPrtc.head.timestamp = 0;
   
   memcpy(zcPrtc.head.address, address, 7);      //复制7字节地址，在产品实际运用后，地址是不会改变的（跟微信挂钩）
@@ -85,18 +86,20 @@ uint32_t ZcProtocol_TimeStamp(uint32_t timeStamp)
             data:  报文指针
             dataLen：报文长度
             isUpdateId：是否需要更新ID
-  * @retval 
+  * @retval 该请求命令的id
   * @remark 通过输入命令以及数据，并填写到发送缓冲当中
 
   ********************************************************************************************/
-void ZcProtocol_Request(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint16_t dataLen, BoolEnum isUpdateId)
+uint8_t ZcProtocol_Request(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint16_t dataLen, BoolEnum isUpdateId)
 {
   char* httpMsg;
   ArrayStruct *msg;
+  uint8_t temp8 = 0;
   
     /* 取一个新ID */
   if(isUpdateId == TRUE)
-  { zcPrtc.head.id ++; }  
+  { ZcProtocol_HeadIdIncrease(); }
+  temp8 = zcPrtc.head.id;
   
   zcPrtc.head.timestamp = ZcProtocol_TimeStamp(0);      //更新时间戳
   zcPrtc.head.cmd = cmd;
@@ -130,7 +133,9 @@ void ZcProtocol_Request(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint16_
   
   /* 取一个新ID */
   if(isUpdateId == TRUE)
-  { zcPrtc.head.id ++; } 
+  { ZcProtocol_HeadIdIncrease(); } 
+  
+  return temp8;
 }
 /*********************************************************************************************
 
@@ -278,7 +283,7 @@ void ZcProtocol_NetRxHandle(ZcProtocol *zcProtocol)
       
     /* 服务器下发确认报文 */
     case ZC_CMD_SERVER_CONFIRM:
-      zcPrtc.head.id++;                       // Id递增
+      ZcProtocol_HeadIdIncrease();                       // Id递增
            
       /* 当控制欲的SFD为1时，直接发送查询暂存报文,并切换为等待状态*/
       if((zcProtocol->head.control & (1<<7)) != 0)
@@ -331,4 +336,18 @@ void ZcProtocol_NetPacketHandle(uint8_t *message, uint16_t length)
   ZcProtocol_ReceiveHandle(msg->packet, msg->length, ZcSource_Net);  //协议的原始报文处理
   
   Array_Free(msg);      // 释放报文数组空闲
+}
+/*********************************************************************************************
+
+  * @brief  拙诚协议=》协议实例ID自增
+  * @param  
+  * @retval 
+  * @remark 0预留给其他设备
+
+  ********************************************************************************************/
+void ZcProtocol_HeadIdIncrease()
+{
+  zcPrtc.head.id ++;
+  if(zcPrtc.head.id == 0)
+  { zcPrtc.head.id = 1; }
 }

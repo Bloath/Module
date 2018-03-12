@@ -135,3 +135,18 @@ ArrayStruct* Number2Array(uint32_t number, BoolEnum isPositiveSequence)
   
   return numArray;
 }
+/*********************************************************************************************
+
+  * @brief  字节顺序互相转换
+  * @param  dst：目的指针
+  * @param  src：源指针
+  * @param  len：长度
+  * @retval 
+  * @remark 
+
+  ********************************************************************************************/
+void EndianExchange(uint8_t* dst, uint8_t* src, uint8_t len)
+{
+  for(uint8_t i=0; i<len; i++)
+  { dst[i] = src[len - i - 1]; }
+}
