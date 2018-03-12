@@ -242,7 +242,7 @@ void ZcProtocol_ReceiveHandle(uint8_t *message, uint16_t length, ZcSourceEnum so
       ZcProtocol_NetRxHandle(zcProtocol);                   // 网络版通讯协议，关键点在于由设备发起，服务器单纯响应
       break;
     case ZcSource_24G:
-      ZcProtocol_24GRxHandle(zcProtocol);                   // 网络版通讯协议，关键点在于由设备发起，服务器单纯响应
+      ZcProtocol_24GRxHandle(zcProtocol);                   // 2.4G协议
       break;
     }
   }

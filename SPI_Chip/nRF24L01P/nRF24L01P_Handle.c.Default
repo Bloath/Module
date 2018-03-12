@@ -133,8 +133,7 @@ void nRF24L01P_Transimit(uint8_t *packet, uint16_t len)
 }
 /*********************************************************************************************
   * @brief  nrf24L01 设置为接收模式
-  * @param  packet：   接收缓冲
-  * @param  len：   接收缓冲长度 
+  * @param  
   * @retval 无
   * @remark 
   ********************************************************************************************/
@@ -151,4 +150,16 @@ void nRF24L01P_SetRxMode(void)
     FlushRX();					//Flush RX
     
     CE_HIGH();					//允许收发	 
+}
+
+/*********************************************************************************************
+  * @brief  nrf24L01 设置为掉电模式
+  * @param  
+  * @retval 无
+  * @remark 
+  ********************************************************************************************/
+void nRF24L01P_PowerDown(void)
+{
+    uint8_t controlreg = nRF24L01P_Read_Reg(CONFIG);
+    nRF24L01P_Write_Reg(W_REG + CONFIG, controlreg & ~0x01);	 
 }

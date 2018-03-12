@@ -54,13 +54,13 @@ uint16_t RxQueue_Add(RxQueueStruct *rxQueue, uint8_t *packet, uint16_t Len)
     {
       rxQueue->rxBlocks[i].flag |= RX_FLAG_USED;                                              //报文块使用标志位置位
     
+      /* 申请内存并填写 */
       rxQueue->rxBlocks[i].message = (uint8_t*)Malloc((Len + 1) * sizeof(uint8_t));         //根据缓冲长度申请内存，多一个字节，用于填写字符串停止符
-      
       memcpy(rxQueue->rxBlocks[i].message, packet, Len);  
-      
       rxQueue->rxBlocks[i].message[Len] = 0;              // 添加结束符，该缓冲块可以用作字符串处理 
-      
       rxQueue->rxBlocks[i].length = Len; 
+      
+      rxQueue->usedBlockQuantity += 1;
       
       return i;
       //break;
@@ -94,6 +94,7 @@ void RxQueue_Handle(RxQueueStruct *rxQueue, void (*f)(uint8_t*, uint16_t))
       Free(rxQueue->rxBlocks[i].message);                             //释放申请的内存
     
       rxQueue->rxBlocks[i].flag &= ~RX_FLAG_USED;                    //清空已使用标志位
+      rxQueue->usedBlockQuantity -= 1;
     }
   }
 }
@@ -126,6 +127,7 @@ void TxQueue_Handle(TxQueueStruct *txQueue, void (*Transmit)(uint8_t*, uint16_t)
           {
             TxBlockErrorHandle(TxBlockError_TimeOut);
             TxQueue_FreeBlock(txQueue->txBlock + i);
+            txQueue->usedBlockQuantity -= 1;
             continue;
           }
 #endif
@@ -147,6 +149,7 @@ void TxQueue_Handle(TxQueueStruct *txQueue, void (*Transmit)(uint8_t*, uint16_t)
              && (txQueue->txBlocks[i].retransCounter > 200 || !(txQueue->txBlocks[i].flag & TX_FLAG_RT)))
           {
             TxQueue_FreeBlock(&(txQueue->txBlocks[i]));
+            txQueue->usedBlockQuantity -= 1;
           }  
       }
   }
@@ -176,6 +179,8 @@ uint16_t TxQueue_Add(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, 
       memcpy(txQueue->txBlocks[i].message, message, length);
       txQueue->txBlocks[i].length = length;
       txQueue->txBlocks[i].flag |= TX_FLAG_USED;
+      
+      txQueue->usedBlockQuantity += 1;
       
 #ifdef TX_BLOCK_TIMEOUT
       txQueue->txBlocks[i].time = sysTime;
@@ -256,7 +261,10 @@ void TxQueue_FreeByFunc(TxQueueStruct *txQueue, uint8_t (*func)(uint8_t*, uint16
     if((txQueue->txBlocks[i].flag & TX_FLAG_USED) != 0)
     {
       if(!func(txQueue->txBlocks[i].message, txQueue->txBlocks[i].length, p))
-      { TxQueue_FreeBlock(txQueue->txBlocks + i); }
+      { 
+        TxQueue_FreeBlock(txQueue->txBlocks + i); 
+        txQueue->usedBlockQuantity -= 1;
+      }
     }
   }
 }
@@ -278,7 +286,10 @@ void TxQueue_FreeById(TxQueueStruct *txQueue, TX_ID_SIZE id)
     if((txQueue->txBlocks[i].flag & TX_FLAG_USED) != 0)
     {
       if(txQueue->txBlocks[i].id == id)
-      { TxQueue_FreeBlock(txQueue->txBlocks + i); }
+      { 
+        TxQueue_FreeBlock(txQueue->txBlocks + i); 
+        txQueue->usedBlockQuantity -= 1;
+      }
     }
   }
 }
