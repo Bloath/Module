@@ -24,6 +24,8 @@ uint16_t surplusMemory = MALLOC_POOL_SIZE;              // ª∫≥Â≥ÿ £”‡»›¡ø
 *******************************************************************************/
 void* Malloc(uint16_t size)
 {
+  MallocBlockStruct mallocTemp = {0};
+
   /*  £”‡»›¡ø≤ª◊„ */
   if(surplusMemory < size)
   {
@@ -50,8 +52,6 @@ void* Malloc(uint16_t size)
   }
   else
   {
-    MallocBlockStruct mallocTemp = {0};
-    
     /* √∞≈›Ω´øÈΩ¯––≈≈–Ú */
     for(uint16_t i=1; i<MALLOC_BLOCK_COUNT; i++)
     {
