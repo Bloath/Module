@@ -146,7 +146,7 @@ void TxQueue_Handle(TxQueueStruct *txQueue, void (*Transmit)(uint8_t*, uint16_t)
           /* 非手动清除 且 (重发超过200次 或者 不需要重发) 的情况下
              清除缓存释放模块 */
           if(!(txQueue->txBlocks[i].flag & TX_FLAG_MC) 
-             && (txQueue->txBlocks[i].retransCounter > 200 || !(txQueue->txBlocks[i].flag & TX_FLAG_RT)))
+             && (txQueue->txBlocks[i].retransCounter > txQueue->maxTxCount || !(txQueue->txBlocks[i].flag & TX_FLAG_RT)))
           {
             TxQueue_FreeBlock(&(txQueue->txBlocks[i]));
             txQueue->usedBlockQuantity -= 1;

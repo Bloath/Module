@@ -29,7 +29,7 @@
 /* private macro --------------------------------------------------------------*/
 /* private variables ----------------------------------------------------------*/
 ZcProtocol zcPrtc;      // 拙诚协议实例
-ZcHandleStruct zcHandle = {0};      //拙诚协议处理
+ZcHandleStruct zcHandle;      //拙诚协议处理
 
 /* private function prototypes ------------------------------------------------*/
 void ZcProtocol_NetRxHandle(ZcProtocol *zcProtocol);
@@ -45,11 +45,11 @@ void ZcProtocol_HeadIdIncrease();
   * @remark 在程序初始化时，需要将协议实例进行初始化
 
   ********************************************************************************************/
-void ZcProtocol_InstanceInit(uint8_t DeviceType, uint8_t* address)
+void ZcProtocol_InstanceInit(uint8_t DeviceType, uint8_t* address, uint8_t startId)
 {
   zcPrtc.head.head = 0x68;
   zcPrtc.head.control = DeviceType;
-  zcPrtc.head.id = 1;                           // 0是预留给无线设备请求
+  zcPrtc.head.id = startId;                           // 0是预留给无线设备请求
   zcPrtc.head.timestamp = 0;
   
   memcpy(zcPrtc.head.address, address, 7);      //复制7字节地址，在产品实际运用后，地址是不会改变的（跟微信挂钩）
@@ -113,7 +113,7 @@ uint8_t ZcProtocol_Request(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint
     TxQueue_AddWithId(&Enthernet_TxQueue, 
                       (uint8_t*)httpMsg, 
                       strlen(httpMsg), 
-                      TX_FLAG_MC|TX_FLAG_RT,
+                      ZC_NET_REQUEST_CONFIG,
                       zcPrtc.head.id);  
     Free(httpMsg);
 #endif
@@ -124,7 +124,7 @@ uint8_t ZcProtocol_Request(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint
     TxQueue_AddWithId(&nRF24L01_TxQueue, 
                       msg->packet, 
                       msg->length, 
-                      TX_FLAG_MC|TX_FLAG_RT,
+                      ZC_24G_REQUEST_CONFIG,
                       zcPrtc.head.id);  
     Array_Free(msg);
 #endif

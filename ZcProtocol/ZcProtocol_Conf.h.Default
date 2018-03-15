@@ -1,14 +1,27 @@
 #ifndef _ZCPROTOCOL_CONF_H_
 #define _ZCPROTOCOL_CONF_H_
 
-/*********************协议相关 全局配置*********************/
 
-#define ZC_NET  1
-#define ZC_24G  1
-#define ZC_485  1
+/* Includes ------------------------------------------------------------------*/
+#include "../Module/Sys_Conf.h"
+#include "../UartDma/SimpleBuffer.h"
+
+/* Public typedef -----------------------------------------------------------*/
+/* Public define ------------------------------------------------------------*/
+
+/*********************不同通讯方式的选择*********************/
+//#define ZC_NET  1               // 网络通讯
+#define ZC_24G  1               // 2.4G无线通讯
+#define ZC_485  1               // 485通讯
+
+#define ZC_NET_REQUEST_CONFIG        (TX_FLAG_MC|TX_FLAG_RT)                 // 网络通讯发送请求的配置
+#define ZC_24G_REQUEST_CONFIG        0                                       // 2.4G通讯发送请求的配置，阀门等设备：0，控制器:(TX_FLAG_MC|TX_FLAG_RT) 
+
 
 #define ZC_NET_POLL_INTERVAL 10
 
+
+/*********************网络协议主机及路径*********************/
 //#define DOMAIN  "web.bloath.com"
 #define IP      "144.123.12.178"
 #define PORT    "5021"

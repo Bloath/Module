@@ -47,6 +47,7 @@ typedef struct
 {
   uint32_t time;                                //对不同的发送函数来说，有着不同的发送间隔，需要进行单独设置
   uint16_t usedBlockQuantity;
+  uint16_t maxTxCount;  
   TxBaseBlockStruct txBlocks[BLOCK_COUNT];
 }TxQueueStruct;             // 发送块缓冲队列
 
