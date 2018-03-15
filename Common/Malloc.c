@@ -10,10 +10,7 @@
 /* Private define ------------------------------------------------------------*/
 /* Private macro --------------------------------------------------------------*/
 /* Private variables ----------------------------------------------------------*/
-uint8_t mallocPool[MALLOC_POOL_SIZE];                   //内存申请缓冲池
-MallocBlockStruct mallocBlocks[MALLOC_BLOCK_COUNT];     // 内存申请记录快
-uint8_t usedBlockCount = 0;                             // 已用的记录快
-uint16_t surplusMemory = MALLOC_POOL_SIZE;              // 缓冲池剩余容量
+MemoryManageUnitcStruct mmu;
 
 /* Private function prototypes ------------------------------------------------*/
 /*******************************************************************************
@@ -24,98 +21,44 @@ uint16_t surplusMemory = MALLOC_POOL_SIZE;              // 缓冲池剩余容量
 *******************************************************************************/
 void* Malloc(uint16_t size)
 {
-  MallocBlockStruct mallocTemp = {0};
+  DISABLE_ALL_INTERRPUTS();
+  
+  MALLOC_BLOCK_COUNT_SIZE applyBlockCount = ((size % MALLOC_BLOCK_SIZE) == 0)? (size / MALLOC_BLOCK_SIZE): (size / MALLOC_BLOCK_SIZE + 1);
+  MALLOC_BLOCK_COUNT_SIZE tempCounter = 0;
+  MALLOC_BLOCK_COUNT_SIZE index;
 
   /* 剩余容量不足 */
-  if(surplusMemory < size)
+  if(mmu.usedBlockQuantity >= MALLOC_BLOCK_COUNT)
   {
     Malloc_ErrorHandle(Malloc_OutOfMemory);
     return NULL;
   }
-  if(usedBlockCount == MALLOC_BLOCK_COUNT)
+  
+  /* 循环查找是否有合适的区域，连续多个块的值不为0 */
+  for(index=0; index<MALLOC_BLOCK_COUNT; index++)
   {
-     Malloc_ErrorHandle(Malloc_OutOfBlocks);
-     return NULL;
+    tempCounter = (mmu.blocks[index] == 0)? (tempCounter + 1) : 0;
+    if(tempCounter == applyBlockCount)
+    { break; }
   }
   
-  uint16_t index = 0xFFFF;
-  
-  /* 查找合适区域并填充 */
-  if(usedBlockCount == 0)
-  { 
-    index = 0; 
-    for(uint16_t i=0; i<MALLOC_BLOCK_COUNT; i++)
-    {
-      mallocBlocks[i].startIndex = 0xFFFF;
-      mallocBlocks[i].endIndex = 0xFFFF;
-    }
-  }
-  else
+  /* 根据扫描结果，返回指针 */
+  if(index != MALLOC_BLOCK_COUNT)
   {
-    /* 冒泡将块进行排序 */
-    for(uint16_t i=1; i<MALLOC_BLOCK_COUNT; i++)
-    {
-      for(uint16_t j=0; j<MALLOC_BLOCK_COUNT - 1; j++)
-      {
-        if(mallocBlocks[j].startIndex > mallocBlocks[j + 1].startIndex)
-        {
-          mallocTemp = mallocBlocks[j];
-          mallocBlocks[j] = mallocBlocks[j + 1];
-          mallocBlocks[j + 1] = mallocTemp;
-        }
-      }
-    }
+    mmu.usedBlockQuantity += applyBlockCount;
+    for(MALLOC_BLOCK_COUNT_SIZE i=0; i<applyBlockCount; i++)
+    { mmu.blocks[index - applyBlockCount + i + 1] = applyBlockCount; }
     
-    uint16_t startIndex = 0;
-    /* 查找空闲块 */
-    for(uint16_t i=0; i<usedBlockCount; i++)
-    {
-      if(i == 0 && usedBlockCount != 1)
-      {
-        if((mallocBlocks[i].startIndex - 0) >= size)
-        { 
-          index = 0; 
-          break;
-        }
-      }
-      else if(i == (usedBlockCount - 1))
-      {
-        startIndex = ((mallocBlocks[i].endIndex % 4) == 3)? mallocBlocks[i].endIndex: mallocBlocks[i].endIndex + 3 - (mallocBlocks[i].endIndex % 4);
-        if((MALLOC_POOL_SIZE - 1 - startIndex) >= size)
-        { 
-          index = startIndex + 1; 
-          break;
-        }
-      }
-      else
-      {
-        startIndex = ((mallocBlocks[i - 1].endIndex % 4) == 3)? mallocBlocks[i - 1].endIndex: mallocBlocks[i - 1].endIndex + 3 - (mallocBlocks[i - 1].endIndex % 4);
-        if((mallocBlocks[i].startIndex - startIndex) >= size)
-        { 
-          index = startIndex + 1; 
-          break;
-        }
-      }
-    }
-  }
-  
-  if(index != 0xFFFF)
-  {
-#ifdef DEBUG
-    mallocBlocks[usedBlockCount].pointer = &mallocPool[index];
-#endif
-    mallocBlocks[usedBlockCount].startIndex = index;
-    mallocBlocks[usedBlockCount].endIndex = index + size - 1;
-    surplusMemory -= size;
-    usedBlockCount += 1; 
+    ENABLE_ALL_INTERRPUTS()
+    return (void *)(mmu.mallocPool + (index - applyBlockCount + 1) * MALLOC_BLOCK_SIZE);
   }
   else
   {  
     Malloc_ErrorHandle(Malloc_MemoryUnreasonable);
+    ENABLE_ALL_INTERRPUTS()
     return NULL;
   }
   
-  return mallocPool + index;
 }
 /*******************************************************************************
 * Function Name   : Free
@@ -125,21 +68,14 @@ void* Malloc(uint16_t size)
 *******************************************************************************/
 void Free(void* pointer)
 {
-  uint16_t startIndex = (uint32_t)pointer - (uint32_t)mallocPool;
+  DISABLE_ALL_INTERRPUTS();
   
-  //查找长度不为0的缓冲块,且缓冲块偏移量相同的
-  for(uint16_t i=0; i<MALLOC_BLOCK_COUNT; i++)
-  {
-    if(mallocBlocks[i].startIndex == startIndex)
-    {
-      surplusMemory += mallocBlocks[i].endIndex - mallocBlocks[i].startIndex + 1;     // 剩余大小恢复
-      mallocBlocks[i].endIndex = 0xFFFF;       //清空
-      mallocBlocks[i].startIndex = 0xFFFF;       
-#ifdef DEBUG
-      mallocBlocks[i].pointer = NULL;
-#endif
-      usedBlockCount -= 1;                // 计数器递减
-      break;
-    }
-  }  
+  MALLOC_BLOCK_COUNT_SIZE index = ((uint32_t)pointer - (uint32_t)mmu.mallocPool) / MALLOC_BLOCK_SIZE;
+  MALLOC_BLOCK_COUNT_SIZE len = mmu.blocks[index];
+  mmu.usedBlockQuantity -= len;
+  
+  for(MALLOC_BLOCK_COUNT_SIZE i=0; i<len; i++)
+  { mmu.blocks[index + i] = 0; }
+  
+  ENABLE_ALL_INTERRPUTS()
 }
