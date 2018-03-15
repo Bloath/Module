@@ -49,13 +49,13 @@ void* Malloc(uint16_t size)
     for(MALLOC_BLOCK_COUNT_SIZE i=0; i<applyBlockCount; i++)
     { mmu.blocks[index - applyBlockCount + i + 1] = applyBlockCount; }
     
-    ENABLE_ALL_INTERRPUTS()
+    ENABLE_ALL_INTERRPUTS();
     return (void *)(mmu.mallocPool + (index - applyBlockCount + 1) * MALLOC_BLOCK_SIZE);
   }
   else
   {  
     Malloc_ErrorHandle(Malloc_MemoryUnreasonable);
-    ENABLE_ALL_INTERRPUTS()
+    ENABLE_ALL_INTERRPUTS();
     return NULL;
   }
   
@@ -77,5 +77,5 @@ void Free(void* pointer)
   for(MALLOC_BLOCK_COUNT_SIZE i=0; i<len; i++)
   { mmu.blocks[index + i] = 0; }
   
-  ENABLE_ALL_INTERRPUTS()
+  ENABLE_ALL_INTERRPUTS();
 }
