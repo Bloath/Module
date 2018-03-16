@@ -3,7 +3,7 @@
 
 #include "../../Sys_Conf.h"
 #include "../../Common/Delay.h"
-#include "../../UartDma/SimpleBuffer.h"
+#include "../../BufferQueue/BufferQueue.h"
 
 #include "nRF24L01P_API.h"
 #include "nRF24L01P_HAL.h"

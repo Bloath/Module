@@ -2,7 +2,7 @@
 #define _nRF24L01P_HANDLE_
 
 /* Includes ------------------------------------------------------------------*/
-#include "../../UartDma/SimpleBuffer.h"
+#include "../../BufferQueue/BufferQueue.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/

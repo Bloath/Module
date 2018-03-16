@@ -1,7 +1,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "string.h"
 
-#include "../UartDma/SimpleBuffer.h"
+#include "../BufferQueue/BufferQueue.h"
 #include "../Sys_Conf.h"
 #include "../Common/Delay.h"
 

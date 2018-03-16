@@ -3,7 +3,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "../Sys_Conf.h"
-#include "../UartDma/SimpleBuffer.h"
+#include "../BufferQueue/BufferQueue.h"
 #include "ESP8266_Handle.h"
 
 /* Public typedef ------------------------------------------------------------*/

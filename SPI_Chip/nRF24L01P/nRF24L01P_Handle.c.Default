@@ -8,7 +8,7 @@
 #include "../../Sys_Conf.h"
 
 // 自定义添加
-#include "../Module/UartDma/SimpleBuffer.h"
+#include "../Module/BufferQueue/BufferQueue.h"
 
 
 /* Private typedef -----------------------------------------------------------*/

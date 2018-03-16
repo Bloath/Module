@@ -2,8 +2,8 @@
 #include "string.h"
 
 #include "../Module/Common/Malloc.h"
-#include "SimpleBuffer.h"
-#include "SimpleBuffer_Handle.h"
+#include "BufferQueue.h"
+#include "BufferQueue_Handle.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/

@@ -3,7 +3,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "../Sys_Conf.h"
-#include "SimpleBuffer_Conf.h"
+#include "BufferQueue_Conf.h"
 
 /* Public define -------------------------------------------------------------*/
 
@@ -14,6 +14,11 @@
 #define TX_FLAG_RT      (1<<2)          //需要进行重新发送
 #define TX_FLAG_TIMEOUT (1<<3)          // 
 #define TX_FLAG_MC      (1<<7)          //手动清除
+
+#define TX_ONCE_AC      (0)                             // 发一次，自动清除
+#define TX_ONCE_MC      (TX_FLAG_MC)                    // 发一次，手动清除
+#define TX_MULTI_AC     (TX_FLAG_RT)                    // 发多次，自动清除，重发次数在TxQueueStruct.maxCount
+#define TX_MULTI_MC     (TX_FLAG_RT | TX_FLAG_MC)       //发多次，手动清除
 
 /* Public typedef ------------------------------------------------------------*/
 typedef struct

@@ -7,7 +7,7 @@
 
 //在此下面是针对不同处理环境添加的头
 #include "../Module/Common/Malloc.h"
-#include "../UartDma/SimpleBuffer.h"
+#include "..//BufferQueue/BufferQueue.h"
 #include "../Sys_Conf.h"
 #include "Http.h"
 #include "ZcProtocol_API.h"    
@@ -90,7 +90,7 @@ uint32_t ZcProtocol_TimeStamp(uint32_t timeStamp)
   * @remark 通过输入命令以及数据，并填写到发送缓冲当中
 
   ********************************************************************************************/
-uint8_t ZcProtocol_Request(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint16_t dataLen, BoolEnum isUpdateId)
+uint8_t ZcProtocol_Request(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint16_t dataLen, BoolEnum isUpdateId, uint8_t txQueueConf)
 {
   char* httpMsg;
   ArrayStruct *msg;
@@ -113,7 +113,7 @@ uint8_t ZcProtocol_Request(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint
     TxQueue_AddWithId(&Enthernet_TxQueue, 
                       (uint8_t*)httpMsg, 
                       strlen(httpMsg), 
-                      ZC_NET_REQUEST_CONFIG,
+                      txQueueConf,
                       zcPrtc.head.id);  
     Free(httpMsg);
 #endif
@@ -124,7 +124,7 @@ uint8_t ZcProtocol_Request(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint
     TxQueue_AddWithId(&nRF24L01_TxQueue, 
                       msg->packet, 
                       msg->length, 
-                      ZC_24G_REQUEST_CONFIG,
+                      txQueueConf,
                       zcPrtc.head.id);  
     Array_Free(msg);
 #endif
@@ -212,7 +212,7 @@ void ZcProtocol_Handle()
   
   /* 空闲状态，填充查询暂存报文，切换为等待状态 */
   case ZcHandleStatus_Trans:
-    ZcProtocol_Request(ZcSource_Net, 00, NULL, 0, FALSE);     //发送暂存报文
+    ZcProtocol_Request(ZcSource_Net, 00, NULL, 0, FALSE, TX_MULTI_MC);     //发送暂存报文
     zcHandle.status = ZcHandleStatus_Wait;      //切换等待状态
     break;
     
@@ -294,12 +294,12 @@ void ZcProtocol_NetRxHandle(ZcProtocol *zcProtocol)
       
     /* 回复的命令 */
     default:
-      ZcProtocol_Request(ZcSource_Net, ZC_CMD_FAIL, NULL, 0, FALSE);
+      ZcProtocol_Request(ZcSource_Net, ZC_CMD_FAIL, NULL, 0, FALSE, TX_MULTI_MC);
       break;
     }
   }
   else if(operationRes == 2)
-  { ZcProtocol_Request(ZcSource_Net, ZC_CMD_FAIL, NULL, 0, FALSE); }        //操作类指令失败，发送失败回复
+  { ZcProtocol_Request(ZcSource_Net, ZC_CMD_FAIL, NULL, 0, FALSE, TX_MULTI_MC); }        //操作类指令失败，发送失败回复
 #endif
 }
 /*********************************************************************************************

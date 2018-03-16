@@ -1,24 +1,27 @@
-#ifndef _SIMPLEBUFFER_HANDLE_H_
-#define _SIMPLEBUFFER_HANDLE_H_
+#ifndef _STM32_UARTDMA_H_
+#define _STM32_UARTDMA_H_
 
 /* Includes ------------------------------------------------------------------*/
 #include "../Sys_Conf.h"
-#include "SimpleBuffer.h"
+#include "BufferQueue.h"
 
 /* Public typedef ------------------------------------------------------------*/
 
-typedef enum
+typedef struct
 {
-  BlockFull = 0,
-  
-}BlockErrorEnum;
+  DMA_HandleTypeDef *rxDma;
+  UART_HandleTypeDef *uart;
+  RxBufferStruct rxBuffer;
+  RxQueueStruct rxQueue;
+  uint16_t bufferLength;
+  uint16_t start;
+  uint16_t end;
+}UartRxDmaStruct;
 
 /* Public define -------------------------------------------------------------*/
 /* Public macro --------------------------------------------------------------*/
 /* Public variables ----------------------------------------------------------*/
 /* Public function prototypes ------------------------------------------------*/
-void TxBlock_ErrorHandle(TxQueueStruct *rxQueue, BlockErrorEnum error);
-void RxBlock_ErrorHandle(RxQueueStruct *rxQueue, BlockErrorEnum error);
-void BufferOverFlow();
-
+void Stm32_UartRxDma_Init(UartRxDmaStruct *uartDma, DMA_HandleTypeDef *rxDma, UART_HandleTypeDef *uart);
+void Stm32_UartRxDma_IntHandle(UartRxDmaStruct *uartDma);  
 #endif
