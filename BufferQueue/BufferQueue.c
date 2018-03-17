@@ -11,6 +11,7 @@
 /* Private variables ---------------------------------------------------------*/
 /* Private function prototypes -----------------------------------------------*/
 void TxBlockErrorHandle(TxBlockError error);
+void TxQueue_FreeBlock(TxBaseBlockStruct *txBlock);     //释放发送块，释放内存清除标志位
 
 /* Private functions ---------------------------------------------------------*/
 /*********************************************************************************************
@@ -83,13 +84,13 @@ uint16_t RxQueue_Add(RxQueueStruct *rxQueue, uint8_t *packet, uint16_t Len)
   * @remark 
 
   ********************************************************************************************/
-void RxQueue_Handle(RxQueueStruct *rxQueue, void (*f)(uint8_t*, uint16_t))
+void RxQueue_Handle(RxQueueStruct *rxQueue, void (*RxPacketHandle)(uint8_t*, uint16_t))
 {
   for(uint16_t i=0; i<BLOCK_COUNT; i++)
   {
     if(rxQueue->rxBlocks[i].flag & RX_FLAG_USED)                     //查找需要处理的报文
     {
-      (*f)(rxQueue->rxBlocks[i].message, rxQueue->rxBlocks[i].length);
+      (*RxPacketHandle)(rxQueue->rxBlocks[i].message, rxQueue->rxBlocks[i].length);
       
       Free(rxQueue->rxBlocks[i].message);                             //释放申请的内存
     
@@ -166,7 +167,7 @@ void TxQueue_Handle(TxQueueStruct *txQueue, void (*Transmit)(uint8_t*, uint16_t)
   * @remark 
 
   ********************************************************************************************/
-uint16_t TxQueue_Add(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, uint8_t custom)
+uint16_t TxQueue_Add(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, TxModeEnum mode)
 {
   uint16_t i;
   
@@ -187,7 +188,7 @@ uint16_t TxQueue_Add(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, 
 #endif
       
       /* 可以自定义标志位，自动添加占用标志位，默认只发送一次 */
-      txQueue->txBlocks[i].flag |= custom;
+      txQueue->txBlocks[i].flag |= mode;
       
       return i;
       //break;
@@ -211,9 +212,9 @@ uint16_t TxQueue_Add(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, 
   * @remark 
 
   ********************************************************************************************/
-uint16_t TxQueue_AddWithId(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, uint8_t custom, TX_ID_SIZE id)
+uint16_t TxQueue_AddWithId(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, TxModeEnum mode, TX_ID_SIZE id)
 {
-  uint16_t blockId = TxQueue_Add(txQueue, message, length, custom);
+  uint16_t blockId = TxQueue_Add(txQueue, message, length, mode);
   
   if(blockId != 0xFFFF)
   { txQueue->txBlocks[blockId].id = id; }
@@ -252,7 +253,7 @@ void TxQueue_FreeBlock(TxBaseBlockStruct *txBlock)
   * @remark 
 
   ********************************************************************************************/
-void TxQueue_FreeByFunc(TxQueueStruct *txQueue, uint8_t (*func)(uint8_t*, uint16_t, void*), void *p)
+void TxQueue_FreeByFunc(TxQueueStruct *txQueue, BoolEnum (*func)(uint8_t*, uint16_t, void*), void *para)
 {
   uint16_t i;
   
@@ -260,7 +261,7 @@ void TxQueue_FreeByFunc(TxQueueStruct *txQueue, uint8_t (*func)(uint8_t*, uint16
   { 
     if((txQueue->txBlocks[i].flag & TX_FLAG_USED) != 0)
     {
-      if(!func(txQueue->txBlocks[i].message, txQueue->txBlocks[i].length, p))
+      if(func(txQueue->txBlocks[i].message, txQueue->txBlocks[i].length, para) == TRUE)
       { 
         TxQueue_FreeBlock(txQueue->txBlocks + i); 
         txQueue->usedBlockQuantity -= 1;

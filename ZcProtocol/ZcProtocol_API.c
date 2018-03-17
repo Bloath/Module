@@ -90,7 +90,7 @@ uint32_t ZcProtocol_TimeStamp(uint32_t timeStamp)
   * @remark 通过输入命令以及数据，并填写到发送缓冲当中
 
   ********************************************************************************************/
-uint8_t ZcProtocol_Request(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint16_t dataLen, BoolEnum isUpdateId, uint8_t txQueueConf)
+uint8_t ZcProtocol_Request(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint16_t dataLen, BoolEnum isUpdateId, TxModeEnum txMode)
 {
   char* httpMsg;
   ArrayStruct *msg;
@@ -113,7 +113,7 @@ uint8_t ZcProtocol_Request(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint
     TxQueue_AddWithId(&Enthernet_TxQueue, 
                       (uint8_t*)httpMsg, 
                       strlen(httpMsg), 
-                      txQueueConf,
+                      txMode,
                       zcPrtc.head.id);  
     Free(httpMsg);
 #endif
@@ -124,7 +124,7 @@ uint8_t ZcProtocol_Request(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint
     TxQueue_AddWithId(&nRF24L01_TxQueue, 
                       msg->packet, 
                       msg->length, 
-                      txQueueConf,
+                      txMode,
                       zcPrtc.head.id);  
     Array_Free(msg);
 #endif
@@ -162,7 +162,7 @@ void ZcProtocol_Response(ZcSourceEnum source, ZcProtocol *zcProtocol, uint8_t *d
     TxQueue_AddWithId(&Enthernet_TxQueue, 
                       (uint8_t*)httpMsg, 
                       strlen(httpMsg), 
-                      TX_FLAG_MC|TX_FLAG_RT,
+                      TX_MULTI_MC,
                       zcProtocol->head.id);  
     Free(httpMsg);
 #endif
@@ -173,7 +173,7 @@ void ZcProtocol_Response(ZcSourceEnum source, ZcProtocol *zcProtocol, uint8_t *d
     TxQueue_AddWithId(&nRF24L01_TxQueue, 
                       msg->packet, 
                       msg->length, 
-                      0,
+                      TX_ONCE_AC,
                       zcProtocol->head.id);  
     Array_Free(msg);
 #endif

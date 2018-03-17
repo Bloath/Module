@@ -15,12 +15,16 @@
 #define TX_FLAG_TIMEOUT (1<<3)          // 
 #define TX_FLAG_MC      (1<<7)          //手动清除
 
-#define TX_ONCE_AC      (0)                             // 发一次，自动清除
-#define TX_ONCE_MC      (TX_FLAG_MC)                    // 发一次，手动清除
-#define TX_MULTI_AC     (TX_FLAG_RT)                    // 发多次，自动清除，重发次数在TxQueueStruct.maxCount
-#define TX_MULTI_MC     (TX_FLAG_RT | TX_FLAG_MC)       //发多次，手动清除
 
 /* Public typedef ------------------------------------------------------------*/
+typedef enum
+{
+  TX_ONCE_AC = 0,                               // 发一次，自动清除
+  TX_ONCE_MC = TX_FLAG_MC,                      // 发一次，手动清除
+  TX_MULTI_AC = TX_FLAG_RT,                     // 发多次，自动清除，重发次数在TxQueueStruct.maxCount
+  TX_MULTI_MC = TX_FLAG_RT | TX_FLAG_MC,        //发多次，手动清除
+}TxModeEnum;
+
 typedef struct
 {
   uint8_t buffer[BUFFER_LENGTH];
@@ -74,17 +78,17 @@ typedef enum
 /* Public function prototypes ------------------------------------------------*/
 
 /* 接收需要的函数 */
-void ReceiveSingleByte(uint8_t rxByte, RxBufferStruct *rxBuffer);                                      //接收单字节数据，填充至缓冲中
-uint16_t RxQueue_Add(RxQueueStruct *rxQueue, uint8_t *packet, uint16_t Len);                          //将接收缓冲中的数据填充到接收报文队列中
-void RxQueue_Handle(RxQueueStruct *rxQueue, void (*f)(uint8_t*, uint16_t));                         //接收报文队列处理
+void ReceiveSingleByte(uint8_t rxByte, RxBufferStruct *rxBuffer);                                                       //接收单字节数据，填充至缓冲中
+uint16_t RxQueue_Add(RxQueueStruct *rxQueue, uint8_t *packet, uint16_t Len);                                            //将接收缓冲中的数据填充到接收报文队列中
+void RxQueue_Handle(RxQueueStruct *rxQueue, void (*RxPacketHandle)(uint8_t*, uint16_t));                                //接收报文队列处理
 
 /* 发送需要的函数 */
-uint16_t TxQueue_Add(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, uint8_t custom);               //填充发送队列，包含清除重发以及未使用标志位为1
-uint16_t TxQueue_AddWithId(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, uint8_t custom, TX_ID_SIZE id);
-void TxQueue_Handle(TxQueueStruct *txQueue, void (*Transmit)(uint8_t*, uint16_t), uint32_t timeout);        //发送报文队列处理
-void TxQueue_FreeBlock(TxBaseBlockStruct *txBlock);                                                                      //释放发送块，释放内存清除标志位
-void TxQueue_FreeByFunc(TxQueueStruct *txQueue, uint8_t (*func)(uint8_t*, uint16_t, void*), void *p);           //通过指定函数，释放指定发送块
-void TxQueue_FreeById(TxQueueStruct *txQueue,  TX_ID_SIZE id);                                                  //通过ID，释放指定发送块
+uint16_t TxQueue_Add(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, TxModeEnum mode);                       //填充发送队列，包含清除重发以及未使用标志位为1
+uint16_t TxQueue_AddWithId(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, TxModeEnum mode, TX_ID_SIZE id);
+void TxQueue_Handle(TxQueueStruct *txQueue, void (*Transmit)(uint8_t*, uint16_t), uint32_t interval);                   //发送报文队列处理
+
+void TxQueue_FreeByFunc(TxQueueStruct *txQueue, BoolEnum (*func)(uint8_t*, uint16_t, void*), void *para);               //通过指定函数，释放指定发送块
+void TxQueue_FreeById(TxQueueStruct *txQueue,  TX_ID_SIZE id);                                                          //通过ID，释放指定发送块
 
 #endif
 
