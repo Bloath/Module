@@ -56,7 +56,10 @@ typedef struct
 {
   uint32_t time;                                //对不同的发送函数来说，有着不同的发送间隔，需要进行单独设置
   uint16_t usedBlockQuantity;
-  uint16_t maxTxCount;  
+  uint16_t maxTxCount;                          // 最大重发次数
+  uint16_t interval;                            // 发送间隔
+  uint16_t indexCache;                          // 索引缓存，配合无序发送使用
+  BoolEnum isTxUnordered;                       // 是否无序发送
   TxBaseBlockStruct txBlocks[BLOCK_COUNT];
 }TxQueueStruct;             // 发送块缓冲队列
 
@@ -85,7 +88,7 @@ void RxQueue_Handle(RxQueueStruct *rxQueue, void (*RxPacketHandle)(uint8_t*, uin
 /* 发送需要的函数 */
 uint16_t TxQueue_Add(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, TxModeEnum mode);                       //填充发送队列，包含清除重发以及未使用标志位为1
 uint16_t TxQueue_AddWithId(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, TxModeEnum mode, TX_ID_SIZE id);
-void TxQueue_Handle(TxQueueStruct *txQueue, void (*Transmit)(uint8_t*, uint16_t), uint32_t interval);                   //发送报文队列处理
+void TxQueue_Handle(TxQueueStruct *txQueue, void (*Transmit)(uint8_t*, uint16_t));                                      //发送报文队列处理
 
 void TxQueue_FreeByFunc(TxQueueStruct *txQueue, BoolEnum (*func)(uint8_t*, uint16_t, void*), void *para);               //通过指定函数，释放指定发送块
 void TxQueue_FreeById(TxQueueStruct *txQueue,  TX_ID_SIZE id);                                                          //通过ID，释放指定发送块

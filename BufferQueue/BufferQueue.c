@@ -104,20 +104,19 @@ void RxQueue_Handle(RxQueueStruct *rxQueue, void (*RxPacketHandle)(uint8_t*, uin
   * @brief  发送缓冲处理
   * @param  txBlock：发送缓冲块，发送缓冲队列头
   * @param  Transmit：发送函数指针（调用底层发送函数）
-  * @param  interval：发送缓冲函数调用间隔时间
   * @retval 无
   * @remark 
   ********************************************************************************************/
-void TxQueue_Handle(TxQueueStruct *txQueue, void (*Transmit)(uint8_t*, uint16_t), uint32_t interval)
+void TxQueue_Handle(TxQueueStruct *txQueue, void (*Transmit)(uint8_t*, uint16_t))
 {
   uint16_t i;
   
-  if((txQueue->time + interval) > sysTime)
+  if((txQueue->time + txQueue->interval) > sysTime)
   { return; }
   else
   {  txQueue->time = sysTime; }
   
-  for(i=0; i<BLOCK_COUNT; i++)
+  for(i=(txQueue->isTxUnordered == TRUE)? txQueue->indexCache: 0; i<BLOCK_COUNT; i++)
   {
       if(txQueue->txBlocks[i].flag & TX_FLAG_USED)            
       {
@@ -137,12 +136,10 @@ void TxQueue_Handle(TxQueueStruct *txQueue, void (*Transmit)(uint8_t*, uint16_t)
             进行数据的发送，并置位已发送标志位*/
           if(!(txQueue->txBlocks[i].flag & TX_FLAG_SENDED) || txQueue->txBlocks[i].flag & TX_FLAG_RT)
           {
-            Transmit(txQueue->txBlocks[i].message, txQueue->txBlocks[i].length);             //发送数据
-            txQueue->txBlocks[i].flag |= TX_FLAG_SENDED;
-            //break;              //注意这个位置
+            Transmit(txQueue->txBlocks[i].message, txQueue->txBlocks[i].length);        // 发送数据
+            txQueue->txBlocks[i].flag |= TX_FLAG_SENDED;                                // 标记为已发送
+            txQueue->txBlocks[i].retransCounter ++;                                     // 重发次数递增
           }
-        
-          txQueue->txBlocks[i].retransCounter ++;                            //重发次数递增
           
           /* 非手动清除 且 (重发超过200次 或者 不需要重发) 的情况下
              清除缓存释放模块 */
@@ -152,8 +149,17 @@ void TxQueue_Handle(TxQueueStruct *txQueue, void (*Transmit)(uint8_t*, uint16_t)
             TxQueue_FreeBlock(&(txQueue->txBlocks[i]));
             txQueue->usedBlockQuantity -= 1;
           }  
+          
+          /* 如果为无序发送，则将索引缓存，下次直接从下一个缓存开始 */
+          if(txQueue->isTxUnordered == TRUE)
+          { txQueue->indexCache = (i != (BLOCK_COUNT - 1))? (i + 1):0; }
+          
+          break;
       }
   }
+  
+  if(i == BLOCK_COUNT)
+  { txQueue->indexCache = 0; }
 }
 
 /*********************************************************************************************

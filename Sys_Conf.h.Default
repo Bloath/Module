@@ -9,6 +9,16 @@
 /* Public typedef ------------------------------------------------------------*/
 typedef enum
 {
+  Process_Init = 0,
+  Process_Idle,
+  Process_Start,
+  Process_Run,
+  Process_Finish,
+  Process_Wait,
+}ProcessEnum;
+
+typedef enum
+{
   FALSE = 0,
   TRUE = 1
 }BoolEnum;
