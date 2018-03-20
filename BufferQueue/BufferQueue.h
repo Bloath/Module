@@ -7,13 +7,13 @@
 
 /* Public define -------------------------------------------------------------*/
 
-#define RX_FLAG_USED    (1<<0)          //被占用
+#define RX_FLAG_USED    (1<<0)          // 被占用
 
-#define TX_FLAG_USED    (1<<0)          //被占用
-#define TX_FLAG_SENDED  (1<<1)          //已发送
-#define TX_FLAG_RT      (1<<2)          //需要进行重新发送
-#define TX_FLAG_TIMEOUT (1<<3)          // 
-#define TX_FLAG_MC      (1<<7)          //手动清除
+#define TX_FLAG_USED    (1<<0)          // 被占用
+#define TX_FLAG_SENDED  (1<<1)          // 已发送
+#define TX_FLAG_RT      (1<<2)          // 需要进行重新发送
+#define TX_FLAG_TIMEOUT (1<<3)          // 是否超时标志位
+#define TX_FLAG_MC      (1<<7)          // 手动清除
 
 
 /* Public typedef ------------------------------------------------------------*/
@@ -22,7 +22,7 @@ typedef enum
   TX_ONCE_AC = 0,                               // 发一次，自动清除
   TX_ONCE_MC = TX_FLAG_MC,                      // 发一次，手动清除
   TX_MULTI_AC = TX_FLAG_RT,                     // 发多次，自动清除，重发次数在TxQueueStruct.maxCount
-  TX_MULTI_MC = TX_FLAG_RT | TX_FLAG_MC,        //发多次，手动清除
+  TX_MULTI_MC = TX_FLAG_RT | TX_FLAG_MC,        // 发多次，手动清除
 }TxModeEnum;
 
 typedef struct
@@ -54,8 +54,8 @@ typedef struct
 //***********************高级块缓冲单位************************
 typedef struct
 {
-  uint32_t time;                                //对不同的发送函数来说，有着不同的发送间隔，需要进行单独设置
-  uint16_t usedBlockQuantity;
+  uint32_t time;                                // 对不同的发送函数来说，有着不同的发送间隔，需要进行单独设置
+  uint16_t usedBlockQuantity;                   // 已使用的块数量
   uint16_t maxTxCount;                          // 最大重发次数
   uint16_t interval;                            // 发送间隔
   uint16_t indexCache;                          // 索引缓存，配合无序发送使用
