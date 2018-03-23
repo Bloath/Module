@@ -1,0 +1,26 @@
+#ifndef _SOFTI2C_HAL_H_
+#define _SOFTI2C_HAL_H_
+
+/* Includes ------------------------------------------------------------------*/
+#include "../Common/Delay.h"
+#include "main.h"
+
+/* Public define ------------------------------------------------------------*/
+
+#define DATA_TYPE               uint16_t                 // 数据宽度，8位以上的数据在发送时并非简单的多循环，而是多字节发送
+#define DATA_SIZE               sizeof(DATA_TYPE)       // 数据宽度所占字节个数
+
+ 
+#define SCL_Set() HAL_GPIO_WritePin(SCL_GPIO_Port, SCL_Pin, GPIO_PIN_SET)
+#define SCL_Clr() HAL_GPIO_WritePin(SCL_GPIO_Port, SCL_Pin, GPIO_PIN_RESET)
+#define SDA_Set() HAL_GPIO_WritePin(SDA_GPIO_Port, SDA_Pin, GPIO_PIN_SET)
+#define SDA_Clr() HAL_GPIO_WritePin(SDA_GPIO_Port, SDA_Pin, GPIO_PIN_RESET)
+#define SDA_Status  (HAL_GPIO_ReadPin(SDA_GPIO_Port,SDA_Pin) == GPIO_PIN_SET)
+
+
+#define I2C_Delay()  Delay_us(10);
+
+/* Public typedef -----------------------------------------------------------*/
+
+
+#endif
