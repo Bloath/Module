@@ -1,0 +1,181 @@
+/* Includes ------------------------------------------------------------------*/
+#include "string.h"
+
+#include "nRF24L01P_API.h"
+#include "nRF24L01P_HAL.h"
+
+#include "../../Common/Delay.h"
+#include "../../Sys_Conf.h"
+
+// 自定义添加
+#include "../Module/BufferQueue/BufferQueue.h"
+
+
+/* Private typedef -----------------------------------------------------------*/
+/* Private define ------------------------------------------------------------*/
+/* Private macro -------------------------------------------------------------*/
+/* Private variables ---------------------------------------------------------*/
+uint8_t ADDRESS[ADR_WIDTH] = {0x0F,0xFF,0xFF,0xFF,0xFF};  // 定义一个静态发送地址
+
+TxQueueStruct nRF24L01_TxQueue;
+RxQueueStruct nRF24L01_RxQueue;
+
+/* Private function prototypes -----------------------------------------------*/
+void nRF24L01P_RxPacketHandle(uint8_t *packet, uint8_t len, uint8_t pipeID);
+void nRF24L01P_SetRxMode(void);
+
+/* Private functions ---------------------------------------------------------*/
+/*********************************************************************************************
+
+  * @brief  nRF24L01 初始化
+  * @param  
+  * @retval 
+  * @remark 
+
+  ********************************************************************************************/
+void nRF24L01P_Initialization()
+{
+  CE_LOW();
+  
+  nRF24L01P_Write_Reg(W_REG + EN_RXADDR, 0x01);                         // 使能接收通道0
+  
+  nRF24L01P_Write_Reg(W_REG + RF_CH, 40);         			// 选择射频通道0x40
+  nRF24L01P_Write_Reg(W_REG + RF_SETUP, 0x0F);    			// 数据传输率2Mbps，发射功率0dBm，低噪声放大器增益(nRF24L01+忽略该位）
+  
+  nRF24L01P_Write_Reg(W_REG + SETUP_AW, 0x03);                          // 发送接收地址长度
+  
+  nRF24L01P_Write_Buf(W_REG + TX_ADDR, ADDRESS, ADR_WIDTH);             // 写入发送地址
+  nRF24L01P_Write_Buf(W_REG + RX_ADDR_P0, ADDRESS, ADR_WIDTH);          // 为了应答接收设备，接收通道0地址和发送地址相同
+  nRF24L01P_Write_Reg(W_REG + RX_PW_P0, PLOAD_WIDTH);  	                // 接收通道0选择和发送通道相同有效数据宽度，接收时，超过这个个数才能触发中断
+  
+  nRF24L01P_Write_Reg(W_REG + FEATURE, 0x05);                           // 开启动态接收
+  nRF24L01P_Write_Reg(W_REG + DYNPD, 0x01);                             // 使能动态接收通道0
+  
+  nRF24L01P_Write_Reg(W_REG + CONFIG, 0x3E);      			// CRC使能，16位CRC校验，上电
+  nRF24L01P_Write_Reg(W_REG + STATUS, 0xff);  				//清除所有的中断标志位
+
+  //CE_HIGH();
+}
+
+/*********************************************************************************************
+  * @brief  nrf24L01 接收数据
+  * @param  data：   接收缓冲
+  * @param  len：   接收缓冲长度 
+  * @retval 无
+  * @remark 0: 获取成功， 1：没有数据  2：数据数量不正确
+  ********************************************************************************************/
+uint8_t nRF24L01P_Receive()
+{
+  uint8_t status = nRF24L01P_Read_Reg(STATUS);
+  uint8_t packetLen = 0, packet[32] = {0};
+  
+  // PS：中断接收与轮训接收不能同时使用，有可能轮询接收SPI时，
+  //     进入中断再读取，会出现读取错误问题
+  if((status & RX_DR) != 0)
+  {
+    packetLen = ReadRXPayload(packet);          // 读取缓存，获取缓存中的长度
+    if(packetLen == 0 || packetLen > 32)        // 如果连续接收，长度将会变得非常大                  
+    { 
+      FlushRX();                                // 清除接收缓冲
+      return 2; 
+    }                               // 如果长度为0，则为长度出错
+    
+    nRF24L01P_RxPacketHandle(packet, packetLen, (status & 0x0E) >> 1);  // 数据处理
+    
+    return 0;
+    
+  }
+  return 1;
+}
+/*********************************************************************************************
+  * @brief  nrf24L01 接收数据处理
+  * @param  data：   接收缓冲
+  * @param  len：   接收缓冲长度 
+  * @retval 无
+  * @remark 0: 获取成功， 1：没有数据  2：数据数量不正确
+  ********************************************************************************************/
+void nRF24L01P_RxPacketHandle(uint8_t *packet, uint8_t len, uint8_t pipeID)
+{
+  RxQueue_Add(&nRF24L01_RxQueue, packet, len);
+}
+
+/*********************************************************************************************
+  * @brief  nrf24L01 发送数据
+  * @param  packet：   接收缓冲
+  * @param  len：   接收缓冲长度 
+  * @retval 无
+  * @remark 
+  ********************************************************************************************/
+void nRF24L01P_Transimit(uint8_t *packet, uint16_t len)
+{
+  uint8_t status = 0;
+  uint16_t counter = 0;
+  
+  CE_LOW();                                             // 拉低写入命令
+  
+  uint8_t controlreg = nRF24L01P_Read_Reg(CONFIG);
+  nRF24L01P_Write_Reg(W_REG + CONFIG, controlreg & ~(1<<0) );   // CONFIG 寄存器写入数据，设定为发送模式
+  
+  FlushTX();					        
+  FlushRX();                                            // 清除缓存
+  
+  WriteTXPayload_NoAck(packet, len);
+  
+  CE_HIGH(); 
+  Delay_ms(2);                                          //启动发送，等待2ms后直接拉低
+  CE_LOW();
+  
+  do
+  { 
+    status = nRF24L01P_Read_Reg(STATUS);
+    counter++;
+  }
+  while((status & TX_DS) == 0 && counter <6000);                         // 等待标志位置位
+  
+  nRF24L01P_Write_Reg(STATUS, 0xFF);                    // 清除所有标志位
+  
+  nRF24L01P_SetRxMode();	                        // 切换为接收模式
+}
+/*********************************************************************************************
+  * @brief  nrf24L01 设置为接收模式
+  * @param  
+  * @retval 无
+  * @remark 
+  ********************************************************************************************/
+void nRF24L01P_SetRxMode(void)
+{
+    uint8_t controlreg = 0;
+  
+    CE_LOW();
+    
+    controlreg = nRF24L01P_Read_Reg(CONFIG);
+    nRF24L01P_Write_Reg(W_REG + CONFIG, controlreg | 0x01);
+    
+    FlushTX();
+    FlushRX();					//Flush RX
+    
+    CE_HIGH();					//允许收发	 
+}
+
+/*********************************************************************************************
+  * @brief  nrf24L01 设置为掉电模式
+  * @param  
+  * @retval 无
+  * @remark 
+  ********************************************************************************************/
+void nRF24L01P_PowerDown(void)
+{
+    uint8_t controlreg = nRF24L01P_Read_Reg(CONFIG);
+    nRF24L01P_Write_Reg(W_REG + CONFIG, controlreg & ~0x02);	 
+}
+/*********************************************************************************************
+  * @brief  nrf24L01 恢复掉电
+  * @param  
+  * @retval 无
+  * @remark 
+  ********************************************************************************************/
+void nRF24L01P_PowerOn(void)
+{
+    uint8_t controlreg = nRF24L01P_Read_Reg(CONFIG);
+    nRF24L01P_Write_Reg(W_REG + CONFIG, controlreg | 0x02);	 
+}
