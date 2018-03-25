@@ -4,7 +4,7 @@
 #include "stdlib.h"
 #include "Time.h"
 
-#include "../BufferQueue/BufferQueue.h"
+#include "../UartDma/SimpleBuffer.h"
 #include "../Common/Convert.h"
 #include "../Common/Delay.h"
 #include "../Common/Malloc.h"

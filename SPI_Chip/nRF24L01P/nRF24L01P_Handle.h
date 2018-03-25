@@ -17,6 +17,7 @@ uint8_t nRF24L01P_Receive();
 void nRF24L01P_Transimit(uint8_t *packet, uint16_t len);
 void nRF24L01P_SetRxMode(void);
 void nRF24L01P_PowerDown(void);
+void nRF24L01P_PowerOn(void);
 
 #endif
 
