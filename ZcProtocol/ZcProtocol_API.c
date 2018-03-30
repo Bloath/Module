@@ -86,6 +86,7 @@ uint32_t ZcProtocol_TimeStamp(uint32_t timeStamp)
             data:  报文指针
             dataLen：报文长度
             isUpdateId：是否需要更新ID
+            txMode：发送模式
   * @retval 该请求命令的id
   * @remark 通过输入命令以及数据，并填写到发送缓冲当中
 
@@ -122,6 +123,18 @@ uint8_t ZcProtocol_Request(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint
 #ifdef ZC_24G
     msg = ZcProtocol_ConvertMsg(&zcPrtc, data ,dataLen);
     TxQueue_AddWithId(&nRF24L01_TxQueue, 
+                      msg->packet, 
+                      msg->length, 
+                      txMode,
+                      zcPrtc.head.id);  
+    Array_Free(msg);
+#endif
+    break;
+    
+  case ZcSource_485:
+#ifdef ZC_485
+    msg = ZcProtocol_ConvertMsg(&zcPrtc, data ,dataLen);
+    TxQueue_AddWithId(&ZC_485_TXQUEUE, 
                       msg->packet, 
                       msg->length, 
                       txMode,
@@ -178,17 +191,29 @@ void ZcProtocol_Response(ZcSourceEnum source, ZcProtocol *zcProtocol, uint8_t *d
     Array_Free(msg);
 #endif
     break;
+    
+  case ZcSource_485:
+#ifdef ZC_485
+    msg = ZcProtocol_ConvertMsg(zcProtocol, data ,dataLen);
+    TxQueue_AddWithId(&ZC_485_TXQUEUE, 
+                      msg->packet, 
+                      msg->length, 
+                      TX_ONCE_AC,
+                      zcProtocol->head.id);  
+    Array_Free(msg);
+#endif
+    break;
   }
 }
 /*********************************************************************************************
 
   * @brief  接收协议报文的处理
   * @param  
-  * @retval 报文数组结构体指针
+  * @retval 
   * @remark 
 
   ********************************************************************************************/
-void ZcProtocol_Handle()
+void ZcProtocol_NetTxProcess()
 {
   static uint32_t time=0;
   
@@ -226,15 +251,16 @@ void ZcProtocol_Handle()
 /*********************************************************************************************
 
   * @brief  接收协议报文的处理
-  * @param  message:  报文指针
+  * @param  packet:  报文指针
             length：报文长度
+            source：来源，NET/2.4G/485
   * @retval 报文数组结构体指针
   * @remark 
 
   ********************************************************************************************/
-void ZcProtocol_ReceiveHandle(uint8_t *message, uint16_t length, ZcSourceEnum source)
+void ZcProtocol_ReceiveHandle(uint8_t *packet, uint16_t length, ZcSourceEnum source)
 {
-  ZcProtocol *zcProtocol = ZcProtocol_Check(message, length);     //检查接收的回复是否准确
+  ZcProtocol *zcProtocol = ZcProtocol_Check(packet, length);     //检查接收的回复是否准确
   
   if(zcProtocol != NULL)
   {
@@ -249,15 +275,20 @@ void ZcProtocol_ReceiveHandle(uint8_t *message, uint16_t length, ZcSourceEnum so
     case ZcSource_24G:
       ZcProtocol_24GRxHandle(zcProtocol);                   // 2.4G协议
       break;
+    case ZcSource_485:
+      ZcProtocol_24GRxHandle(zcProtocol);                   // 485
+      break;
     }
   }
 }
+
+//////////////////////////////////////////报文接收处理，已经通过协议检查之后////////////////////////////////////////////////
+
 /*********************************************************************************************
 
-  * @brief  接收协议报文的处理
-  * @param  message:  报文指针
-            length：报文长度
-  * @retval 报文数组结构体指针
+  * @brief  接收报文处理-> 网络
+  * @param  zcProtocol：协议报文指针
+  * @retval 
   * @remark 
 
   ********************************************************************************************/
@@ -304,10 +335,9 @@ void ZcProtocol_NetRxHandle(ZcProtocol *zcProtocol)
 }
 /*********************************************************************************************
 
-  * @brief  接收协议报文的处理
-  * @param  message:  报文指针
-            length：报文长度
-  * @retval 报文数组结构体指针
+  * @brief  接收报文处理-> 2.4G
+  * @param  zcProtocol：协议报文指针
+  * @retval 
   * @remark 
 
   ********************************************************************************************/
@@ -315,23 +345,44 @@ void ZcProtocol_24GRxHandle(ZcProtocol *zcProtocol)
 {
 #ifdef ZC_24G
   
-  TxQueue_FreeById(&nRF24L01_TxQueue, zcProtocol->head.id);    //每次服务器回复后都要清除相应发送报文
+  TxQueue_FreeById(&nRF24L01_TxQueue, zcProtocol->head.id);    
   ZcProtocol_24GOperationCmdHandle(zcProtocol);
   
 #endif
 }
 /*********************************************************************************************
 
+  * @brief  接收报文处理-> 485
+  * @param  zcProtocol：协议报文指针
+  * @retval 
+  * @remark 
+
+  ********************************************************************************************/
+void ZcProtocol_485RxHandle(ZcProtocol *zcProtocol)
+{
+#ifdef ZC_485
+  
+  TxQueue_FreeById(&ZC_485_TXQUEUE, zcProtocol->head.id);    
+  ZcProtocol_485OperationCmdHandle(zcProtocol);
+  
+#endif
+}
+
+
+////////////////////////////////////其他附加/////////////////////////////////////////////////
+
+/*********************************************************************************************
+
   * @brief  拙诚协议=》网络协议处理
-  * @param  message：http协议回复数据包内的回复内容部分字符串
+  * @param  packet：http协议回复数据包内的回复内容部分字符串
             length：报文长度
   * @retval 
   * @remark 
 
   ********************************************************************************************/
-void ZcProtocol_NetPacketHandle(uint8_t *message, uint16_t length)
+void ZcProtocol_NetPacketHandle(uint8_t *packet, uint16_t length)
 {
-  ArrayStruct *msg = String2Msg(strstr((const char*)message, "68"), 0);      // 字符串转报文数组
+  ArrayStruct *msg = String2Msg(strstr((const char*)packet, "68"), 0);      // 字符串转报文数组
   
   ZcProtocol_ReceiveHandle(msg->packet, msg->length, ZcSource_Net);  //协议的原始报文处理
   

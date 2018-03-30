@@ -36,7 +36,7 @@ extern ZcProtocol zcPrtc;
 extern ZcHandleStruct zcHandle;
 
 /* Public function prototypes ------------------------------------------------*/
-void ZcProtocol_Handle();
+void ZcProtocol_NetTxProcess();
 
 void ZcProtocol_InstanceInit(uint8_t DeviceType, uint8_t* address, uint8_t startId);     //全局变量ZcPrtc初始化，用于协议头部一些常用数据的写入
 uint8_t ZcProtocol_Request(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint16_t dataLen, BoolEnum isUpdateId, TxModeEnum txMode);  // 发送请求

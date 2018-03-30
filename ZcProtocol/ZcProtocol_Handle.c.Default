@@ -13,7 +13,7 @@
 /* private function prototypes ------------------------------------------------*/
 /*********************************************************************************************
 
-  * @brief  拙诚协议=》操作类指令处理
+  * @brief  拙诚协议 => 网络操作类指令处理
   * @param  protocol：协议指针
   * @retval 0：处理成功
             1：没发现操作类指令
@@ -24,171 +24,56 @@
 uint8_t ZcProtocol_NetOperationCmdHandle(ZcProtocol *zcProtocol)
 {
   uint8_t res = 0;              
-  ArrayStruct *message = Array_New(200);
-  uint16_t temp16 = 1234;
-  uint32_t temp32 = 123456789;
-  uint32_t realTime = 1517444012;
   
   switch(zcProtocol->head.cmd)                          
   { 
-    /* 地址域 */
-    case ZC_CMD_ADDRESS:
-      ZcProtocol_Response(ZcSource_Net, zcProtocol, zcPrtc.head.address, 7);
-      break;
-    
-    /* 设备相关属性 */
-    case ZC_CMD_DEVICE_ATTR:
-      *(uint16_t *)(message->packet + 0) = 1234;
-      *(uint16_t *)(message->packet + 2) = 1234;
-      *(uint8_t *)(message->packet + 4) = 50;
-      *(uint8_t *)(message->packet + 5) = 50;
-      *(uint16_t *)(message->packet + 6) = 1234;
-      *(uint16_t *)(message->packet + 8) = 1234;
-      *(uint8_t *)(message->packet + 10) = 10;
-      *(uint8_t *)(message->packet + 11) = 10;
-      *(uint16_t *)(message->packet + 12) = 1234;
-      *(uint8_t *)(message->packet + 14) = 10;
-      *(uint8_t *)(message->packet + 15) = 1;
-      ZcProtocol_Response(ZcSource_Net, zcProtocol, message->packet, 16);
-      break;
-      
-    /* 计量相关属性 */
-    case ZC_CMD_MEASURE_ATTR:
-      *(uint32_t *)(message->packet + 0) = 123456789;
-      *(uint32_t *)(message->packet + 4) = 123456789;
-      *(uint32_t *)(message->packet + 8) = 123456789;
-      *(uint32_t *)(message->packet + 12) = 123456789;
-      *(uint32_t *)(message->packet + 16) = 123456789;
-      *(uint16_t *)(message->packet + 20) = 1234;
-      *(uint8_t *)(message->packet + 22) = 1;
-      *(uint8_t *)(message->packet + 23) = 2;
-      *(uint8_t *)(message->packet + 24) = 1;
-      ZcProtocol_Response(ZcSource_Net, zcProtocol, message->packet, 25);
-      break;
-    
-    /* 阶梯费用 */
-    case ZC_CMD_LADIR_PRICE:
-      *(uint32_t *)(message->packet + 0) = 1517444012;
-      message->packet[4] = 3;
-      memcpy(message->packet + 5, (uint8_t *)&temp16, 2);
-      memcpy(message->packet + 7, (uint8_t *)&temp16, 2);
-      memcpy(message->packet + 9, (uint8_t *)&temp16, 2);
-      memcpy(message->packet + 11, (uint8_t *)&temp16, 2);
-      memcpy(message->packet + 13, (uint8_t *)&temp16, 2);
-      memcpy(message->packet + 15, (uint8_t *)&temp16, 2);
-      ZcProtocol_Response(ZcSource_Net, zcProtocol, message->packet, 17);      
-      break;
-    
-    /* 充值记录 */
-    case ZC_CMD_RECHARGE:
-      message->packet[0] = 3;
-      message->packet[1] = 2;
-      memcpy(message->packet + 2, (uint8_t *)&temp32, 4);
-      message->packet[6] = 2;
-      memcpy(message->packet + 7, (uint8_t *)&temp32, 4);
-      message->packet[11] = 2;
-      memcpy(message->packet + 12, (uint8_t *)&temp32, 4);
-      ZcProtocol_Response(ZcSource_Net, zcProtocol, message->packet, 16);   
-      break;
-    
-    /* 用气历史记录 */
-    case ZC_CMD_USE_HISTORY:
-      message->packet[0] = 4;
-      memcpy(message->packet + 1, (uint8_t *)&realTime, 4); 
-      memcpy(message->packet + 5, (uint8_t *)&temp32, 4);
-      memcpy(message->packet + 9, (uint8_t *)&temp32, 4);
-      memcpy(message->packet + 13, (uint8_t *)&temp32, 4);
-      realTime += 100;
-      memcpy(message->packet + 17, (uint8_t *)&realTime, 4); 
-      memcpy(message->packet + 21, (uint8_t *)&temp32, 4);
-      memcpy(message->packet + 25, (uint8_t *)&temp32, 4);
-      memcpy(message->packet + 29, (uint8_t *)&temp32, 4);
-      realTime += 100;
-      memcpy(message->packet + 33, (uint8_t *)&realTime, 4); 
-      memcpy(message->packet + 37, (uint8_t *)&temp32, 4);
-      memcpy(message->packet + 41, (uint8_t *)&temp32, 4);
-      memcpy(message->packet + 45, (uint8_t *)&temp32, 4);
-      realTime += 100;
-      memcpy(message->packet + 49, (uint8_t *)&realTime, 4); 
-      memcpy(message->packet + 53, (uint8_t *)&temp32, 4);
-      memcpy(message->packet + 57, (uint8_t *)&temp32, 4);
-      memcpy(message->packet + 61, (uint8_t *)&temp32, 4);
-      ZcProtocol_Response(ZcSource_Net, zcProtocol, message->packet, 65);   
-      break;
-      
-    /* 报警信息 */
-    case ZC_CMD_ALARM:
-      
-      break;
-      
-    /* 环境参数 */
-    case ZC_CMD_ENVIROMENT:
-      
-      break;
-      
-    /* 管道状态 */
-    case ZC_CMD_PIPE_STATUS:
-      
-      break;
-      
-    /* 阀门开关记录 */
-    case ZC_CMD_VALVE_RECORD:
-      
-      break;
-      
-    /* 阀门开关操作 */
-    case ZC_CMD_VALVE_OPRT:
-      message->packet[0] = 2;
-      ZcProtocol_Response(ZcSource_Net, zcProtocol, message->packet, 1); 
-      //res = 2;
-      break;
-      
-    /* 并非操作指令，返回1 */
-    default:
-      res = 1;
-      break;
-    }
-  
-  Array_Free(message);
+  default:
+    res = 1;
+    break;
+   }
   
   return res;
 }
 /*********************************************************************************************
 
-  * @brief  拙诚协议=》操作类指令处理
-  * @param  protocol：协议指针
+  * @brief  拙诚协议 => 2.4G无线操作
+  * @param  zcProtocol：协议指针
   * @retval 0：处理成功
-            1：没发现操作类指令
-            2：处理失败
   * @remark 
 
   ********************************************************************************************/
 uint8_t ZcProtocol_24GOperationCmdHandle(ZcProtocol *zcProtocol)
 {
   uint8_t res = 0;              
-  ArrayStruct *message = Array_New(100);
   
   switch(zcProtocol->head.cmd)                          
   { 
-    /* 地址域 */
-    case ZC_CMD_ADDRESS:
-      ZcProtocol_Response(ZcSource_24G, zcProtocol, zcPrtc.head.address, 7);
-      break;
-      
-    /* 阀门开关操作 */
-    case ZC_CMD_VALVE_OPRT:
-      message->packet[0] = 2;
-      ZcProtocol_Response(ZcSource_24G, zcProtocol, message->packet, 1); 
-      //res = 2;
-      break;
-      
-    /* 并非操作指令，返回1 */
-    default:
-      res = 1;
-      break;
-    }
+  default:
+    res = 1;
+    break;
+  }
   
-  Array_Free(message);
+  return res;
+}
+/*********************************************************************************************
+
+  * @brief  拙诚协议 => 485协议处理
+  * @param  zcProtocol：协议指针
+  * @retval 
+  * @remark 
+
+  ********************************************************************************************/
+uint8_t ZcProtocol_485OperationCmdHandle(ZcProtocol *zcProtocol)
+{
+  uint8_t res = 0;              
+  
+  switch(zcProtocol->head.cmd)                          
+  { 
+  default:
+    res = 1;
+    break;
+  }
+  
   
   return res;
 }
