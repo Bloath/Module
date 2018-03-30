@@ -52,6 +52,7 @@ typedef struct
 #define ZC_CMD_ENVIROMENT       0x82    // 环境参数
 #define ZC_CMD_PIPE_STATUS      0x83    // 管道状态
 #define ZC_CMD_VALVE_RECORD     0x84    // 阀门开关记录
+#define ZC_CMD_ANALYSE_INFO     0x85    // 算法信息
 #define ZC_CMD_VALVE_OPRT       0xE1    // 阀门开关阀
 #define ZC_CMD_FAIL             0xFE    // 失败报文
 #define ZC_CMD_SERVER_CONFIRM   0xFF    // 服务器确认报文
