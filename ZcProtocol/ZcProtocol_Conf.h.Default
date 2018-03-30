@@ -14,9 +14,11 @@
 #define ZC_24G  1               // 2.4G无线通讯
 #define ZC_485  1               // 485通讯
 
-#define ZC_NET_REQUEST_CONFIG        (TX_FLAG_MC|TX_FLAG_RT)                 // 网络通讯发送请求的配置
-#define ZC_24G_REQUEST_CONFIG        (TX_FLAG_MC|TX_FLAG_RT)                 // 2.4G通讯发送请求的配置，阀门等设备：0，控制器:(TX_FLAG_MC|TX_FLAG_RT) 
-
+#ifdef ZC_485
+#include "../../Handle/MessageHandle.h"
+#define ZC_485_TXQUEUE          rs485_TxQueue         
+#define ZC
+#endif
 
 #define ZC_NET_POLL_INTERVAL 10
 
