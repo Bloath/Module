@@ -34,6 +34,7 @@ ZcHandleStruct zcHandle;      //拙诚协议处理
 /* private function prototypes ------------------------------------------------*/
 void ZcProtocol_NetRxHandle(ZcProtocol *zcProtocol);
 void ZcProtocol_24GRxHandle(ZcProtocol *zcProtocol);
+void ZcProtocol_485RxHandle(ZcProtocol *zcProtocol);
 void ZcProtocol_HeadIdIncrease();
 
 /*********************************************************************************************
@@ -69,14 +70,14 @@ uint32_t ZcProtocol_TimeStamp(uint32_t timeStamp)
   
   /* 当参数不为0时，则为更新时间戳 */
   /* 当参数为0时，则为获取时间戳 */
-  if(timeStamp != 0)
+  if(timeStamp == 0)
+  { return zcPrtc.head.timestamp + realTime - time; } //获取时间戳，则是在之前记录的时间戳的基础上，加上后面跑过的系统时间 
+  else if(timeStamp > 1514736000)       // 2018年1月1日， 0:0:0
   { 
     zcPrtc.head.timestamp = timeStamp;  //更新时间戳
     time = realTime;                     //记录此时的系统时间
-    return 0;                           //返回0
   }
-  else
-  { return zcPrtc.head.timestamp + realTime - time; } //获取时间戳，则是在之前记录的时间戳的基础上，加上后面跑过的系统时间 
+   return 0;
 }
 /*********************************************************************************************
 
@@ -276,7 +277,7 @@ void ZcProtocol_ReceiveHandle(uint8_t *packet, uint16_t length, ZcSourceEnum sou
       ZcProtocol_24GRxHandle(zcProtocol);                   // 2.4G协议
       break;
     case ZcSource_485:
-      ZcProtocol_24GRxHandle(zcProtocol);                   // 485
+      ZcProtocol_485RxHandle(zcProtocol);                   // 485
       break;
     }
   }

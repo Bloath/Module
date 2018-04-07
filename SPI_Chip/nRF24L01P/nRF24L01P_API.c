@@ -105,19 +105,24 @@ void FlushRX()
   * @brief  寄存器 单字节 写入
   * @param  reg：寄存器地址，要包含读OR写位
   * @param  value：写入寄存器的值
-  * @retval 返回该寄存器的值( 原有值 )
+  * @retval 是否写入成功
   * @remark 
   ********************************************************************************************/
-uint8_t nRF24L01P_Write_Reg(uint8_t reg, uint8_t value)
+BoolEnum nRF24L01P_Write_Reg(uint8_t reg, uint8_t value)
 {
-    uint8_t status;
+    BoolEnum isSuccessful = FALSE;
 
     CSN_LOW();                 
-    status = SPI_RW(reg);				
+    SPI_RW(reg);				
     SPI_RW(value);
+    
+    SPI_RW(reg);
+    if(SPI_RW(reg) == value)
+    { isSuccessful = TRUE; }
+    
     CSN_HIGH();  
     
-    return(status);
+    return(isSuccessful);
 }
 
 /*********************************************************************************************
