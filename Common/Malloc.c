@@ -49,6 +49,9 @@ void* Malloc(uint16_t size)
     for(MALLOC_BLOCK_COUNT_SIZE i=0; i<applyBlockCount; i++)
     { mmu.blocks[index - applyBlockCount + i + 1] = applyBlockCount; }
     
+    // 将所占内存全部清零
+    memset(mmu.mallocPool + (index - applyBlockCount + 1) * MALLOC_BLOCK_SIZE, 0, applyBlockCount * MALLOC_BLOCK_SIZE);                  
+    
     ENABLE_ALL_INTERRPUTS();
     return (void *)(mmu.mallocPool + (index - applyBlockCount + 1) * MALLOC_BLOCK_SIZE);
   }
@@ -70,12 +73,13 @@ void Free(void* pointer)
 {
   DISABLE_ALL_INTERRPUTS();
   
-  MALLOC_BLOCK_COUNT_SIZE index = ((uint32_t)pointer - (uint32_t)mmu.mallocPool) / MALLOC_BLOCK_SIZE;
-  MALLOC_BLOCK_COUNT_SIZE len = mmu.blocks[index];
-  mmu.usedBlockQuantity -= len;
+  MALLOC_BLOCK_COUNT_SIZE index = ((uint32_t)pointer - (uint32_t)mmu.mallocPool) / MALLOC_BLOCK_SIZE;   // 查找属于哪一块
+  MALLOC_BLOCK_COUNT_SIZE len = mmu.blocks[index];              // 查找其所占长度
+  mmu.usedBlockQuantity -= len;                                 
   
   for(MALLOC_BLOCK_COUNT_SIZE i=0; i<len; i++)
-  { mmu.blocks[index + i] = 0; }
+  { mmu.blocks[index + i] = 0; }                                // 在管理单元中释放该位
+  ///memset(pointer, 0, MALLOC_BLOCK_SIZE * len);                  // 将所占内存全部清零
   
   ENABLE_ALL_INTERRPUTS();
 }
