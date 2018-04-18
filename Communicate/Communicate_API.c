@@ -22,7 +22,7 @@ void Communicate_RxHandle(uint8_t *message, uint16_t len, void *param);
   * @remark 
 
   ********************************************************************************************/
-void Comunicate_HalfDuplex_Polling(CommunicateStruct *communicate)
+void Comunicate_HDMaster_Polling(CommunicateStruct *communicate)
 {
   /* 根据主状态进行处理 */
   switch(communicate->process)
@@ -67,7 +67,7 @@ void Communicate_Handle(CommunicateStruct *communicate)
 {
   /* 半双工 + 主机模式，发送 */
   if(communicate->isFullDuplex == FALSE && communicate->isHDMaster == TRUE)
-  { Comunicate_HalfDuplex_Polling(communicate);}
+  { Comunicate_HDMaster_Polling(communicate);}
   
   /* 发送队列处理 */
   if(communicate->CallBack_TxFunc != NULL)
@@ -104,7 +104,8 @@ void Communicate_RxHandle(uint8_t *message, uint16_t len, void *param)
   
   /* 清除对应发送队列 */
   CallBack_ClearTxQueue(message, len, communicate);
-
+  communicate->process = Process_Idle;
+  
   if(communicate->isFullDuplex == FALSE)
   {
     /* 半双工情况下
@@ -112,9 +113,7 @@ void Communicate_RxHandle(uint8_t *message, uint16_t len, void *param)
        半双工-从模式：则要填充数据 */
     if(CallBack_HD_isPooling(message, len, communicate) == TRUE )
     { 
-      if(communicate->isHDMaster == TRUE)
-      { communicate->process = Process_Idle; }
-      else
+      if(communicate->isHDMaster == FALSE)
       { CallBack_HDSlave_PollHandle(message, len, communicate); }
       
       return;
