@@ -33,7 +33,7 @@ extern ESP8266_ConnectStatusEnum ESP8266_ConnectStatus;
 /* Public function prototypes ------------------------------------------------*/
 
 void ESP8266_Handle();
-void ESP8266_RxMsgHandle(uint8_t *message, uint16_t length);
+void ESP8266_RxMsgHandle(uint8_t *message, uint16_t length, void *param);
 void ESP8266_SendAtString(const char* cmd);
 
 #endif

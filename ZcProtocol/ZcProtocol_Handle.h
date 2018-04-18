@@ -2,12 +2,15 @@
 #define _ZCPROTOCOL_HANDLE_H_
 
 /* Includes ------------------------------------------------------------------*/
+#include "../Communicate/Communicate_API.h"
+#include "../Sys_Conf.h"
 /* Public typedef ------------------------------------------------------------*/
 /* Public define -------------------------------------------------------------*/
 /* Public macro --------------------------------------------------------------*/
 /* Public variables ----------------------------------------------------------*/
 /* Public function prototypes ------------------------------------------------*/
-uint8_t ZcProtocol_NetOperationCmdHandle(ZcProtocol *protocol);
-uint8_t ZcProtocol_24GOperationCmdHandle(ZcProtocol *zcProtocol);
-uint8_t ZcProtocol_485OperationCmdHandle(ZcProtocol *zcProtocol);
+void ZcProtocol_HDMaster_UnpollMsgHandle(uint8_t *message, uint16_t len, CommunicateStruct *communicate);
+void ZcProtocol_HDSlave_UnpollMsgHandle(uint8_t *message, uint16_t len, CommunicateStruct *communicate);
+void ZcProtocol_FD_UnpollMsgHandle(uint8_t *message, uint16_t len, CommunicateStruct *communicate);
+
 #endif

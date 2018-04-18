@@ -84,13 +84,13 @@ uint16_t RxQueue_Add(RxQueueStruct *rxQueue, uint8_t *packet, uint16_t Len)
   * @remark 
 
   ********************************************************************************************/
-void RxQueue_Handle(RxQueueStruct *rxQueue, void (*RxPacketHandle)(uint8_t*, uint16_t))
+void RxQueue_Handle(RxQueueStruct *rxQueue, void (*RxPacketHandle)(uint8_t*, uint16_t, void *), void *param)
 {
   for(uint16_t i=0; i<BLOCK_COUNT; i++)
   {
     if(rxQueue->rxBlocks[i].flag & RX_FLAG_USED)                     //查找需要处理的报文
     {
-      (*RxPacketHandle)(rxQueue->rxBlocks[i].message, rxQueue->rxBlocks[i].length);
+      (*RxPacketHandle)(rxQueue->rxBlocks[i].message, rxQueue->rxBlocks[i].length, param);
       
       Free(rxQueue->rxBlocks[i].message);                             //释放申请的内存
     

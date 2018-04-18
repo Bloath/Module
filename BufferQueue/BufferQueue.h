@@ -83,7 +83,7 @@ typedef enum
 /* 接收需要的函数 */
 void ReceiveSingleByte(uint8_t rxByte, RxBufferStruct *rxBuffer);                                                       //接收单字节数据，填充至缓冲中
 uint16_t RxQueue_Add(RxQueueStruct *rxQueue, uint8_t *packet, uint16_t Len);                                            //将接收缓冲中的数据填充到接收报文队列中
-void RxQueue_Handle(RxQueueStruct *rxQueue, void (*RxPacketHandle)(uint8_t*, uint16_t));                                //接收报文队列处理
+void RxQueue_Handle(RxQueueStruct *rxQueue, void (*RxPacketHandle)(uint8_t*, uint16_t, void *), void *para);            //接收报文队列处理
 
 /* 发送需要的函数 */
 uint16_t TxQueue_Add(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, TxModeEnum mode);                       //填充发送队列，包含清除重发以及未使用标志位为1

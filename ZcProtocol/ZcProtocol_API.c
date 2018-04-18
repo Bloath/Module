@@ -29,14 +29,7 @@
 /* private macro --------------------------------------------------------------*/
 /* private variables ----------------------------------------------------------*/
 ZcProtocol zcPrtc;      // 拙诚协议实例
-ZcHandleStruct zcHandle;      //拙诚协议处理
-
 /* private function prototypes ------------------------------------------------*/
-void ZcProtocol_NetRxHandle(ZcProtocol *zcProtocol);
-void ZcProtocol_24GRxHandle(ZcProtocol *zcProtocol);
-void ZcProtocol_485RxHandle(ZcProtocol *zcProtocol);
-void ZcProtocol_HeadIdIncrease();
-
 /*********************************************************************************************
 
   * @brief  协议初始化
@@ -78,6 +71,20 @@ uint32_t ZcProtocol_TimeStamp(uint32_t timeStamp)
     time = realTime;                     //记录此时的系统时间
   }
    return 0;
+}
+/*********************************************************************************************
+
+  * @brief  拙诚协议=》协议实例ID自增
+  * @param  
+  * @retval 
+  * @remark 0预留给其他设备
+
+  ********************************************************************************************/
+void ZcProtocol_HeadIdIncrease()
+{
+  zcPrtc.head.id ++;
+  if(zcPrtc.head.id == 0)
+  { zcPrtc.head.id = 1; }
 }
 /*********************************************************************************************
 
@@ -206,200 +213,4 @@ void ZcProtocol_Response(ZcSourceEnum source, ZcProtocol *zcProtocol, uint8_t *d
     break;
   }
 }
-/*********************************************************************************************
 
-  * @brief  接收协议报文的处理
-  * @param  
-  * @retval 
-  * @remark 
-
-  ********************************************************************************************/
-void ZcProtocol_NetTxProcess()
-{
-  static uint32_t time=0;
-  
-  /* 根据主状态进行处理 */
-  switch(zcHandle.status)
-  {
-  /* 初始化 */
-  case ZcHandleStatus_Init:
-    zcHandle.loopInterval = ZC_NET_POLL_INTERVAL;
-    zcHandle.status = ZcHandleStatus_PollInterval;
-    time = realTime;
-    break;
-  
-  /* 轮训间隔时间 */
-  case ZcHandleStatus_PollInterval:
-     /* 间隔一段时间 */
-    if((time + zcHandle.loopInterval) > realTime)
-    { break; }
-    else
-    { zcHandle.status = ZcHandleStatus_Trans; }
-  
-  /* 空闲状态，填充查询暂存报文，切换为等待状态 */
-  case ZcHandleStatus_Trans:
-    ZcProtocol_Request(ZcSource_Net, 00, NULL, 0, FALSE, TX_MULTI_MC);     //发送暂存报文
-    zcHandle.status = ZcHandleStatus_Wait;      //切换等待状态
-    break;
-    
-  /* 等待状态，发送缓冲为手动清除，如果没有回复的话是不会清除的 
-     等待状态为死锁，直到接收到确认报文或者查询暂存回复*/
-  case ZcHandleStatus_Wait:
-    time = realTime;
-    break;
-  }
-}
-/*********************************************************************************************
-
-  * @brief  接收协议报文的处理
-  * @param  packet:  报文指针
-            length：报文长度
-            source：来源，NET/2.4G/485
-  * @retval 报文数组结构体指针
-  * @remark 
-
-  ********************************************************************************************/
-void ZcProtocol_ReceiveHandle(uint8_t *packet, uint16_t length, ZcSourceEnum source)
-{
-  ZcProtocol *zcProtocol = ZcProtocol_Check(packet, length);     //检查接收的回复是否准确
-  
-  if(zcProtocol != NULL)
-  {
-    ZcProtocol_TimeStamp(zcProtocol->head.timestamp);             //每次都更新时间戳
-    
-    /* 根据不同的来源进行不同的处理 */
-    switch(source)
-    {
-    case ZcSource_Net:
-      ZcProtocol_NetRxHandle(zcProtocol);                   // 网络版通讯协议，关键点在于由设备发起，服务器单纯响应
-      break;
-    case ZcSource_24G:
-      ZcProtocol_24GRxHandle(zcProtocol);                   // 2.4G协议
-      break;
-    case ZcSource_485:
-      ZcProtocol_485RxHandle(zcProtocol);                   // 485
-      break;
-    }
-  }
-}
-
-//////////////////////////////////////////报文接收处理，已经通过协议检查之后////////////////////////////////////////////////
-
-/*********************************************************************************************
-
-  * @brief  接收报文处理-> 网络
-  * @param  zcProtocol：协议报文指针
-  * @retval 
-  * @remark 
-
-  ********************************************************************************************/
-void ZcProtocol_NetRxHandle(ZcProtocol *zcProtocol)
-{
-#ifdef ZC_NET
-  TxQueue_FreeById(&Enthernet_TxQueue, zcProtocol->head.id);    //每次服务器回复后都要清除相应发送报文
-
-    /* 先查看是否有操作的报文
-     回复0：处理成功，不需要后续处理
-     回复1：非处理命令，进入通讯类报文处理
-     回复2：则处理失败，直接发送失败恢复命令 */
-  uint8_t operationRes = ZcProtocol_NetOperationCmdHandle(zcProtocol);        //先查看是否有操作的报文
-
-  if(operationRes == 1)
-  {
-    switch(zcProtocol->head.cmd)                          
-    { 
-    /* 查询暂存报文 */
-    case ZC_CMD_QUERY_HOLD:
-      zcHandle.status = ZcHandleStatus_Init;  // 切换为初始化状态，根据预定轮训时间进行轮训
-      break;
-      
-    /* 服务器下发确认报文 */
-    case ZC_CMD_SERVER_CONFIRM:
-      ZcProtocol_HeadIdIncrease();                       // Id递增
-           
-      /* 当控制欲的SFD为1时，直接发送查询暂存报文,并切换为等待状态*/
-      if((zcProtocol->head.control & (1<<7)) != 0)
-      { zcHandle.status = ZcHandleStatus_Trans; }       // 直接切换为发送状态   
-      else
-      { zcHandle.status = ZcHandleStatus_Init; }        // 切换为初始化状态，根据预定轮训时间进行轮训
-      break;
-      
-    /* 回复的命令 */
-    default:
-      ZcProtocol_Request(ZcSource_Net, ZC_CMD_FAIL, NULL, 0, FALSE, TX_MULTI_MC);
-      break;
-    }
-  }
-  else if(operationRes == 2)
-  { ZcProtocol_Request(ZcSource_Net, ZC_CMD_FAIL, NULL, 0, FALSE, TX_MULTI_MC); }        //操作类指令失败，发送失败回复
-#endif
-}
-/*********************************************************************************************
-
-  * @brief  接收报文处理-> 2.4G
-  * @param  zcProtocol：协议报文指针
-  * @retval 
-  * @remark 
-
-  ********************************************************************************************/
-void ZcProtocol_24GRxHandle(ZcProtocol *zcProtocol)
-{
-#ifdef ZC_24G
-  
-  TxQueue_FreeById(&nRF24L01_TxQueue, zcProtocol->head.id);    
-  ZcProtocol_24GOperationCmdHandle(zcProtocol);
-  
-#endif
-}
-/*********************************************************************************************
-
-  * @brief  接收报文处理-> 485
-  * @param  zcProtocol：协议报文指针
-  * @retval 
-  * @remark 
-
-  ********************************************************************************************/
-void ZcProtocol_485RxHandle(ZcProtocol *zcProtocol)
-{
-#ifdef ZC_485
-  
-  TxQueue_FreeById(&ZC_485_TXQUEUE, zcProtocol->head.id);    
-  ZcProtocol_485OperationCmdHandle(zcProtocol);
-  
-#endif
-}
-
-
-////////////////////////////////////其他附加/////////////////////////////////////////////////
-
-/*********************************************************************************************
-
-  * @brief  拙诚协议=》网络协议处理
-  * @param  packet：http协议回复数据包内的回复内容部分字符串
-            length：报文长度
-  * @retval 
-  * @remark 
-
-  ********************************************************************************************/
-void ZcProtocol_NetPacketHandle(uint8_t *packet, uint16_t length)
-{
-  ArrayStruct *msg = String2Msg(strstr((const char*)packet, "68"), 0);      // 字符串转报文数组
-  
-  ZcProtocol_ReceiveHandle(msg->packet, msg->length, ZcSource_Net);  //协议的原始报文处理
-  
-  Array_Free(msg);      // 释放报文数组空闲
-}
-/*********************************************************************************************
-
-  * @brief  拙诚协议=》协议实例ID自增
-  * @param  
-  * @retval 
-  * @remark 0预留给其他设备
-
-  ********************************************************************************************/
-void ZcProtocol_HeadIdIncrease()
-{
-  zcPrtc.head.id ++;
-  if(zcPrtc.head.id == 0)
-  { zcPrtc.head.id = 1; }
-}
