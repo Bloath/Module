@@ -4,10 +4,10 @@
 #include "../Module/ZcProtocol/ZcProtocol.h"
 #include "../Module/ZcProtocol/ZcProtocol_Handle.h"
 #include "../Module/Common/Convert.h"
+#include "../Module/Common/Delay.h"
 #include "../Module/BufferQueue/BufferQueue.h"
 #include "Communicate_API.h"
 
-#include "../Src/Process/Global.h"
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro --------------------------------------------------------------*/
@@ -23,11 +23,6 @@
   ********************************************************************************************/
 void CallBack_HD_FillPollingPackt(CommunicateStruct *communicate)
 {
-  if(communicate->tag == ZcSource_Net)
-  { ZcProtocol_Request(ZcSource_Net, 00, NULL, 0, FALSE, TX_MULTI_MC); }
-    
-  if(communicate->tag == ZcSource_485)
-  { ZcProtocol_Request(ZcSource_485, 00, NULL, 0, FALSE, TX_MULTI_AC); }
 }
 /*********************************************************************************************
 
@@ -40,7 +35,7 @@ void CallBack_HD_FillPollingPackt(CommunicateStruct *communicate)
   ********************************************************************************************/
 BoolEnum CallBack_MessageInspect(uint8_t *message, uint16_t len, CommunicateStruct *communicate)
 {
-  return (ZcProtocol_Check(message, len) == NULL)? FALSE: TRUE;
+
 }
 /*********************************************************************************************
 
@@ -54,9 +49,7 @@ BoolEnum CallBack_MessageInspect(uint8_t *message, uint16_t len, CommunicateStru
   ********************************************************************************************/
 void CallBack_ClearTxQueue(uint8_t *message, uint16_t len, CommunicateStruct *communicate)
 {
-  ZcProtocol *zcProtocol = (ZcProtocol*)message;
-  
-  TxQueue_FreeById(communicate->txQueue, zcProtocol->head.id);
+
 }
 /*********************************************************************************************
 
@@ -70,9 +63,6 @@ void CallBack_ClearTxQueue(uint8_t *message, uint16_t len, CommunicateStruct *co
   ********************************************************************************************/
 BoolEnum CallBack_HD_isPooling(uint8_t *message, uint16_t len, CommunicateStruct *communicate)
 {
-  ZcProtocol *zcProtocol = (ZcProtocol*)message;
-  
-  return (zcProtocol->head.cmd == 00)? TRUE: FALSE;
 }
 /*********************************************************************************************
 
@@ -86,12 +76,6 @@ BoolEnum CallBack_HD_isPooling(uint8_t *message, uint16_t len, CommunicateStruct
   ********************************************************************************************/
 ArrayStruct* CallBack_MsgConvert(uint8_t *message, uint16_t len, CommunicateStruct *communicate)
 {
-  if(communicate->tag == ZcSource_Net)
-  {
-    return String2Msg(strstr((const char*)message, "68"), 0);
-  }
-  
-  return NULL;
 }
 
 /*********************************************************************************************
@@ -108,22 +92,6 @@ ArrayStruct* CallBack_MsgConvert(uint8_t *message, uint16_t len, CommunicateStru
 
 void CallBack_HDSlave_PollHandle(uint8_t *message, uint16_t len, CommunicateStruct *communicate)
 {
-  ZcProtocol *zcProtocol = (ZcProtocol*)message;
-  uint8_t i = 0;
-  for(i=0; i<BLOCK_COUNT; i++)
-  {
-    if(operationQueue.txBlocks[i].flag & TX_FLAG_USED)
-    {
-      zcProtocol->head.cmd = operationQueue.txBlocks[i].id;
-      ZcProtocol_Response(communicate->tag, zcProtocol, operationQueue.txBlocks[i].message, operationQueue.txBlocks[i].length);
-      TxQueue_FreeById(&operationQueue, operationQueue.txBlocks[i].id);
-      break;
-    }
-  }
-  
-  if(i == BLOCK_COUNT)
-  { ZcProtocol_Response(communicate->tag, zcProtocol, &zcProtocol->data, 1);}
-
 }
 
 /*********************************************************************************************
@@ -141,18 +109,6 @@ void CallBack_HDSlave_PollHandle(uint8_t *message, uint16_t len, CommunicateStru
   ********************************************************************************************/
 void CallBack_UnpollMsgHandle(uint8_t *message, uint16_t len, CommunicateStruct *communicate)
 {
-  switch(communicate->tag)
-  {
-  case ZcSource_485:
-    ZcProtocol_HDSlave_UnpollMsgHandle(message, len, communicate);
-    break;
-  case ZcSource_24G:
-    ZcProtocol_FD_UnpollMsgHandle(message, len, communicate);
-    break;
-  case ZcSource_Net:
-    ZcProtocol_HDMaster_UnpollMsgHandle(message, len, communicate);
-    break;
-  }
 }
 
 
