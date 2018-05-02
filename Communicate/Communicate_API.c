@@ -1,11 +1,12 @@
 /* Includes ------------------------------------------------------------------*/
-
+#include "stdlib.h"
 
 #include "../Module/Sys_Conf.h"
 #include "../Module/BufferQueue/BufferQueue.h"
 #include "../Module/Common/Array.h"
 #include "Communicate_API.h"
 #include "Communicate_Handle.h"
+
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/

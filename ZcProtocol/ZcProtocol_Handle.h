@@ -9,8 +9,6 @@
 /* Public macro --------------------------------------------------------------*/
 /* Public variables ----------------------------------------------------------*/
 /* Public function prototypes ------------------------------------------------*/
-void ZcProtocol_HDMaster_UnpollMsgHandle(uint8_t *message, uint16_t len, CommunicateStruct *communicate);
-void ZcProtocol_HDSlave_UnpollMsgHandle(uint8_t *message, uint16_t len, CommunicateStruct *communicate);
 void ZcProtocol_FD_UnpollMsgHandle(uint8_t *message, uint16_t len, CommunicateStruct *communicate);
 
 #endif

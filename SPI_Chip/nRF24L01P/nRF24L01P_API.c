@@ -108,21 +108,13 @@ void FlushRX()
   * @retval 是否写入成功
   * @remark 
   ********************************************************************************************/
-BoolEnum nRF24L01P_Write_Reg(uint8_t reg, uint8_t value)
+void nRF24L01P_Write_Reg(uint8_t reg, uint8_t value)
 {
-    BoolEnum isSuccessful = FALSE;
-
     CSN_LOW();                 
     SPI_RW(reg);				
     SPI_RW(value);
     
-    SPI_RW(reg);
-    if(SPI_RW(reg) == value)
-    { isSuccessful = TRUE; }
-    
     CSN_HIGH();  
-    
-    return(isSuccessful);
 }
 
 /*********************************************************************************************
