@@ -6,6 +6,7 @@
 #include "../Common/Delay.h"
 
 #include "ESP8266_HAL.h"
+#include "ESP8266_Handle.h"
 #include "main.h"
 
 /* Private typedef -----------------------------------------------------------*/
@@ -14,32 +15,23 @@
 /* Private variables ---------------------------------------------------------*/
 extern UART_HandleTypeDef huart2;
 
+
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
+
 /*********************************************************************************************
 
-  * @brief  向ESP8266发送数据
+  * @brief  ESP8266 硬件串口发送
   * @param  data：需要发送的数据指针
   * @param  length：数据长度  
   * @retval 无
   * @remark 
 
   ********************************************************************************************/
-void ESP8266_SendData(uint8_t *data, uint16_t length)
+BoolEnum ESP8266_HalTrans(uint8_t *data, uint16_t length)
 {
   HAL_UART_Transmit(&huart2, data, length, 1000);   //发送数据
-}
-/*********************************************************************************************
-
-  * @brief  向ESP8266发送字符串
-  * @param  string
-  * @retval 无
-  * @remark 
-
-  ********************************************************************************************/
-void ESP8266_SendString(const char *string)
-{
-  HAL_UART_Transmit(&huart2, (uint8_t*)string, strlen(string), 1000);   //发送数据
+  return FALSE;
 }
 /*********************************************************************************************
 
@@ -48,10 +40,13 @@ void ESP8266_SendString(const char *string)
   * @remark 
 
   ********************************************************************************************/
-void ESP8266_HardWareReset()
+void ESP8266_Reset()
 {
-  char *rst = "AT+RST\r\n";
-  ESP8266_SendData((uint8_t *)rst, strlen(rst));
+  ESP8266_SendString("AT+RST\r\n");
+  
+//  HAL_GPIO_WritePin(RESET_GPIO_Port, RESET_Pin, GPIO_PIN_RESET);
+//  Delay_ms(2);
+//  HAL_GPIO_WritePin(RESET_GPIO_Port, RESET_Pin, GPIO_PIN_SET);
 }
 /*********************************************************************************************
 

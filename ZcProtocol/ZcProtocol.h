@@ -32,6 +32,12 @@ typedef struct
   uint8_t data;
 }ZcProtocol;
 
+typedef struct
+{
+  uint32_t flag;
+  uint32_t flagCache;
+}ZcErrorStruct;
+
 /* Public define ------------------------------------------------------------*/
 #define ZC_HEAD   0x68
 #define ZC_END    0x16
@@ -56,6 +62,39 @@ typedef struct
 #define ZC_CMD_VALVE_OPRT       0xE1    // 阀门开关阀
 #define ZC_CMD_FAIL             0xFE    // 失败报文
 #define ZC_CMD_SERVER_CONFIRM   0xFF    // 服务器确认报文
+
+#define ZC_ERROR_FLOWOVERLOAD           0x00000080      // 流量过载
+#define ZC_ERROR_GASMETERBREAK          0x00000040
+#define ZC_ERROR_VALVEBREAK             0x00000020        
+#define ZC_ERROR_BOARDBREAK             0x00000010
+#define ZC_ERROR_OWE                    0x00000008
+#define ZC_ERROR_UNBALANCE              0x00000004
+#define ZC_ERROR_VALVECLOSE             0x00000002
+#define ZC_ERROR_VALVEBAN               0x00000001
+#define ZC_ERROR_SEI                    0x00008000
+#define ZC_ERROR_PIPEBREAK              0x00004000
+#define ZC_ERROR_GASLEAK                0x00002000
+#define ZC_ERROR_OUTOFLEL               0x00001000
+#define ZC_ERROR_FLOWOVER90             0x00000800
+#define ZC_ERROR_FLOWOVER05             0x00000400
+#define ZC_ERROR_LONGTIMECLOSE          0x00000200
+#define ZC_ERROR_BATTERYLOW             0x00000100
+//#define ZC_ERROR_RESERVE                0x00800000
+//#define ZC_ERROR_RESERVE                0x00400000
+//#define ZC_ERROR_RESERVE                0x00200000
+//#define ZC_ERROR_RESERVE                0x00100000
+#define ZC_ERROR_SHOCK                  0x00080000
+#define ZC_ERROR_FIRE                   0x00040000
+#define ZC_ERROR_UNDERPRESSURE          0x00020000
+#define ZC_ERROR_OVERPRESSURE           0x00010000
+//#define ZC_ERROR_RESERVE                0x80000000
+//#define ZC_ERROR_RESERVE                0x40000000
+//#define ZC_ERROR_RESERVE                0x20000000
+//#define ZC_ERROR_RESERVE                0x10000000
+//#define ZC_ERROR_RESERVE                0x08000000
+//#define ZC_ERROR_RESERVE                0x04000000
+//#define ZC_ERROR_RESERVE                0x02000000
+//#define ZC_ERROR_RESERVE                0x01000000
 
 /* Public macro -------------------------------------------------------------*/
 /* Public variables ---------------------------------------------------------*/

@@ -27,16 +27,16 @@ char* Http_Request(char* string)
   
   /* ∆¥Ω”HTTP–≠“È */
   strcat(httpPacket, "GET ");
-  strcat(httpPacket, PATH);
+  strcat(httpPacket, ZC_SERVER_PATH);
   strcat(httpPacket, "?message=");
   strcat(httpPacket, string);
   strcat(httpPacket, " HTTP/1.1\r\nHost:");
 #ifdef DOMAIN
   strcat(httpPacket, DOMAIN);
 #else
-  strcat(httpPacket, IP);
+  strcat(httpPacket, ZC_SERVER_IP);
   strcat(httpPacket, ":");
-  strcat(httpPacket, PORT);
+  strcat(httpPacket, ZC_SERVER_PORT);
 #endif
   strcat(httpPacket, "\r\n\r\n");
   

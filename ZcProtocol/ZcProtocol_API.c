@@ -29,6 +29,7 @@
 /* private macro --------------------------------------------------------------*/
 /* private variables ----------------------------------------------------------*/
 ZcProtocol zcPrtc;      // 拙诚协议实例
+ZcErrorStruct zcError;
 /* private function prototypes ------------------------------------------------*/
 /*********************************************************************************************
 
@@ -211,6 +212,30 @@ void ZcProtocol_Response(ZcSourceEnum source, ZcProtocol *zcProtocol, uint8_t *d
     Array_Free(msg);
 #endif
     break;
+  }
+}
+
+/*********************************************************************************************
+
+  * @brief  错误处理
+  * @param  
+  * @retval 
+  * @remark 当错误标志位与缓存不同时，则上传错误
+
+  ********************************************************************************************/
+void ZcError_NetUpload()
+{
+  if(zcError.flag != zcError.flagCache && ZcProtocol_TimeStamp(0) > 152000000)
+  {
+    /* 向服务器发送当前开关阀时间 */
+    uint8_t *data = (uint8_t *)Malloc(8);
+    *(uint32_t *)(data + 0) = zcError.flag;
+    *(uint32_t *)(data + 4) = ZcProtocol_TimeStamp(0);
+    
+    ZcProtocol_Request(ZcSource_Net, ZC_CMD_ALARM, data, 8, TRUE, TX_MULTI_MC);
+    Free(data);  
+
+    zcError.flagCache = zcError.flag;
   }
 }
 

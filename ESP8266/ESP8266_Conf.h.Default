@@ -1,19 +1,23 @@
-#ifndef _ESP8266_HAL_H_
-#define _ESP8266_HAL_H_
+#ifndef _ESP8266_CONF_H_
+#define _ESP8266_CONF_H_
 
 /* Includes ------------------------------------------------------------------*/
-#include "../BufferQueue/BufferQueue.h"
 #include "../Sys_Conf.h"
 
 /* Public typedef ------------------------------------------------------------*/
 /* Public define -------------------------------------------------------------*/
 
+#define ESP8266_UNVARNISHED_TRANSMIT    1
+
+/*********************网络协议主机及路径*********************/
+#define IP      "39.105.88.68"
+#define PORT    "7000"
+
+#define HTTP_MAX_LEN 300                //HTTP协议最大长度
+
 
 /* Public macro --------------------------------------------------------------*/
 /* Public variables ----------------------------------------------------------*/
 /* Public function prototypes ------------------------------------------------*/
-BoolEnum ESP8266_HalTrans(uint8_t *data, uint16_t length);
-void ESP8266_Reset();
-void ESP8266_UART(BoolEnum isOn);
 
 #endif

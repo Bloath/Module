@@ -20,7 +20,7 @@ typedef struct
   uint16_t loopInterval;        // 轮询时间（半双工有效）
   uint32_t *refTime;            // 参考时间，为系统时间(sysTime)还是真实时间(realTime) ==（半双工有效）
   
-  void (*CallBack_TxFunc)(uint8_t*, uint16_t);                  // 硬件发送函数
+  BoolEnum (*CallBack_TxFunc)(uint8_t*, uint16_t);                  // 硬件发送函数
 }CommunicateStruct;
 
 /* Public define ------------------------------------------------------------*/

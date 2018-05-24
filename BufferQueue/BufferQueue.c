@@ -107,9 +107,10 @@ void RxQueue_Handle(RxQueueStruct *rxQueue, void (*RxPacketHandle)(uint8_t*, uin
   * @retval 无
   * @remark 
   ********************************************************************************************/
-void TxQueue_Handle(TxQueueStruct *txQueue, void (*Transmit)(uint8_t*, uint16_t))
+void TxQueue_Handle(TxQueueStruct *txQueue, BoolEnum (*Transmit)(uint8_t*, uint16_t))
 {
   uint16_t i;
+  BoolEnum isNeedClear = FALSE;
   
   if((txQueue->time + txQueue->interval) > sysTime)
   { return; }
@@ -136,15 +137,16 @@ void TxQueue_Handle(TxQueueStruct *txQueue, void (*Transmit)(uint8_t*, uint16_t)
             进行数据的发送，并置位已发送标志位*/
           if(!(txQueue->txBlocks[i].flag & TX_FLAG_SENDED) || txQueue->txBlocks[i].flag & TX_FLAG_RT)
           {
-            Transmit(txQueue->txBlocks[i].message, txQueue->txBlocks[i].length);        // 发送数据
-            txQueue->txBlocks[i].flag |= TX_FLAG_SENDED;                                // 标记为已发送
-            txQueue->txBlocks[i].retransCounter ++;                                     // 重发次数递增
+            isNeedClear = Transmit(txQueue->txBlocks[i].message, txQueue->txBlocks[i].length);          // 发送数据
+            txQueue->txBlocks[i].flag |= TX_FLAG_SENDED;                                                // 标记为已发送
+            txQueue->txBlocks[i].retransCounter ++;                                                     // 重发次数递增
           }
           
           /* 非手动清除 且 (重发超过200次 或者 不需要重发) 的情况下
              清除缓存释放模块 */
-          if(!(txQueue->txBlocks[i].flag & TX_FLAG_MC) 
-             && (txQueue->txBlocks[i].retransCounter > txQueue->maxTxCount || !(txQueue->txBlocks[i].flag & TX_FLAG_RT)))
+          if(isNeedClear == TRUE ||
+             (!(txQueue->txBlocks[i].flag & TX_FLAG_MC) 
+              && (txQueue->txBlocks[i].retransCounter > txQueue->maxTxCount || !(txQueue->txBlocks[i].flag & TX_FLAG_RT))))
           {
             TxQueue_FreeBlock(&(txQueue->txBlocks[i]));
             txQueue->usedBlockQuantity -= 1;
