@@ -11,24 +11,25 @@
 
 /*********************不同通讯方式的选择*********************/
 #define ZC_NET  1               // 网络通讯
-#define ZC_24G  1               // 2.4G无线通讯
+//#define ZC_24G  1               // 2.4G无线通讯
 #define ZC_485  1               // 485通讯
 
 #ifdef ZC_485
-#include "../../Handle/MessageHandle.h"
+extern TxQueueStruct rs485_TxQueue;
 #define ZC_485_TXQUEUE          rs485_TxQueue         
 #define ZC
 #endif
 
-#define ZC_NET_POLL_INTERVAL 10
+#define ZC_NET_POLL_INTERVAL 60
 
 
 /*********************网络协议主机及路径*********************/
-//#define DOMAIN  "web.bloath.com"
-#define IP      "144.123.12.178"
-#define PORT    "5021"
-#define PATH    "/tx/jxxy"
-//#define PATH    "/zc/device/"
+//#define ZC_SERVER_DOMAIN  "web.bloath.com"
+#define ZC_SERVER_IP      "144.123.12.178"
+#define ZC_SERVER_PORT    "8680"
+//#define ZC_SERVER_PORT    "5021"
+#define ZC_SERVER_PATH    "/tx/jxxy"
+//#define ZC_SERVER_PATH    "/zc/device/"
 #define HTTP_MAX_LEN 300                //HTTP协议最大长度
 
 #endif
