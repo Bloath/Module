@@ -247,7 +247,7 @@ BoolEnum ESP8266_HttpTransmit(uint8_t *message, uint16_t length)
     break;
   }
   
-  return FALSE;
+  return res;
 }
 
 /*********************************************************************************************

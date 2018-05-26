@@ -107,7 +107,6 @@ void RxQueue_Handle(RxQueueStruct *rxQueue, void (*RxPacketHandle)(uint8_t*, uin
   * @retval 无
   * @remark 
   ********************************************************************************************/
-extern uint32_t timeBefore,timeBehind;
 void TxQueue_Handle(TxQueueStruct *txQueue, BoolEnum (*Transmit)(uint8_t*, uint16_t))
 {
   uint16_t i;
@@ -121,7 +120,7 @@ void TxQueue_Handle(TxQueueStruct *txQueue, BoolEnum (*Transmit)(uint8_t*, uint1
 txLoopStart:  
   if(txQueue->usedBlockQuantity == 0)
   { return; }
-  timeBefore = sysTime;
+  
   for(i=(txQueue->isTxUnordered == TRUE)? txQueue->indexCache: 0; i<BLOCK_COUNT; i++)
   {
       if(txQueue->txBlocks[i].flag & TX_FLAG_USED)            
@@ -160,12 +159,10 @@ txLoopStart:
           /* 如果为无序发送，则将索引缓存，下次直接从下一个缓存开始 */
           if(txQueue->isTxUnordered == TRUE)
           { txQueue->indexCache = (i != (BLOCK_COUNT - 1))? (i + 1):0; }
-          timeBehind = sysTime;
+          
           return;
       }
   }
-  
-  timeBehind = sysTime;
   
   if(i == BLOCK_COUNT)
   { 
