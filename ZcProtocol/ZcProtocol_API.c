@@ -49,30 +49,6 @@ void ZcProtocol_InstanceInit(uint8_t DeviceType, uint8_t* address, uint8_t start
   
   memcpy(zcPrtc.head.address, address, 7);      //复制7字节地址，在产品实际运用后，地址是不会改变的（跟微信挂钩）
 }
-
-/*********************************************************************************************
-
-  * @brief  获取/更新时间戳
-  * @param  timeStamp：用于时间戳的更新，不为0则更新协议实例的时间戳，为0则返回当前时间戳
-  * @retval 如果为设置，则返回0，如果非设置，则返回当前时间戳（单片机内部更新）
-  * @remark 
-
-  ********************************************************************************************/
-uint32_t ZcProtocol_TimeStamp(uint32_t timeStamp)
-{  
-  static uint32_t time = 0;    //用于记录上次的系统时间
-  
-  /* 当参数不为0时，则为更新时间戳 */
-  /* 当参数为0时，则为获取时间戳 */
-  if(timeStamp == 0)
-  { return zcPrtc.head.timestamp + realTime - time; } //获取时间戳，则是在之前记录的时间戳的基础上，加上后面跑过的系统时间 
-  else if(timeStamp > 1514736000)       // 2018年1月1日， 0:0:0
-  { 
-    zcPrtc.head.timestamp = timeStamp;  //更新时间戳
-    time = realTime;                     //记录此时的系统时间
-  }
-   return 0;
-}
 /*********************************************************************************************
 
   * @brief  拙诚协议=》协议实例ID自增
@@ -111,7 +87,7 @@ uint8_t ZcProtocol_Request(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint
   { ZcProtocol_HeadIdIncrease(); }
   temp8 = zcPrtc.head.id;
   
-  zcPrtc.head.timestamp = ZcProtocol_TimeStamp(0);      //更新时间戳
+  zcPrtc.head.timestamp = timeStamp;      //更新时间戳
   zcPrtc.head.cmd = cmd;
   
   /* 根据不同的源，进行不同的发送处理 */
@@ -225,12 +201,12 @@ void ZcProtocol_Response(ZcSourceEnum source, ZcProtocol *zcProtocol, uint8_t *d
   ********************************************************************************************/
 void ZcError_NetUpload()
 {
-  if(zcError.flag != zcError.flagCache && ZcProtocol_TimeStamp(0) > 152000000)
+  if(zcError.flag != zcError.flagCache && timeStamp > 152000000)
   {
     /* 向服务器发送当前开关阀时间 */
     uint8_t *data = (uint8_t *)Malloc(8);
     *(uint32_t *)(data + 0) = zcError.flag;
-    *(uint32_t *)(data + 4) = ZcProtocol_TimeStamp(0);
+    *(uint32_t *)(data + 4) = timeStamp;
     
     ZcProtocol_Request(ZcSource_Net, ZC_CMD_ALARM, data, 8, TRUE, TX_MULTI_MC);
     Free(data);  
