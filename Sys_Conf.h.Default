@@ -9,6 +9,12 @@
 /* Public typedef ------------------------------------------------------------*/
 typedef enum
 {
+  FALSE = 0,
+  TRUE = 1
+}BoolEnum;
+
+typedef enum
+{
   Process_Init = 0,
   Process_Idle,
   Process_Start,
@@ -17,20 +23,15 @@ typedef enum
   Process_Wait,
 }ProcessEnum;
 
-typedef enum
-{
-  FALSE = 0,
-  TRUE = 1
-}BoolEnum;
-
 /* Public variables ----------------------------------------------------------*/
-extern uint32_t realTimeCounter;
+extern uint32_t realTimeCounter,uwTick,timeStampCounter;
 
 /* Public define -------------------------------------------------------------*/
-#define sysTime HAL_GetTick()
+#define sysTime uwTick
 #define realTime realTimeCounter
+#define timeStamp timeStampCounter
 
-#define DEBUG   1       
+//#define DEBUG   1       
 
 /* Public macro --------------------------------------------------------------*/
 /* Public function prototypes ------------------------------------------------*/
