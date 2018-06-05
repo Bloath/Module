@@ -39,4 +39,3 @@ void Array_Free(ArrayStruct* array)
   Free(array);
 }
 
-
