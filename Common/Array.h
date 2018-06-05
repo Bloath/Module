@@ -14,21 +14,21 @@ typedef struct
 /* Public define -------------------------------------------------------------*/
 #define Array_Max(array, length, max)      \
 {\
-  *max = array[0];\
+  max = array[0];\
   for(uint16_t i=1; i<length; i++)\
   { \
-    if(array[i] > *max)\
-    { *max = array[i]; }\
+    if(array[i] > max)\
+    { max = array[i]; }\
   }\
 }
 
 #define Array_Min(array, length, min)      \
 {\
-  *min = array[0];\
+  min = array[0];\
   for(uint16_t i=1; i<length; i++)\
   { \
-    if(array[i] < *min)\
-    { *min = array[i]; }\
+    if(array[i] < min)\
+    { min = array[i]; }\
   }\
 }  
                                                     
@@ -87,6 +87,8 @@ typedef struct
   array[counter] = value;\
   counter ++;\
 }
+
+#define Compare_Similarity(v1, v2, rate) ( ((v1/v2 - 1) < rate)? TRUE:FALSE)
 
 /* Public macro --------------------------------------------------------------*/
 /* Public variables ----------------------------------------------------------*/
