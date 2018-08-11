@@ -2,7 +2,8 @@
 #define _COMMUNICATE_HANDLE_H_
 
 /* Includes ------------------------------------------------------------------*/
-#include "../Module/Sys_Conf.h"
+#include "../Sys_Conf.h"
+#include "../Common/Array.h"
 
 /* Public typedef -----------------------------------------------------------*/
 /* Public define ------------------------------------------------------------*/

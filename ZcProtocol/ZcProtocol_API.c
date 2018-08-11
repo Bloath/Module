@@ -1,27 +1,18 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stdlib.h"
 #include "string.h"
+#include "../Sys_Conf.h"
 #include "../Common/Array.h"
 #include "../Common/Convert.h"
-#include "ZcProtocol.h"
+#include "../Common/Malloc.h"
 
-//在此下面是针对不同处理环境添加的头
-#include "../Module/Common/Malloc.h"
-#include "..//BufferQueue/BufferQueue.h"
-#include "../Sys_Conf.h"
+#include "../BufferQueue/BufferQueue.h"
+
 #include "Http.h"
+#include "ZcProtocol.h"
 #include "ZcProtocol_API.h"    
 #include "ZcProtocol_Conf.h"   
 #include "ZcProtocol_Handle.h"  //硬件相关处理
-
-// 不同平台
-#ifdef ZC_NET
-  #include "../ESP8266/ESP8266_Handle.h"
-#endif
-
-#ifdef ZC_24G
-  #include "../SPI_Chip/nRF24L01P/nRF24L01P_Handle.h"
-#endif
 
 
 /* private typedef ------------------------------------------------------------*/
@@ -66,7 +57,7 @@ void ZcProtocol_HeadIdIncrease()
 /*********************************************************************************************
 
   * @brief  拙诚协议 发送请求
-  * @param  source：源，网络，24G， 485等
+  * @param  communicate：通讯结构体对象
             cmd: 命令字
             data:  报文指针
             dataLen：报文长度
@@ -76,7 +67,7 @@ void ZcProtocol_HeadIdIncrease()
   * @remark 通过输入命令以及数据，并填写到发送缓冲当中
 
   ********************************************************************************************/
-uint8_t ZcProtocol_Request(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint16_t dataLen, BoolEnum isUpdateId, TxModeEnum txMode)
+uint8_t ZcProtocol_Request(CommunicateStruct *communicate, uint8_t cmd, uint8_t *data, uint16_t dataLen, BoolEnum isUpdateId, TxModeEnum txMode)
 {
   char* httpMsg;
   ArrayStruct *msg;
@@ -91,41 +82,29 @@ uint8_t ZcProtocol_Request(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint
   zcPrtc.head.cmd = cmd;
   
   /* 根据不同的源，进行不同的发送处理 */
-  switch(source)
+  switch(communicate->medium)
   {
-  case ZcSource_Net:
-#ifdef ZC_NET
+  // 网络通讯方式，需要添加GET方式的头，并且把HEX转换为BCD
+  case COM_NET:
     httpMsg = ZcProtocol_ConvertHttpString(&zcPrtc, data, dataLen);         //转换为HTTP协议，
-    TxQueue_AddWithId(&Enthernet_TxQueue, 
+    TxQueue_AddWithId(communicate->txQueue, 
                       (uint8_t*)httpMsg, 
                       strlen(httpMsg), 
                       txMode,
                       zcPrtc.head.id);  
     Free(httpMsg);
-#endif
-    break;
-  case ZcSource_24G:
-#ifdef ZC_24G
-    msg = ZcProtocol_ConvertMsg(&zcPrtc, data ,dataLen);
-    TxQueue_AddWithId(&nRF24L01_TxQueue, 
-                      msg->packet, 
-                      msg->length, 
-                      txMode,
-                      zcPrtc.head.id);  
-    Array_Free(msg);
-#endif
     break;
     
-  case ZcSource_485:
-#ifdef ZC_485
+  // 有线、无线通讯方式，不需要对协议进行修正添加等操作 
+  case COM_24G:
+  case COM_485:
     msg = ZcProtocol_ConvertMsg(&zcPrtc, data ,dataLen);
-    TxQueue_AddWithId(&ZC_485_TXQUEUE, 
+    TxQueue_AddWithId(communicate->txQueue, 
                       msg->packet, 
                       msg->length, 
                       txMode,
                       zcPrtc.head.id);  
     Array_Free(msg);
-#endif
     break;
   }
   
@@ -138,7 +117,7 @@ uint8_t ZcProtocol_Request(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint
 /*********************************************************************************************
 
   * @brief  拙诚协议 回复，在接收到命令后的回复
-  * @param  source：源，网络，24G， 485等
+  * @param  communicate：通讯结构体对象
             zcProtocol：接收包中解析出来的数据结构指针
             data:  报文指针
             dataLen：报文长度
@@ -146,47 +125,35 @@ uint8_t ZcProtocol_Request(ZcSourceEnum source, uint8_t cmd, uint8_t *data, uint
   * @remark 与请求不同，回复一般是用请求的ID、CMD等，仅仅是数据部分有区别
 
   ********************************************************************************************/
-void ZcProtocol_Response(ZcSourceEnum source, ZcProtocol *zcProtocol, uint8_t *data, uint16_t dataLen)
+void ZcProtocol_Response(CommunicateStruct *communicate, ZcProtocol *zcProtocol, uint8_t *data, uint16_t dataLen)
 {
   char* httpMsg;
   ArrayStruct *msg;
   
   /* 根据不同的源，进行不同的发送处理 */
-  switch(source)
+  switch(communicate->medium)
   {
-  case ZcSource_Net:
-#ifdef ZC_NET
+  // 网络通讯方式，需要添加GET方式的头，并且把HEX转换为BCD
+  case COM_NET:
     httpMsg = ZcProtocol_ConvertHttpString(zcProtocol, data, dataLen);         //转换为HTTP协议，
-    TxQueue_AddWithId(&Enthernet_TxQueue, 
+    TxQueue_AddWithId(communicate->txQueue, 
                       (uint8_t*)httpMsg, 
                       strlen(httpMsg), 
                       TX_MULTI_MC,
                       zcProtocol->head.id);  
     Free(httpMsg);
-#endif
-    break;
-  case ZcSource_24G:
-#ifdef ZC_24G
-    msg = ZcProtocol_ConvertMsg(zcProtocol, data ,dataLen);
-    TxQueue_AddWithId(&nRF24L01_TxQueue, 
-                      msg->packet, 
-                      msg->length, 
-                      TX_ONCE_AC,
-                      zcProtocol->head.id);  
-    Array_Free(msg);
-#endif
     break;
     
-  case ZcSource_485:
-#ifdef ZC_485
+  // 有线、无线通讯方式，不需要对协议进行修正添加等操作   
+  case COM_24G:
+  case COM_485:
     msg = ZcProtocol_ConvertMsg(zcProtocol, data ,dataLen);
-    TxQueue_AddWithId(&ZC_485_TXQUEUE, 
+    TxQueue_AddWithId(communicate->txQueue, 
                       msg->packet, 
                       msg->length, 
                       TX_ONCE_AC,
                       zcProtocol->head.id);  
     Array_Free(msg);
-#endif
     break;
   }
 }
@@ -194,12 +161,13 @@ void ZcProtocol_Response(ZcSourceEnum source, ZcProtocol *zcProtocol, uint8_t *d
 /*********************************************************************************************
 
   * @brief  错误处理
-  * @param  
+  * @param  communicate：通讯结构体对象
+            txMode：发送模式
   * @retval 
   * @remark 当错误标志位与缓存不同时，则上传错误
 
   ********************************************************************************************/
-void ZcError_NetUpload()
+void ZcError_Upload(CommunicateStruct *communicate, TxModeEnum txMode)
 {
   if(zcError.flag != zcError.flagCache && timeStamp > 152000000)
   {
@@ -208,7 +176,7 @@ void ZcError_NetUpload()
     *(uint32_t *)(data + 0) = zcError.flag;
     *(uint32_t *)(data + 4) = timeStamp;
     
-    ZcProtocol_Request(ZcSource_Net, ZC_CMD_ALARM, data, 8, TRUE, TX_MULTI_MC);
+    ZcProtocol_Request(communicate, ZC_CMD_ALARM, data, 8, TRUE, txMode);
     Free(data);  
 
     zcError.flagCache = zcError.flag;

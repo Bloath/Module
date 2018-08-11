@@ -70,6 +70,15 @@ typedef struct
   RxBaseBlockStruct rxBlocks[BLOCK_COUNT];
 }RxQueueStruct;             //接收块缓冲队列
 
+typedef struct
+{
+  RxQueueStruct rxQueue;
+  uint8_t buffer[BUFFER_LENGTH];
+  uint16_t bufferLength;
+  uint16_t start;
+  uint16_t end;
+}DmaBufferStruct;
+
 //*********************错误枚举**************************
 typedef enum
 {
@@ -93,5 +102,6 @@ void TxQueue_Handle(TxQueueStruct *txQueue, BoolEnum (*Transmit)(uint8_t*, uint1
 void TxQueue_FreeByFunc(TxQueueStruct *txQueue, BoolEnum (*func)(uint8_t*, uint16_t, void*), void *para);               //通过指定函数，释放指定发送块
 void TxQueue_FreeById(TxQueueStruct *txQueue,  TX_ID_SIZE id);                                                          //通过ID，释放指定发送块
 
+void DmaBuffer_IdleHandle(DmaBufferStruct *dmaBuffer, uint16_t remainCount);
 #endif
 

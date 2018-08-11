@@ -32,7 +32,7 @@ void Delay_us(uint16_t count)
   
   while(count --)
   {
-    for(uint16_t j=0; j<48; j++)
+    for(uint16_t j=0; j<10; j++)
     {  i++; }
   }
 }

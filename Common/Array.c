@@ -1,6 +1,6 @@
 /* Includes ------------------------------------------------------------------*/
 
-#include "../Module/Common/Malloc.h"
+#include "../Common/Malloc.h"
 #include "Array.h"
 
 /* Private typedef -----------------------------------------------------------*/

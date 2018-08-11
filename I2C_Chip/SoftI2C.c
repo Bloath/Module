@@ -234,9 +234,9 @@ DATA_TYPE SoftI2C_Receive(BoolEnum isLast)
     data |= SoftI2C_ReceiveByte(); 
     
     if(isLast == TRUE && i == (DATA_SIZE - 1))
-    { SoftI2C_Ack(DISABLE); }
+    { SoftI2C_Ack(0); }
     else
-    { SoftI2C_Ack(ENABLE); }
+    { SoftI2C_Ack(1); }
   }
   
   return data;

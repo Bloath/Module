@@ -1,7 +1,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "string.h"
 
-#include "../Module/Common/Malloc.h"
+#include "../Common/Malloc.h"
 #include "BufferQueue.h"
 #include "BufferQueue_Handle.h"
 
@@ -308,4 +308,59 @@ void TxQueue_FreeById(TxQueueStruct *txQueue, TX_ID_SIZE id)
       }
     }
   }
+}
+
+/*********************************************************************************************
+
+  * @brief  基于DMA的接收缓冲处理
+  * @param  dmaBuffer：dmaStruct结构体
+  * @return 
+  * @remark 有平台在变量初始化时有可能不会将START END 清零
+
+  ********************************************************************************************/
+void DmaBuffer_Init(DmaBufferStruct *dmaBuffer)
+{
+  dmaBuffer->bufferLength = BUFFER_LENGTH;
+  dmaBuffer->start = 0;
+  dmaBuffer->end = 0;
+}
+
+/*********************************************************************************************
+
+  * @brief  基于DMA的接收处理
+  * @param  dmaBuffer：dmaStruct结构体
+            remainCount：剩余长度
+  * @return 
+  * @remark 串口空闲中断接收，包含空闲中断标志位的清除
+
+  ********************************************************************************************/
+void DmaBuffer_IdleHandle(DmaBufferStruct *dmaBuffer, uint16_t remainCount)
+{
+  if(dmaBuffer->bufferLength == 0)
+  { DmaBuffer_Init(dmaBuffer); }
+  
+  dmaBuffer->end = dmaBuffer->bufferLength - remainCount;     
+  
+  /* 通过判断end与start的位置，进行不同的处理 */
+  if(dmaBuffer->end > dmaBuffer->start)
+  { RxQueue_Add(&dmaBuffer->rxQueue, dmaBuffer->buffer + dmaBuffer->start, dmaBuffer->end - dmaBuffer->start); }
+  else if(dmaBuffer->end < dmaBuffer->start)
+  {
+    uint8_t *message = (uint8_t *)Malloc(dmaBuffer->bufferLength - dmaBuffer->start + dmaBuffer->end );
+    
+    memcpy(message, 
+           dmaBuffer->buffer + dmaBuffer->start,     
+           dmaBuffer->bufferLength - dmaBuffer->start);
+    
+    memcpy(message + dmaBuffer->bufferLength - dmaBuffer->start - 1, 
+           dmaBuffer->buffer,     
+           dmaBuffer->end + 1);
+    
+    RxQueue_Add(&dmaBuffer->rxQueue,
+                message, 
+                dmaBuffer->bufferLength - dmaBuffer->start + dmaBuffer->end);
+    Free(message);
+  }
+  
+  dmaBuffer->start = dmaBuffer->end; 
 }

@@ -3,8 +3,9 @@
 #include "string.h"
 #include "math.h"
 
-#include "../Module/Common/Malloc.h"
+#include "../Common/Malloc.h"
 #include "Array.h"
+#include "Convert.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -34,7 +35,17 @@ uint8_t Char2Hex(char x)
 {
   return (x > 0x40)? (x - 0x41 + 10): (x - 0x30);
 }
+/*********************************************************************************************
 
+  * @brief  10的N次方运算
+  * @param  x：字符
+  * @remark 单字节转换
+
+  ********************************************************************************************/
+uint32_t Math_10nthPower(uint8_t nth)
+{
+  return (uint32_t)(pow(10, nth) + 0.2);
+}
 /*********************************************************************************************
 
   * @brief  字符串转报文
@@ -81,6 +92,24 @@ char* Msg2String(uint8_t *message, uint16_t length)
 }
 /*********************************************************************************************
 
+  * @brief  字符串数字转换为无符号整数
+  * @param  numString：数字字符串
+  * @retval 计算完成的无符号数
+  * @remark 
+
+  ********************************************************************************************/
+uint32_t NumberString2Uint(const char* numString)
+{
+  uint32_t temp32u = 0;
+  uint8_t len = strlen(numString);
+  
+  for(uint8_t i=0; i<len; i++)
+  { temp32u += (*(uint8_t *)(numString + i) - 0x30) * Math_10nthPower(len - 1 - i); }
+  
+  return temp32u;
+}
+/*********************************************************************************************
+
   * @brief  uint转字符串
   * @param  number 数字
   * @retval 转换完成的字符串
@@ -100,8 +129,8 @@ char* Uint2String(uint32_t number)
   temp = number;        // 缓存number
   for(uint8_t i=0; i<len; i++)
   {
-    numString[i] = Hex2Char(temp / (int)pow(10, len - i - 1));  // 最高位开始转换
-    temp = temp % (int)pow(10, len - i - 1);                    // 记录剩余值
+    numString[i] = Hex2Char(temp / (int)Math_10nthPower(len - 1 - i));  // 最高位开始转换
+    temp = temp % (int)Math_10nthPower(len - 1 - i);                    // 记录剩余值
   }
   
   return numString;
@@ -119,6 +148,7 @@ ArrayStruct* Number2Array(uint32_t number, BoolEnum isPositiveSequence)
 {
   uint8_t powIndex = (uint8_t)log10(number);
   uint32_t temp32 = number;
+  uint32_t remain = 0;
   
   /* 申请内存并填充 */
   ArrayStruct* numArray = Array_New(powIndex + 1);     // 申请对应内存
@@ -126,11 +156,12 @@ ArrayStruct* Number2Array(uint32_t number, BoolEnum isPositiveSequence)
   for(int8_t i=powIndex; i>=0; i--)
   {
     if(isPositiveSequence == TRUE)
-    { numArray->packet[powIndex - i] = temp32 / (uint32_t)pow(10, i); }
+    { numArray->packet[powIndex - i] = temp32 / Math_10nthPower(i); }
     else
-    { numArray->packet[i] = temp32 / (uint32_t)pow(10, i); }
+    { numArray->packet[i] = temp32 / Math_10nthPower(i); }
     
-    temp32 = temp32 % (uint32_t)pow(10, i);
+    remain = Math_10nthPower(i);      // pow返回浮点数，有可能99.999转换为99，则加0.1保证
+    temp32 %= remain;
   }
   
   return numArray;
@@ -149,4 +180,97 @@ void EndianExchange(uint8_t* dst, uint8_t* src, uint8_t len)
 {
   for(uint8_t i=0; i<len; i++)
   { dst[i] = src[len - i - 1]; }
+}
+/*********************************************************************************************
+
+  * @brief  时间戳转日历
+  * @param  timeStamp：时间戳
+  * @param  calendar：日历指针
+            timeZone：时区
+  * @retval 
+  * @remark 
+
+  ********************************************************************************************/
+void TimeStamp2Calendar(uint32_t timeStamp, CalendarStruct *calendar, uint8_t timeZone)
+{
+  timeStamp += timeZone * 3600L;
+  uint32_t daySec = 3600L * 24L;
+  uint32_t days = timeStamp / daySec;
+  uint32_t secs = timeStamp % daySec;
+  uint16_t years4List[4] = {365, 365, 366, 365};
+  uint8_t monthList[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+  uint8_t i=0;
+  
+  uint16_t remainDays = days % 1461;            // 4年之内的
+  
+  calendar->year = 1970 + (days / 1461) * 4;
+  
+  /************** 年份计算 **************/
+  for(i=0; i<4; i++)
+  {
+    if(remainDays <= years4List[i])
+    {
+      calendar->year += i;              // 年增加
+      if(i == 2)
+      { monthList[1] += 1; }               // 闰月二月加一天
+      break;
+    }
+    remainDays -= years4List[i];        
+  }
+  
+  /************** 月日计算 **************/
+  for(i=0; i<12; i++)
+  {
+    if(remainDays <= monthList[i])
+    {
+      calendar->month = i + 1;
+      calendar->day = remainDays + 1;
+      break;
+    }
+    remainDays -= monthList[i];
+  }
+  
+  calendar->hour = secs / 3600;
+  calendar->min = (secs % 3600) / 60;
+  calendar->sec = secs % 60;
+}
+/*********************************************************************************************
+
+  * @brief  日历转时间戳
+  * @param  calendar：日历指针
+            timeZone：时区
+  * @retval 
+  * @remark 
+
+  ********************************************************************************************/
+uint32_t Calendar2TimeStamp(CalendarStruct *calendar, uint8_t timeZone)
+{
+  uint32_t temp32u = 0;
+  uint8_t i=0;
+  uint16_t years4List[4] = {365, 365, 366, 365};
+  uint8_t monthList[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+  
+  uint8_t temp8u = (calendar->year - 1970L) / 4;
+  temp32u += temp8u * 1461L;
+  temp8u = (calendar->year - 1970L) % 4;
+  for(i=0; i<temp8u; i++)
+  { temp32u += years4List[i]; }
+  
+  if(temp8u == 2)
+  { monthList[1] += 1; }
+  
+  for(i=0; i<(calendar->month - 1); i++)
+  { temp32u += monthList[i];}
+  
+  temp32u += (calendar->day - 1);
+  
+  temp32u *= 24L * 3600L;
+  
+  temp32u += calendar->hour * 3600L;
+  temp32u += calendar->min * 60L;
+  temp32u += calendar->sec;
+  
+  temp32u -= timeZone * 3600L;
+  
+  return temp32u;
 }

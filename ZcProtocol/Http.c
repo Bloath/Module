@@ -3,7 +3,7 @@
 
 #include "../Common/Array.h"
 #include "../Common/Convert.h"
-#include "../Module/Common/Malloc.h"
+#include "../Common/Malloc.h"
 #include "ZcProtocol_Conf.h"
 #include "Http.h"
 
