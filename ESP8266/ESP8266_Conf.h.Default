@@ -2,23 +2,13 @@
 #define _ESP8266_CONF_H_
 
 /* Includes ------------------------------------------------------------------*/
-#include "../Sys_Conf.h"
-#include "../ZcProtocol/ZcProtocol_Conf.h"
-
 /* Public typedef ------------------------------------------------------------*/
 /* Public define -------------------------------------------------------------*/
+#define ESP8266_INTERVAL 10                 // ç­‰å¾…æ—¶é•¿
+#define ESP8266_HAL_TX_INTERVAL 500         // åº•å±‚å‘é€é—´éš”æ—¶é—´
+#define ESP8266_SERVICE_TX_INTERVAL 2000    // ä¸šåŠ¡å±‚ å‘é€é—´éš”æ—¶é—´
 
-#define ESP8266_UNVARNISHED_TRANSMIT    1
-
-/*********************ÍøÂçĞ­ÒéÖ÷»ú¼°Â·¾¶*********************/
-#define IP      "39.105.88.68"
-//#define IP      "192.168.0.179"
-//#define IP      ZC_SERVER_IP
-//#define PORT    ZC_SERVER_PORT
-#define PORT    "7000"
-
-#define HTTP_MAX_LEN 300                //HTTPĞ­Òé×î´ó³¤¶È
-
+#define ESP8266_TCP_MAX_RETRY       3
 
 /* Public macro --------------------------------------------------------------*/
 /* Public variables ----------------------------------------------------------*/

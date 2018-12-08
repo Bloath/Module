@@ -15,9 +15,9 @@
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 /*********************************************************************************************
-  * @brief  ¶ÁÈ¡½ÓÊÕ»º³åÊý¾Ý
-  * @param  pBuff£º½ÓÊÕÖ¸Õë£¬½«½ÓÊÕµ½µÄÊý¾Ý°´¸öÊýÐ´µ½½ÓÊÕÖ¸ÕëÖÐ
-  * @retval ½ÓÊÕÊý¾Ý³¤¶È£¬Èç¹û³ö´í£¬Ôò·µ»Ø0
+  * @brief  è¯»å–æŽ¥æ”¶ç¼“å†²æ•°æ®
+  * @param  pBuffï¼šæŽ¥æ”¶æŒ‡é’ˆï¼Œå°†æŽ¥æ”¶åˆ°çš„æ•°æ®æŒ‰ä¸ªæ•°å†™åˆ°æŽ¥æ”¶æŒ‡é’ˆä¸­
+  * @retval æŽ¥æ”¶æ•°æ®é•¿åº¦ï¼Œå¦‚æžœå‡ºé”™ï¼Œåˆ™è¿”å›ž0
   * @remark 
   ********************************************************************************************/
 uint8_t ReadRXPayload(uint8_t *packet)
@@ -25,153 +25,150 @@ uint8_t ReadRXPayload(uint8_t *packet)
     uint8_t width, i;
     width = ReadTopFIFOWidth();
 
-    /* Èç¹û³¤¶È´óÓÚ32£¬ËµÃ÷³¤¶ÈÓÐ´íÎó
-       ÔòÇå³ý½ÓÊÕ»º³å£¬³¤¶È·µ»ØÎª0 */
-    if(width > 32)
-    { 
-      FlushRX();
-      return 0; 
-    }
-    
-    CSN_LOW( );
-    SPI_RW( RD_RX_PLOAD );
-    for( i = 0; i < width; i ++ )
+    /* å¦‚æžœé•¿åº¦å¤§äºŽ32ï¼Œè¯´æ˜Žé•¿åº¦æœ‰é”™è¯¯
+       åˆ™æ¸…é™¤æŽ¥æ”¶ç¼“å†²ï¼Œé•¿åº¦è¿”å›žä¸º0 */
+    if (width > 32)
     {
-        *( packet + i ) = SPI_RW( 0xFF );
+        FlushRX();
+        return 0;
     }
-    CSN_HIGH( );
-    FlushRX( );
-    nRF24L01P_Write_Reg(W_REG + STATUS, 0xff);  				//Çå³ýËùÓÐµÄÖÐ¶Ï±êÖ¾Î»
+
+    CSN_LOW();
+    SPI_RW(RD_RX_PLOAD);
+    for (i = 0; i < width; i++)
+    {   *(packet + i) = SPI_RW(0xFF);   }
+    CSN_HIGH();
+    FlushRX();
+    nRF24L01P_Write_Reg(W_REG + STATUS, 0xff); //æ¸…é™¤æ‰€æœ‰çš„ä¸­æ–­æ ‡å¿—ä½
 
     return width;
 }
 
 /*********************************************************************************************
-  * @brief  Ð´Èë·¢ËÍ»º³å
-  * @param  pBuff£º½ÓÊÕÖ¸Õë£¬½«½ÓÊÕµ½µÄÊý¾Ý°´¸öÊýÐ´µ½½ÓÊÕÖ¸ÕëÖÐ
-  * @retval ½ÓÊÕÊý¾Ý³¤¶È
+  * @brief  å†™å…¥å‘é€ç¼“å†²
+  * @param  pBuffï¼šæŽ¥æ”¶æŒ‡é’ˆï¼Œå°†æŽ¥æ”¶åˆ°çš„æ•°æ®æŒ‰ä¸ªæ•°å†™åˆ°æŽ¥æ”¶æŒ‡é’ˆä¸­
+  * @retval æŽ¥æ”¶æ•°æ®é•¿åº¦
   * @remark 
   ********************************************************************************************/
-void WriteTXPayload_NoAck( uint8_t *packet, uint8_t length)
+void WriteTXPayload_NoAck(uint8_t *packet, uint8_t length)
 {
     CSN_LOW();
-    
-    SPI_RW( W_TX_PAYLOAD_NOACK );
-    
-    while( length-- )
-    { SPI_RW( *packet++ ); }
+
+    SPI_RW(W_TX_PAYLOAD_NOACK);
+
+    while (length--)
+    {   SPI_RW(*packet++);  }
     CSN_HIGH();
 }
 /*********************************************************************************************
-  * @brief  ¶ÁÈ¡¶¥²ãFIFO³¤¶È
+  * @brief  è¯»å–é¡¶å±‚FIFOé•¿åº¦
   * @param  
-  * @retval ¿í¶È
+  * @retval å®½åº¦
   * @remark 
   ********************************************************************************************/
 uint8_t ReadTopFIFOWidth()
 {
     uint8_t btmp;
-    CSN_LOW( );
-    SPI_RW( R_RX_PL_WID );
-    btmp = SPI_RW( 0xFF );
-    CSN_HIGH( );
+    CSN_LOW();
+    SPI_RW(R_RX_PL_WID);
+    btmp = SPI_RW(0xFF);
+    CSN_HIGH();
     return btmp;
 }
 /*********************************************************************************************
-  * @brief  Çå³ý·¢ËÍ»º³å
+  * @brief  æ¸…é™¤å‘é€ç¼“å†²
   * @param  
   * @retval 
   * @remark 
   ********************************************************************************************/
 void FlushTX()
 {
-    CSN_LOW( );
-    SPI_RW( FLUSH_TX );
-    CSN_HIGH( );
+    CSN_LOW();
+    SPI_RW(FLUSH_TX);
+    CSN_HIGH();
 }
 /*********************************************************************************************
-  * @brief  Çå³ý½ÓÊÕ»º³å
+  * @brief  æ¸…é™¤æŽ¥æ”¶ç¼“å†²
   * @param  
   * @retval 
   * @remark 
   ********************************************************************************************/
 void FlushRX()
 {
-    CSN_LOW( );
-    SPI_RW( FLUSH_RX );
-    CSN_HIGH( );
+    CSN_LOW();
+    SPI_RW(FLUSH_RX);
+    CSN_HIGH();
 }
 /*********************************************************************************************
-  * @brief  ¼Ä´æÆ÷ µ¥×Ö½Ú Ð´Èë
-  * @param  reg£º¼Ä´æÆ÷µØÖ·£¬Òª°üº¬¶ÁORÐ´Î»
-  * @param  value£ºÐ´Èë¼Ä´æÆ÷µÄÖµ
-  * @retval ÊÇ·ñÐ´Èë³É¹¦
+  * @brief  å¯„å­˜å™¨ å•å­—èŠ‚ å†™å…¥
+  * @param  regï¼šå¯„å­˜å™¨åœ°å€ï¼Œè¦åŒ…å«è¯»ORå†™ä½
+  * @param  valueï¼šå†™å…¥å¯„å­˜å™¨çš„å€¼
+  * @retval æ˜¯å¦å†™å…¥æˆåŠŸ
   * @remark 
   ********************************************************************************************/
 void nRF24L01P_Write_Reg(uint8_t reg, uint8_t value)
 {
-    CSN_LOW();                 
-    SPI_RW(reg);				
+    CSN_LOW();
+    SPI_RW(reg);
     SPI_RW(value);
-    
-    CSN_HIGH();  
+
+    CSN_HIGH();
 }
 
 /*********************************************************************************************
-  * @brief  ¼Ä´æÆ÷ ¶à×Ö½Ú Ð´Èë
-  * @param  reg£º¼Ä´æÆ÷µØÖ·£¬Òª°üº¬¶ÁORÐ´Î»
-  * @param  packet£ºÊý¾Ý°üÖ¸Õë
-  * @param  length£ºÊý¾Ý°ü³¤¶È
-  * @retval ·µ»Ø¸Ã¼Ä´æÆ÷µÄÖµ( Ô­ÓÐÖµ )
+  * @brief  å¯„å­˜å™¨ å¤šå­—èŠ‚ å†™å…¥
+  * @param  regï¼šå¯„å­˜å™¨åœ°å€ï¼Œè¦åŒ…å«è¯»ORå†™ä½
+  * @param  packetï¼šæ•°æ®åŒ…æŒ‡é’ˆ
+  * @param  lengthï¼šæ•°æ®åŒ…é•¿åº¦
+  * @retval è¿”å›žè¯¥å¯„å­˜å™¨çš„å€¼( åŽŸæœ‰å€¼ )
   * @remark 
   ********************************************************************************************/
 uint8_t nRF24L01P_Write_Buf(uint8_t reg, uint8_t *packet, uint8_t length)
 {
-    uint8_t status,i;
+    uint8_t status, i;
 
-    CSN_LOW();                                  			
-    status = SPI_RW(reg);                          
-    for(i=0; i<length; i++)     
-    SPI_RW(*packet++);
-    CSN_HIGH();                                      	
+    CSN_LOW();
+    status = SPI_RW(reg);
+    for (i = 0; i < length; i++)
+    {   SPI_RW(*packet++);  }
+    CSN_HIGH();
 
-    return(status);       
-}							  					   
+    return (status);
+}
 /*********************************************************************************************
-  * @brief  ¼Ä´æÆ÷ µ¥×Ö½Ú ¶ÁÈ¡
-  * @param  reg£º¼Ä´æÆ÷µØÖ·£¬Òª°üº¬¶ÁORÐ´Î»
-  * @retval ¼Ä´æÆ÷Öµ
+  * @brief  å¯„å­˜å™¨ å•å­—èŠ‚ è¯»å–
+  * @param  regï¼šå¯„å­˜å™¨åœ°å€ï¼Œè¦åŒ…å«è¯»ORå†™ä½
+  * @retval å¯„å­˜å™¨å€¼
   * @remark 
   ********************************************************************************************/
 uint8_t nRF24L01P_Read_Reg(uint8_t reg)
 {
     uint8_t value;
 
-    CSN_LOW();    
-    SPI_RW(reg);			
+    CSN_LOW();
+    SPI_RW(reg);
     value = SPI_RW(0);
-    CSN_HIGH();              
+    CSN_HIGH();
 
-    return(value);
+    return (value);
 }
 /*********************************************************************************************
-  * @brief  ¼Ä´æÆ÷ ¶à×Ö½Ú Ð´Èë
-  * @param  reg£º¼Ä´æÆ÷µØÖ·£¬Òª°üº¬¶ÁORÐ´Î»
-  * @param  packet£ºÊý¾Ý°üÖ¸Õë
-  * @param  length£ºÊý¾Ý°ü³¤¶È
-  * @retval ·µ»Ø¸Ã¼Ä´æÆ÷µÄÖµ( Ô­ÓÐÖµ )
+  * @brief  å¯„å­˜å™¨ å¤šå­—èŠ‚ å†™å…¥
+  * @param  regï¼šå¯„å­˜å™¨åœ°å€ï¼Œè¦åŒ…å«è¯»ORå†™ä½
+  * @param  packetï¼šæ•°æ®åŒ…æŒ‡é’ˆ
+  * @param  lengthï¼šæ•°æ®åŒ…é•¿åº¦
+  * @retval è¿”å›žè¯¥å¯„å­˜å™¨çš„å€¼( åŽŸæœ‰å€¼ )
   * @remark 
   ********************************************************************************************/
 uint8_t nRF24L01P_Read_Buf(uint8_t reg, uint8_t *packet, uint8_t length)
 {
-    uint8_t status,i;
+    uint8_t status, i;
 
-    CSN_LOW();                                        
-    status = SPI_RW(reg);                           
-    for(i=0; i<length; i++)
-    { packet[i] = SPI_RW(0);  }                //¶ÁÈ¡Êý¾Ý£¬µÍ×Ö½ÚÔÚÇ°
-    CSN_HIGH();                                        
+    CSN_LOW();
+    status = SPI_RW(reg);
+    for (i = 0; i < length; i++)
+    {   packet[i] = SPI_RW(0);  } //è¯»å–æ•°æ®ï¼Œä½Žå­—èŠ‚åœ¨å‰
+    CSN_HIGH();
 
-    return(status);    
+    return (status);
 }
-

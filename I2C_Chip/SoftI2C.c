@@ -1,8 +1,6 @@
 /* Includes ------------------------------------------------------------------*/
-#include "../Common/Delay.h"
-#include "../Sys_Conf.h"
-
 #include "SoftI2C.h"
+#include "../Common/Common.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -12,349 +10,348 @@
 /* Private functions ---------------------------------------------------------*/
 /*******************************************************************************
 * Function Name   : SoftI2C_Start
-* Description     : I2C×ÜÏßÆğÊ¼ĞÅºÅ
+* Description     : I2Cæ€»çº¿èµ·å§‹ä¿¡å·
 * Parameter       : 
-* Return          : 0£º×ÜÏßÕı³££¬²úÉúÆğÊ¼ĞÅºÅ
-                    1£º¾­¹ı9¸öÊ±ÖÓºó×ÜÏßÒÀÈ»ÓĞÎÊÌâ
-                    2£º×ÜÏßÔÚÖ÷»ú·¢³öÆğÊ¼ĞÅºÅÖ®ºóÎŞÓ¦´ğ
+* Return          : 0ï¼šæ€»çº¿æ­£å¸¸ï¼Œäº§ç”Ÿèµ·å§‹ä¿¡å·
+                    1ï¼šç»è¿‡9ä¸ªæ—¶é’Ÿåæ€»çº¿ä¾ç„¶æœ‰é—®é¢˜
+                    2ï¼šæ€»çº¿åœ¨ä¸»æœºå‘å‡ºèµ·å§‹ä¿¡å·ä¹‹åæ— åº”ç­”
 *******************************************************************************/
 uint8_t SoftI2C_Start()
 {
-  uint8_t i = 0;
-  //À­¸ßSCL,SDA×¼±¸
-  SCL_Set();
-  SDA_Set();          
-  I2C_Delay();
-  
-  //SDAÎ´±»À­¸ß£¬ËµÃ÷×ÜÏßÃ¦
-  if(!SDA_Status)
-  { 
-    //²úÉú9¸öÊ±ÖÓ½â³ıËÀËø×´Ì¬
-    for(i=0; i<9; i++)  
+    uint8_t i = 0;
+    //æ‹‰é«˜SCL,SDAå‡†å¤‡
+    SCL_Set();
+    SDA_Set();
+    I2C_Delay();
+
+    //SDAæœªè¢«æ‹‰é«˜ï¼Œè¯´æ˜æ€»çº¿å¿™
+    if (!SDA_Status)
     {
-      SCL_Clr();
-      I2C_Delay();
-      SCL_Set();
-      I2C_Delay();
+        //äº§ç”Ÿ9ä¸ªæ—¶é’Ÿè§£é™¤æ­»é”çŠ¶æ€
+        for (i = 0; i < 9; i++)
+        {
+            SCL_Clr();
+            I2C_Delay();
+            SCL_Set();
+            I2C_Delay();
+        }
+        //9ä¸ªæ—¶é’Ÿåä¾ç„¶ä½ï¼Œåˆ™è¯´æ˜æ€»çº¿æœ‰é—®é¢˜
+        if (!SDA_Status)
+        {   return 1;   }
     }
-    //9¸öÊ±ÖÓºóÒÀÈ»µÍ£¬ÔòËµÃ÷×ÜÏßÓĞÎÊÌâ
-    if(!SDA_Status)     
-    { return 1; }
-  }
-  
-  SDA_Clr();      //ÏÈÀ­µÍSDA
-  I2C_Delay();
-  SCL_Clr();      //ºóÀ­µÍSCL£¬²úÉúÆğÊ¼ĞÅºÅ
-  I2C_Delay();
-  
-  //SDAÎ´±»À­µ×£¬ËµÃ÷×ÜÏß´íÎó
-  if(SDA_Status)
-  { return 2; }
-  
-  return 0;
+
+    SDA_Clr(); //å…ˆæ‹‰ä½SDA
+    I2C_Delay();
+    SCL_Clr(); //åæ‹‰ä½SCLï¼Œäº§ç”Ÿèµ·å§‹ä¿¡å·
+    I2C_Delay();
+
+    //SDAæœªè¢«æ‹‰åº•ï¼Œè¯´æ˜æ€»çº¿é”™è¯¯
+    if (SDA_Status)
+    {   return 2;   }
+
+    return 0;
 }
 
 /*******************************************************************************
 * Function Name   : SoftI2C_Stop
-* Description     : I2C×ÜÏßÍ£Ö¹ĞÅºÅ
+* Description     : I2Cæ€»çº¿åœæ­¢ä¿¡å·
 * Parameter       : 
 * Return          : None
 *******************************************************************************/
 void SoftI2C_Stop()
 {
-  //À­µÍSCL,sda
-  SCL_Clr();
-  SDA_Clr();          
-  I2C_Delay();
-  
-  SCL_Set();    //ÏÈÀ­¸ßSCL
-  I2C_Delay();
-  SDA_Set();    //ÔÙÀ­¸ßSDA£¬ËÍ³öÍ£Ö¹
-  I2C_Delay();
+    //æ‹‰ä½SCL,sda
+    SCL_Clr();
+    SDA_Clr();
+    I2C_Delay();
+
+    SCL_Set(); //å…ˆæ‹‰é«˜SCL
+    I2C_Delay();
+    SDA_Set(); //å†æ‹‰é«˜SDAï¼Œé€å‡ºåœæ­¢
+    I2C_Delay();
 }
 
 /*******************************************************************************
 * Function Name   : SoftI2C_Ack
-* Description     : I2C×ÜÏßµÄÓ¦´ğ£¬ÔÚµÚ¾ÅÎ»µÄSCLµÄÉÏÉıÑØ£¬ÅĞ¶ÏSDAÎª¸ß»¹ÊÇµÍ
-                    ÏÈÉèÖÃ¸ßµÍÔÙÀ­¸ßSCL²¢»Ö¸´
-* Parameter       : status£ºENABLE£ºËÍ³öÓ¦´ğ
-                            DISENABLE£º²»ËÍ³öÓ¦´ğ
+* Description     : I2Cæ€»çº¿çš„åº”ç­”ï¼Œåœ¨ç¬¬ä¹ä½çš„SCLçš„ä¸Šå‡æ²¿ï¼Œåˆ¤æ–­SDAä¸ºé«˜è¿˜æ˜¯ä½
+                    å…ˆè®¾ç½®é«˜ä½å†æ‹‰é«˜SCLå¹¶æ¢å¤
+* Parameter       : statusï¼šENABLEï¼šé€å‡ºåº”ç­”
+                            DISENABLEï¼šä¸é€å‡ºåº”ç­”
 * Return          : None
 *******************************************************************************/
 void SoftI2C_Ack(uint8_t Status)
-{  
-                                
-  if(Status)              //ÔÚĞèÒª²úÉúÓ¦´ğÊ±£¬½«SDAÀ­µÍ
-  { SDA_Clr();  }
-  else                    //²»ĞèÒªÔòÀ­¸ß(½ÓÊÕ×îºóÒ»¸ö×Ö½Ú)
-  { SDA_Set();  }
-  I2C_Delay();
+{
 
-  SCL_Set();              //ÏÈÀ­¸ßSCL
-  I2C_Delay();
-  
-  SCL_Clr();              //À­µÍSCL 
-  I2C_Delay();
-  
-  SDA_Set();                    // PS£º·Ç³£ÖØÒª£¬ÔÚ·¢ËÍACKÖ®ºóÒª°Ñ×ÜÏßÌ§¸ß£¬ÒòÎªÊÇ¿ªÂ©£¬ËùÒÔ±ØĞëÍ¨¹ıÊä³öÌ§¸ßºó£¬Ğ¾Æ¬²ÅÄÜ¿ØÖÆ×ÜÏß
-  I2C_Delay();
+    if (Status) //åœ¨éœ€è¦äº§ç”Ÿåº”ç­”æ—¶ï¼Œå°†SDAæ‹‰ä½
+    {   SDA_Clr();  }
+    else //ä¸éœ€è¦åˆ™æ‹‰é«˜(æ¥æ”¶æœ€åä¸€ä¸ªå­—èŠ‚)
+    {   SDA_Set();  }
+    I2C_Delay();
+
+    SCL_Set(); //å…ˆæ‹‰é«˜SCL
+    I2C_Delay();
+
+    SCL_Clr(); //æ‹‰ä½SCL
+    I2C_Delay();
+
+    SDA_Set(); // PSï¼šéå¸¸é‡è¦ï¼Œåœ¨å‘é€ACKä¹‹åè¦æŠŠæ€»çº¿æŠ¬é«˜ï¼Œå› ä¸ºæ˜¯å¼€æ¼ï¼Œæ‰€ä»¥å¿…é¡»é€šè¿‡è¾“å‡ºæŠ¬é«˜åï¼ŒèŠ¯ç‰‡æ‰èƒ½æ§åˆ¶æ€»çº¿
+    I2C_Delay();
 }
 
 /*******************************************************************************
 * Function Name   : SoftI2C_WaitAck
-* Description     : I2C×ÜÏß¶ÁÈ¡Ê±µÈ´ı´ÓÉè±¸Ó¦´ğ
+* Description     : I2Cæ€»çº¿è¯»å–æ—¶ç­‰å¾…ä»è®¾å¤‡åº”ç­”
 * Parameter       : 
-* Return          : 0£º³É¹¦½ÓÊÕÓ¦´ğĞÅºÅ
-                    1£º½ÓÊÕÓ¦´ğĞÅºÅÊ§°Ü
+* Return          : 0ï¼šæˆåŠŸæ¥æ”¶åº”ç­”ä¿¡å·
+                    1ï¼šæ¥æ”¶åº”ç­”ä¿¡å·å¤±è´¥
 *******************************************************************************/
 uint8_t SoftI2C_WaitAck()
-{  
-  int Status;
-  SDA_Set();      //À­¸ßSDA£¬µÈ´ıÊäÈë
-  I2C_Delay();
-  SCL_Set();      //ÏÈÀ­¸ßSCL
-  I2C_Delay();
-  
-  if(!SDA_Status)
-  { Status = 0;}
-  else
-  { Status = 1; }
-  
-  SCL_Clr();
-  I2C_Delay();
-  return Status;
+{
+    int Status;
+    SDA_Set(); //æ‹‰é«˜SDAï¼Œç­‰å¾…è¾“å…¥
+    I2C_Delay();
+    SCL_Set(); //å…ˆæ‹‰é«˜SCL
+    I2C_Delay();
+
+    if (!SDA_Status)
+    {   Status = 0; }
+    else
+    {   Status = 1; }
+
+    SCL_Clr();
+    I2C_Delay();
+    return Status;
 }
 
 /*******************************************************************************
 * Function Name   : SoftI2C_SendByte
-* Description     : I2C×ÜÏß´«Êäµ¥×Ö½ÚÊı¾İ
-* Parameter       : data£º8Î»Êı¾İ
+* Description     : I2Cæ€»çº¿ä¼ è¾“å•å­—èŠ‚æ•°æ®
+* Parameter       : dataï¼š8ä½æ•°æ®
 * Return          : None
 *******************************************************************************/
 void SoftI2C_SendByte(uint8_t data)
 {
-  uint8_t i = 0;
-  
-  for(i=0; i<8; i++)
-  {
-    SCL_Clr();         
+    uint8_t i = 0;
+
+    for (i = 0; i < 8; i++)
+    {
+        SCL_Clr();
+        I2C_Delay();
+
+        if (data & (1 << 7))
+        {   SDA_Set();  }
+        else
+        {   SDA_Clr();  }
+        I2C_Delay();
+        data <<= 1;
+
+        SCL_Set();
+        I2C_Delay();
+    }
+    SCL_Clr();
     I2C_Delay();
-    
-    if(data & (1<<7))
-    { SDA_Set();  }
-    else
-    { SDA_Clr();  }
-    I2C_Delay();
-    data <<= 1;
-    
-    SCL_Set();
-    I2C_Delay();
-  }
-  SCL_Clr(); 
-  I2C_Delay();
 }
 
 /*******************************************************************************
 * Function Name   : SoftI2C_ReceiveByte
-* Description     : I2C×ÜÏß½ÓÊÕµ¥×Ö½ÚÊı¾İ
+* Description     : I2Cæ€»çº¿æ¥æ”¶å•å­—èŠ‚æ•°æ®
 * Parameter       : 
-* Return          : None¶ÁÈ¡µÄ8Î»Êı¾İ
+* Return          : Noneè¯»å–çš„8ä½æ•°æ®
 *******************************************************************************/
 uint8_t SoftI2C_ReceiveByte()
 {
-  uint8_t i = 0,Temp;
-  
-  for(i=0; i<8; i++)
-  {
-    SCL_Clr();         
-    I2C_Delay();
-    SCL_Set();      
-    I2C_Delay();
-    
-    Temp <<= 1;
-    if(SDA_Status)
-    { Temp |= 1;  }
+    uint8_t i = 0, Temp;
+
+    for (i = 0; i < 8; i++)
+    {
+        SCL_Clr();
+        I2C_Delay();
+        SCL_Set();
+        I2C_Delay();
+
+        Temp <<= 1;
+        if (SDA_Status)
+        {   Temp |= 1;  }
+        I2C_Delay();
+    }
+    SCL_Clr();
     I2C_Delay();
 
-  }
-  SCL_Clr(); 
-  I2C_Delay();
-  
-  return Temp;
+    return Temp;
 }
 /*******************************************************************************
 * Function Name   : SoftI2C_WriteByte
-* Description     : I2C×ÜÏß·¢ËÍÊı¾İ
-* Parameter       : data£º   Òª·¢ËÍµÄ×Ö½ÚÊı¾İ
-                    isOnlyLSB£ºÖ»´«ËÍµÍ8×Ö½Ú
-* Return          : 0£º²Ù×÷³É¹¦
-                    1£º×ÜÏßËÀËøÎŞ·¨½â¾ö
-                    2£º×ÜÏßÓ²¼şÁ¬½ÓÎÊÌâ
+* Description     : I2Cæ€»çº¿å‘é€æ•°æ®
+* Parameter       : dataï¼š   è¦å‘é€çš„å­—èŠ‚æ•°æ®
+                    isOnlyLSBï¼šåªä¼ é€ä½8å­—èŠ‚
+* Return          : 0ï¼šæ“ä½œæˆåŠŸ
+                    1ï¼šæ€»çº¿æ­»é”æ— æ³•è§£å†³
+                    2ï¼šæ€»çº¿ç¡¬ä»¶è¿æ¥é—®é¢˜
 *******************************************************************************/
-uint8_t SoftI2C_Send(DATA_TYPE data, BoolEnum isOnlyLSB)
+uint8_t SoftI2C_Send(DATA_TYPE data, bool isOnlyLSB)
 {
-  uint8_t status = 0;
-  
-  for(uint8_t i=0; i<DATA_SIZE; i++)
-  {
-    // Èç¹ûÖ»·¢µÍ×Ö½ÚµÄ»°£¬ÔòÖ»·¢Ò»´Î¾Í½áÊø
-    if(isOnlyLSB == FALSE)
-    { SoftI2C_SendByte((uint8_t)(data >> (DATA_SIZE - 1 - i) * 8)); }
-    else
-    { SoftI2C_SendByte((uint8_t)data); }
-    
-    status = SoftI2C_WaitAck();        
-    if(status)   
+    uint8_t status = 0;
+
+    for (uint8_t i = 0; i < DATA_SIZE; i++)
     {
-      SoftI2C_Stop();                  
-      return status;
+        // å¦‚æœåªå‘ä½å­—èŠ‚çš„è¯ï¼Œåˆ™åªå‘ä¸€æ¬¡å°±ç»“æŸ
+        if (isOnlyLSB == false)
+        {   SoftI2C_SendByte((uint8_t)(data >> (DATA_SIZE - 1 - i) * 8));   }
+        else
+        {   SoftI2C_SendByte((uint8_t)data);    }
+
+        status = SoftI2C_WaitAck();
+        if (status)
+        {
+            SoftI2C_Stop();
+            return status;
+        }
+
+        if (isOnlyLSB == true)
+        {   return 0;   }
     }
-    
-    if(isOnlyLSB == TRUE)
-    { return 0; }
-  }
-  
-  return 0;
+
+    return 0;
 }
 /*******************************************************************************
 * Function Name   : SoftI2C_Revice
-* Description     : I2C×ÜÏß½ÓÊÕÊı¾İ
-* Parameter       : isLast£ºÊÇ·ñÎª×îºóÒ»¸öÊı¾İ£¨×îºóÒ»¸ö×Ö½Ú²»ĞèÒª·¢ack£©
-* Return          : 0£º²Ù×÷³É¹¦
-                    1£º×ÜÏßËÀËøÎŞ·¨½â¾ö
-                    2£º×ÜÏßÓ²¼şÁ¬½ÓÎÊÌâ
+* Description     : I2Cæ€»çº¿æ¥æ”¶æ•°æ®
+* Parameter       : isLastï¼šæ˜¯å¦ä¸ºæœ€åä¸€ä¸ªæ•°æ®ï¼ˆæœ€åä¸€ä¸ªå­—èŠ‚ä¸éœ€è¦å‘ackï¼‰
+* Return          : 0ï¼šæ“ä½œæˆåŠŸ
+                    1ï¼šæ€»çº¿æ­»é”æ— æ³•è§£å†³
+                    2ï¼šæ€»çº¿ç¡¬ä»¶è¿æ¥é—®é¢˜
 *******************************************************************************/
-DATA_TYPE SoftI2C_Receive(BoolEnum isLast)
+DATA_TYPE SoftI2C_Receive(bool isLast)
 {
-  DATA_TYPE data = 0;            // ½«ĞèÒªÌî³äµÄÎ»ÖÃÏÈÇåÁã
-  
-  for(uint8_t i=0; i<DATA_SIZE; i++)
-  {
-    data <<= 8;
-    data |= SoftI2C_ReceiveByte(); 
-    
-    if(isLast == TRUE && i == (DATA_SIZE - 1))
-    { SoftI2C_Ack(0); }
-    else
-    { SoftI2C_Ack(1); }
-  }
-  
-  return data;
+    DATA_TYPE data = 0; // å°†éœ€è¦å¡«å……çš„ä½ç½®å…ˆæ¸…é›¶
+
+    for (uint8_t i = 0; i < DATA_SIZE; i++)
+    {
+        data <<= 8;
+        data |= SoftI2C_ReceiveByte();
+
+        if (isLast == true && i == (DATA_SIZE - 1))
+        {   SoftI2C_Ack(0); }
+        else
+        {   SoftI2C_Ack(1); }
+    }
+
+    return data;
 }
 /*******************************************************************************
 
-* Description     : Èí¼şµ¥¶ÀĞ´
-* Parameter       : i2cPinStruct£ºÈí¼şµÄIO½á¹¹Ìå
-                    deviceAddr£ºÉè±¸µØÖ·£¬7Î»µØÖ·£¬ÎŞĞè×óÒÆ£¬º¯ÊıÄÚ²¿ÒÑ¾­×óÒÆ²¢¼ÓÈëÁË¶ÁĞ´Î»
-                    registerAddr£º¼Ä´æÆ÷µØÖ·
-                    data£º   Òª·¢ËÍµÄ×Ö½ÚÊı¾İ
-* Return          : 0£º²Ù×÷³É¹¦
-                    1£ºÊ§°Ü
+* Description     : è½¯ä»¶å•ç‹¬å†™
+* Parameter       : i2cPinStructï¼šè½¯ä»¶çš„IOç»“æ„ä½“
+                    deviceAddrï¼šè®¾å¤‡åœ°å€ï¼Œ7ä½åœ°å€ï¼Œæ— éœ€å·¦ç§»ï¼Œå‡½æ•°å†…éƒ¨å·²ç»å·¦ç§»å¹¶åŠ å…¥äº†è¯»å†™ä½
+                    registerAddrï¼šå¯„å­˜å™¨åœ°å€
+                    dataï¼š   è¦å‘é€çš„å­—èŠ‚æ•°æ®
+* Return          : 0ï¼šæ“ä½œæˆåŠŸ
+                    1ï¼šå¤±è´¥
 *******************************************************************************/
 uint8_t SoftI2C_SingleWrite(uint8_t deviceAddr, DATA_TYPE registerAddr, DATA_TYPE data)
 {
-  // 1£ºÆğÊ¼ĞÅºÅ   
-  if(SoftI2C_Start() != 0)     
-  { return 1; }
-  
-  // 2£ºĞ´ÈëÉè±¸µØÖ·
-  if(SoftI2C_Send((DATA_TYPE)deviceAddr, TRUE) != 0)
-  { return 1; }
-  
-  // 3£ºĞ´Èë¼Ä´æÆ÷µØÖ·
-  if(SoftI2C_Send(registerAddr, FALSE) != 0)
-  { return 1; }
+    // 1ï¼šèµ·å§‹ä¿¡å·
+    if (SoftI2C_Start() != 0)
+    {   return 1;   }
 
-  // 4£ºĞ´ÈëÊı¾İ
-  if(SoftI2C_Send(data, FALSE) != 0)
-  { return 1; }
-  
-  // 5£º½áÊøĞÅºÅ
-  SoftI2C_Stop();                    
-  
-  return 0;
+    // 2ï¼šå†™å…¥è®¾å¤‡åœ°å€
+    if (SoftI2C_Send((DATA_TYPE)deviceAddr, true) != 0)
+    {   return 1;   }
+
+    // 3ï¼šå†™å…¥å¯„å­˜å™¨åœ°å€
+    if (SoftI2C_Send(registerAddr, false) != 0)
+    {   return 1;   }
+
+    // 4ï¼šå†™å…¥æ•°æ®
+    if (SoftI2C_Send(data, false) != 0)
+    {   return 1;   }
+
+    // 5ï¼šç»“æŸä¿¡å·
+    SoftI2C_Stop();
+
+    return 0;
 }
 
 /*******************************************************************************
 * Function Name   : SoftI2C_Write
-* Description     : Èí¼şĞ´ÈëÊı¾İ
-* Parameter       : deviceAddr£ºÉè±¸µØÖ·£¬7Î»µØÖ·£¬ÎŞĞè×óÒÆ£¬º¯ÊıÄÚ²¿ÒÑ¾­×óÒÆ²¢¼ÓÈëÁË¶ÁĞ´Î»
-                    registerAddr£º¼Ä´æÆ÷µØÖ·
-                    *data£º  Òª·¢ËÍµÄÊı¾İÖ¸Õë
-                    len£º    Òª·¢ËÍµÄÊı¾İ¸öÊı
-* Return          : 0£º²Ù×÷³É¹¦
-                    1£ºÊ§°Ü
+* Description     : è½¯ä»¶å†™å…¥æ•°æ®
+* Parameter       : deviceAddrï¼šè®¾å¤‡åœ°å€ï¼Œ7ä½åœ°å€ï¼Œæ— éœ€å·¦ç§»ï¼Œå‡½æ•°å†…éƒ¨å·²ç»å·¦ç§»å¹¶åŠ å…¥äº†è¯»å†™ä½
+                    registerAddrï¼šå¯„å­˜å™¨åœ°å€
+                    *dataï¼š  è¦å‘é€çš„æ•°æ®æŒ‡é’ˆ
+                    lenï¼š    è¦å‘é€çš„æ•°æ®ä¸ªæ•°
+* Return          : 0ï¼šæ“ä½œæˆåŠŸ
+                    1ï¼šå¤±è´¥
 *******************************************************************************/
 uint8_t SoftI2C_MultiWrite(uint8_t deviceAddr, DATA_TYPE registerAddr, DATA_TYPE *data, uint8_t Len)
 {
-  uint8_t i = 0;
- 
-  // 1£ºÆğÊ¼ĞÅºÅ   
-  if(SoftI2C_Start() != 0)     
-  { return 1; }
-  
-  // 2£ºĞ´ÈëÉè±¸µØÖ·
-  if(SoftI2C_Send((DATA_TYPE)deviceAddr, TRUE) != 0)
-  { return 1; }
-  
-  // 3£ºĞ´Èë¼Ä´æÆ÷µØÖ·
-  if(SoftI2C_Send(registerAddr, FALSE) != 0)
-  { return 1; }
-  
-  // 4£ºĞ´ÈëÊı¾İ
-  for(i=0; i<Len; i++)
-  {
-    if(SoftI2C_Send(data[i], FALSE) != 0)
-    { return 1; }
-  }
-  
-  // 5£º½áÊøĞÅºÅ
-  SoftI2C_Stop();                   
-  
-  return 0;
+    uint8_t i = 0;
+
+    // 1ï¼šèµ·å§‹ä¿¡å·
+    if (SoftI2C_Start() != 0)
+    {   return 1;   }
+
+    // 2ï¼šå†™å…¥è®¾å¤‡åœ°å€
+    if (SoftI2C_Send((DATA_TYPE)deviceAddr, true) != 0)
+    {   return 1;   }
+
+    // 3ï¼šå†™å…¥å¯„å­˜å™¨åœ°å€
+    if (SoftI2C_Send(registerAddr, false) != 0)
+    {   return 1;   }
+
+    // 4ï¼šå†™å…¥æ•°æ®
+    for (i = 0; i < Len; i++)
+    {
+        if (SoftI2C_Send(data[i], false) != 0)
+        {   return 1;   }
+    }
+
+    // 5ï¼šç»“æŸä¿¡å·
+    SoftI2C_Stop();
+
+    return 0;
 }
 /*******************************************************************************
 * Function Name   : SoftI2C_Read
-* Description     : Èí¼ş¶ÁÈ¡¼Ä´æÆ÷
-* Parameter       : deviceAddr£ºÉè±¸µØÖ·£¬7Î»µØÖ·£¬ÎŞĞè×óÒÆ£¬º¯ÊıÄÚ²¿ÒÑ¾­×óÒÆ²¢¼ÓÈëÁË¶ÁĞ´Î»
-                    registerAddr£º¼Ä´æÆ÷µØÖ·
-                    *data£º  ´æ·Å¶ÁÈ¡³öÀ´Êı¾İµÄ×Ö½ÚÖ¸Õë
-                    len£º¸öÊı
-* Return          : 0£º²Ù×÷³É¹¦
-                    1£º×ÜÏßËÀËøÎŞ·¨½â¾ö
-                    2£º×ÜÏßÓ²¼şÁ¬½ÓÎÊÌâ
+* Description     : è½¯ä»¶è¯»å–å¯„å­˜å™¨
+* Parameter       : deviceAddrï¼šè®¾å¤‡åœ°å€ï¼Œ7ä½åœ°å€ï¼Œæ— éœ€å·¦ç§»ï¼Œå‡½æ•°å†…éƒ¨å·²ç»å·¦ç§»å¹¶åŠ å…¥äº†è¯»å†™ä½
+                    registerAddrï¼šå¯„å­˜å™¨åœ°å€
+                    *dataï¼š  å­˜æ”¾è¯»å–å‡ºæ¥æ•°æ®çš„å­—èŠ‚æŒ‡é’ˆ
+                    lenï¼šä¸ªæ•°
+* Return          : 0ï¼šæ“ä½œæˆåŠŸ
+                    1ï¼šæ€»çº¿æ­»é”æ— æ³•è§£å†³
+                    2ï¼šæ€»çº¿ç¡¬ä»¶è¿æ¥é—®é¢˜
 *******************************************************************************/
 uint8_t SoftI2C_Read(uint8_t deviceAddr, DATA_TYPE registerAddr, DATA_TYPE *data, uint8_t len)
 {
-  // 1£ºÆğÊ¼ĞÅºÅ   
-  if(SoftI2C_Start() != 0)     
-  { return 1; }
-  
-  // 2£ºĞ´ÈëÉè±¸µØÖ·
-  if(SoftI2C_Send((DATA_TYPE)deviceAddr, TRUE) != 0)
-  { return 1; }
-  
-  // 3£ºĞ´Èë¼Ä´æÆ÷µØÖ·
-  if(SoftI2C_Send(registerAddr, FALSE) != 0)
-  { return 1; }
-  
-  // 4£ºÆğÊ¼ĞÅºÅ   
-  if(SoftI2C_Start() != 0)     
-  { return 1; }
-  
-  // 5£ºĞ´ÈëÉè±¸µØÖ·£¬¼ÓÈë¶Á±êÖ¾Î»
-  if(SoftI2C_Send((DATA_TYPE)(deviceAddr | (1<<0)), TRUE) != 0)
-  { return 1; }
- 
-  // 6£º¶ÁÈ¡Êı¾İ
-  for(uint8_t i=0; i<len; i++)                                         
-  {
-    BoolEnum isLast = (i == (len - 1))? TRUE:FALSE; 
-    data[i] = SoftI2C_Receive(isLast);
-  }
-  
-  // 7£º½áÊøĞÅºÅ
-  SoftI2C_Stop(); 
-  
-  return 0;
+    // 1ï¼šèµ·å§‹ä¿¡å·
+    if (SoftI2C_Start() != 0)
+    {   return 1;   }
+
+    // 2ï¼šå†™å…¥è®¾å¤‡åœ°å€
+    if (SoftI2C_Send((DATA_TYPE)deviceAddr, true) != 0)
+    {   return 1;   }
+
+    // 3ï¼šå†™å…¥å¯„å­˜å™¨åœ°å€
+    if (SoftI2C_Send(registerAddr, false) != 0)
+    {   return 1;   }
+
+    // 4ï¼šèµ·å§‹ä¿¡å·
+    if (SoftI2C_Start() != 0)
+    {   return 1;   }
+
+    // 5ï¼šå†™å…¥è®¾å¤‡åœ°å€ï¼ŒåŠ å…¥è¯»æ ‡å¿—ä½
+    if (SoftI2C_Send((DATA_TYPE)(deviceAddr | (1 << 0)), true) != 0)
+    {   return 1;   }
+
+    // 6ï¼šè¯»å–æ•°æ®
+    for (uint8_t i = 0; i < len; i++)
+    {
+        bool isLast = (i == (len - 1)) ? true : false;
+        data[i] = SoftI2C_Receive(isLast);
+    }
+
+    // 7ï¼šç»“æŸä¿¡å·
+    SoftI2C_Stop();
+
+    return 0;
 }

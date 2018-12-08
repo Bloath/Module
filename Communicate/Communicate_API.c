@@ -1,126 +1,75 @@
 /* Includes ------------------------------------------------------------------*/
-#include "stdlib.h"
-
-#include "../Sys_Conf.h"
-#include "../BufferQueue/BufferQueue.h"
-#include "../Common/Array.h"
 #include "Communicate_API.h"
-#include "Communicate_Handle.h"
-
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro --------------------------------------------------------------*/
 /* Private variables ----------------------------------------------------------*/
 /* Private function prototypes ------------------------------------------------*/
-void Communicate_RxHandle(uint8_t *message, uint16_t len, void *param);
 
 /*********************************************************************************************
 
-  * @brief  ·¢ËÍ¿é´íÎó´¦Àí
-  * @param  communicate£º°ëË«¹¤ÊµÀýÖ¸Õë
-  * @retval ÎÞ
+  * @brief  å‘é€å—é”™è¯¯å¤„ç†
+  * @param  communicateï¼šåŠåŒå·¥å®žä¾‹æŒ‡é’ˆ
+  * @retval æ— 
   * @remark 
 
   ********************************************************************************************/
 void Comunicate_HDMaster_Polling(CommunicateStruct *communicate)
 {
-  /* ¸ù¾ÝÖ÷×´Ì¬½øÐÐ´¦Àí */
-  switch(communicate->process)
-  {
-  /* ³õÊ¼»¯ */
-  case Process_Init:
-    communicate->process = Process_Idle;
-    communicate->time = *communicate->refTime;
-    break;
-  
-  /* ÂÖÑ¯¼ä¸ôÊ±¼ä */
-  case Process_Idle:
-     /* ¼ä¸ôÒ»¶ÎÊ±¼ä */
-    if((communicate->time + communicate->loopInterval) > *communicate->refTime)
-    { break; }
-    else
-    { communicate->process = Process_Start; }
-  
-  /* ¿ÕÏÐ×´Ì¬£¬Ìî³ä²éÑ¯ÔÝ´æ±¨ÎÄ£¬ÇÐ»»ÎªµÈ´ý×´Ì¬ */
-  case Process_Start:
-    CallBack_HD_FillPollingPackt(communicate);     // ¿ÕÏÐÊý¾Ý°üÌî³ä
-    communicate->process = Process_Wait;        // ÇÐ»»µÈ´ý×´Ì¬
-    break;
-    
-  /* µÈ´ý×´Ì¬£¬·¢ËÍ»º³åÎªÊÖ¶¯Çå³ý£¬Èç¹ûÃ»ÓÐ»Ø¸´µÄ»°ÊÇ²»»áÇå³ýµÄ£¬·ñÔò»á³öÏÖ×èÈû 
-     µÈ´ý×´Ì¬ÎªËÀËø£¬Ö±µ½½ÓÊÕµ½È·ÈÏ±¨ÎÄ»òÕß²éÑ¯ÔÝ´æ»Ø¸´*/
-  case Process_Wait:
-     communicate->time = *communicate->refTime;
-    break;
-  }
+    /* æ ¹æ®ä¸»çŠ¶æ€è¿›è¡Œå¤„ç† */
+    switch (communicate->process)
+    {
+    /* åˆå§‹åŒ– */
+    case Process_Init:
+        communicate->process = Process_Idle;
+        communicate->time = *communicate->refTime;
+        break;
+
+    /* è½®è¯¢é—´éš”æ—¶é—´ */
+    case Process_Idle:
+        /* é—´éš”ä¸€æ®µæ—¶é—´ */
+        if ((communicate->time + communicate->loopInterval) > *communicate->refTime)
+        {   break;  }
+        else
+        {   communicate->process = Process_Start;   }
+
+    /* ç©ºé—²çŠ¶æ€ï¼Œå¡«å……æŸ¥è¯¢æš‚å­˜æŠ¥æ–‡ï¼Œåˆ‡æ¢ä¸ºç­‰å¾…çŠ¶æ€ */
+    case Process_Start:
+        if (communicate->CallBack_FillHoldMsg != NULL)
+        {   communicate->CallBack_FillHoldMsg(communicate); }       // ç©ºé—²æ•°æ®åŒ…å¡«å……
+        communicate->process = Process_Wait;                        // åˆ‡æ¢ç­‰å¾…çŠ¶æ€
+        break;
+
+    /* ç­‰å¾…çŠ¶æ€ï¼Œå‘é€ç¼“å†²ä¸ºæ‰‹åŠ¨æ¸…é™¤ï¼Œå¦‚æžœæ²¡æœ‰å›žå¤çš„è¯æ˜¯ä¸ä¼šæ¸…é™¤çš„ï¼Œå¦åˆ™ä¼šå‡ºçŽ°é˜»å¡ž 
+     ç­‰å¾…çŠ¶æ€ä¸ºæ­»é”ï¼Œç›´åˆ°æŽ¥æ”¶åˆ°ç¡®è®¤æŠ¥æ–‡æˆ–è€…æŸ¥è¯¢æš‚å­˜å›žå¤*/
+    case Process_Wait:
+        communicate->time = *communicate->refTime;
+        if (communicate->txQueue->usedBlockQuantity == 0)
+        {   communicate->process = Process_Init;    }
+        break;
+    }
 }
 
 /*********************************************************************************************
 
-  * @brief  °ëË«¹¤Í¨Ñ¶ Ö÷´¦Àí
-  * @param  communicate£º°ëË«¹¤´¦Àí
-  * @retval ÎÞ
+  * @brief  åŠåŒå·¥é€šè®¯ ä¸»å¤„ç†
+  * @param  communicateï¼šåŠåŒå·¥å¤„ç†
+  * @retval æ— 
   * @remark 
 
   ********************************************************************************************/
 void Communicate_Handle(CommunicateStruct *communicate)
 {
-  /* °ëË«¹¤ + Ö÷»úÄ£Ê½£¬·¢ËÍ */
-  if(communicate->isFullDuplex == FALSE && communicate->isHDMaster == TRUE)
-  { Comunicate_HDMaster_Polling(communicate);}
-  
-  /* ·¢ËÍ¶ÓÁÐ´¦Àí */
-  if(communicate->CallBack_TxFunc != NULL)
-  { TxQueue_Handle(communicate->txQueue, communicate->CallBack_TxFunc); }
-  
-  RxQueue_Handle(communicate->rxQueue, Communicate_RxHandle, (void*)communicate); 
-}
+    /* åŠåŒå·¥ + å®¢æˆ·ç«¯æ¨¡å¼ï¼Œå‘é€æŸ¥è¯¢æš‚å­˜æŠ¥æ–‡ */
+    if ((communicate->attribute & (COM_ATTR_HD_CLINET | COM_ATTR_POLL_MNL)) == COM_ATTR_HD_CLINET )
+    {   Comunicate_HDMaster_Polling(communicate);   }
 
-/*********************************************************************************************
-
-  * @brief  °ëË«¹¤Í¨Ñ¶£¬Ö÷»ú½ÓÊÕ´¦Àí
-  * @param  message:  ·¢ËÍ¿éÖ¸Õë
-            len£º±¨ÎÄ³¤¶È
-            param£º²ÎÊý
-  * @retval 
-  * @remark 
-
-  ********************************************************************************************/
-void Communicate_RxHandle(uint8_t *message, uint16_t len, void *param)
-{
-  CommunicateStruct *communicate = (CommunicateStruct *)param;      // Ö¸Õë»ñÈ¡
-  
-  ArrayStruct *msg = CallBack_MsgConvert(message, len, communicate);
-  if(msg != NULL)
-  { 
-    message = msg->packet;
-    len = msg->length;
-    Array_Free(msg);
-  }
-  
-  /* ±¨ÎÄ¼ì²é */
-  if(CallBack_MessageInspect(message, len, communicate) == FALSE)
-  { return; }
-  
-  /* Çå³ý¶ÔÓ¦·¢ËÍ¶ÓÁÐ */
-  CallBack_ClearTxQueue(message, len, communicate);
-  communicate->process = Process_Idle;
-  
-  if(communicate->isFullDuplex == FALSE)
-  {
-    /* °ëË«¹¤Çé¿öÏÂ
-       °ëË«¹¤-Ö÷Ä£Ê½£ºÖØÐÂ·¢ËÍÔÝ´æ
-       °ëË«¹¤-´ÓÄ£Ê½£ºÔòÒªÌî³äÊý¾Ý */
-    if(CallBack_HD_isPooling(message, len, communicate) == TRUE )
-    { 
-      if(communicate->isHDMaster == FALSE)
-      { CallBack_HDSlave_PollHandle(message, len, communicate); }
-      
-      return;
-    }
-  }
-  
-  CallBack_UnpollMsgHandle(message, len, communicate);     // ·ÇÂÖÑ¯±¨ÎÄ´¦Àí
+    /* å‘é€é˜Ÿåˆ—å¤„ç† */
+    if (communicate->CallBack_TxFunc != NULL)
+    {   TxQueue_Handle(communicate->txQueue, communicate->CallBack_TxFunc, communicate->txFuncParam);   }
+    
+    if (communicate->CallBack_RxHandleFunc != NULL)
+    {   RxQueue_Handle(communicate->rxQueue, communicate->CallBack_RxHandleFunc, (void *)communicate);  }
 }
 

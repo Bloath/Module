@@ -3,8 +3,6 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "Communicate_API.h"
-#include "Communicate_Handle.h"
-#include "Communicate_Conf.h"
 
 /* Public define -------------------------------------------------------------*/
 /* Public macro --------------------------------------------------------------*/

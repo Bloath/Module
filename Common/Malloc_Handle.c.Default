@@ -10,21 +10,21 @@
 
 /*******************************************************************************
 * Function Name   : MallocError_OutOfMemory
-* Description     : …Í«Îƒ⁄¥Ê¥ÌŒÛ-->ø’º‰≤ª◊„
+* Description     : Áî≥ËØ∑ÂÜÖÂ≠òÈîôËØØ-->Á©∫Èó¥‰∏çË∂≥
 * Parameter       : 
 * Return          : 
 *******************************************************************************/
-void Malloc_ErrorHandle(MallocErrorEnum  mallocError)
+void Malloc_ErrorHandle(MallocErrorEnum mallocError)
 {
-  switch(mallocError)
-  {
-  case Malloc_OutOfMemory:
-    break;
-    
-    
-  case Malloc_MemoryUnreasonable:
-    break;
-  }
-  
-  return;
+    while(1);
+    switch(mallocError)
+    {
+    case Malloc_OutOfMemory:
+        break;
+
+    case Malloc_MemoryUnreasonable:
+        break;
+    }
+
+    return;
 }

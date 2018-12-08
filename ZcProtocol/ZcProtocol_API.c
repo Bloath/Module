@@ -1,185 +1,172 @@
 /* Includes ------------------------------------------------------------------*/
-#include "stdlib.h"
-#include "string.h"
-#include "../Sys_Conf.h"
-#include "../Common/Array.h"
-#include "../Common/Convert.h"
-#include "../Common/Malloc.h"
-
-#include "../BufferQueue/BufferQueue.h"
-
-#include "Http.h"
-#include "ZcProtocol.h"
-#include "ZcProtocol_API.h"    
-#include "ZcProtocol_Conf.h"   
-#include "ZcProtocol_Handle.h"  //Ó²¼şÏà¹Ø´¦Àí
-
+#include "ZcProtocol_API.h"
 
 /* private typedef ------------------------------------------------------------*/
 /* private define -------------------------------------------------------------*/
 /* private macro --------------------------------------------------------------*/
 /* private variables ----------------------------------------------------------*/
-ZcProtocol zcPrtc;      // ×¾³ÏĞ­ÒéÊµÀı
-ZcErrorStruct zcError;
+ZcProtocol zcPrtc; // æ‹™è¯šåè®®å®ä¾‹
+
 /* private function prototypes ------------------------------------------------*/
+uint8_t ZcProtocol_GetCrc(uint8_t *message, uint16_t length);
+
 /*********************************************************************************************
 
-  * @brief  Ğ­Òé³õÊ¼»¯
-  * @param  DeviceType£ºÉè±¸ÀàĞÍ
-            address£ºÉè±¸µØÖ·Ö¸Õë
-  * @retval 
-  * @remark ÔÚ³ÌĞò³õÊ¼»¯Ê±£¬ĞèÒª½«Ğ­ÒéÊµÀı½øĞĞ³õÊ¼»¯
+  * @brief  åè®®è½¬æŠ¥æ–‡
+  * @param  protocol:  åè®®ç»“æ„ä½“æŒ‡é’ˆ
+            
+  * @retval æŠ¥æ–‡æ•°ç»„ç»“æ„ä½“æŒ‡é’ˆ
+  * @remark 
 
   ********************************************************************************************/
-void ZcProtocol_InstanceInit(uint8_t DeviceType, uint8_t* address, uint8_t startId)
+uint8_t *ZcProtocol_ConvertMsg(ZcProtocol *zcProtocol, uint8_t *data, uint16_t dataLen)
 {
-  zcPrtc.head.head = 0x68;
-  zcPrtc.head.control = DeviceType;
-  zcPrtc.head.id = startId;                           // 0ÊÇÔ¤Áô¸øÎŞÏßÉè±¸ÇëÇó
-  zcPrtc.head.timestamp = 0;
-  
-  memcpy(zcPrtc.head.address, address, 7);      //¸´ÖÆ7×Ö½ÚµØÖ·£¬ÔÚ²úÆ·Êµ¼ÊÔËÓÃºó£¬µØÖ·ÊÇ²»»á¸Ä±äµÄ£¨¸úÎ¢ĞÅ¹Ò¹³£©
+    /* ç¡®å®šæ•°æ®é•¿åº¦ï¼Œå¹¶ç”³è¯·ç›¸åº”å†…å­˜ */
+    zcProtocol->head.length = ZC_UNDATA_LEN + dataLen;
+    uint8_t *msg = (uint8_t *)Malloc(zcProtocol->head.length);
+
+    /* æŒ‰ç…§ å¤´ ã€æ•°æ®ã€ç»“å°¾çš„é¡ºåºå¼€å§‹å¯¹æŠ¥æ–‡è¿›è¡Œèµ‹å€¼ */
+    memcpy(msg, &zcProtocol->head, sizeof(zcProtocol->head));
+
+    memcpy(msg + ZC_HEAD_LEN, data, dataLen);   // å¤åˆ¶æ•°æ®åŸŸ
+
+    msg[zcProtocol->head.length - 2] = ZcProtocol_GetCrc(msg, zcProtocol->head.length); // å¡«å……CRC
+    msg[zcProtocol->head.length - 1] = ZC_END;                                          //å¡«å……ç»“æŸå­—ç¬¦
+
+    return msg;
+}
+
+/*********************************************************************************************
+
+  * @brief  åè®®æ£€æŸ¥ï¼Œ
+  * @param  
+  * @retval è¿”å›åè®®æŒ‡é’ˆ
+  * @remark æ£€æŸ¥åè®®å¤´ã€å°¾ä»¥åŠCRCç­‰
+
+  ********************************************************************************************/
+ZcProtocol *ZcProtocol_Check(uint8_t *message, uint16_t length)
+{
+    if (length < ZC_UNDATA_LEN)
+    {   return NULL;    }
+
+    ZcProtocol *protocol = (ZcProtocol *)message; // è·å–åè®®ç»“æ„æŒ‡é’ˆ
+    ZcProtocolEnd *tail = (ZcProtocolEnd *)(message + protocol->head.length - 2);
+
+    /* é¦–å°¾åˆ¤æ–­ */
+    if (protocol->head.head != ZC_HEAD || tail->end != ZC_END)
+    {   return NULL;    }
+
+#ifndef DEBUG
+    /* CRCåˆ¤æ–­ */
+    if (tail->crc != ZcProtocol_GetCrc(message, protocol->head.length))
+    {   return NULL;    }
+#endif
+
+    return protocol;
+}
+
+/*********************************************************************************************
+
+  * @brief  åè®®è·å–CRC
+  * @param  message:  æŠ¥æ–‡æŒ‡é’ˆ
+            lengthï¼šæŠ¥æ–‡é•¿åº¦
+  * @retval ä¸€ä¸ªå­—èŠ‚çš„crc
+  * @remark 
+
+  ********************************************************************************************/
+uint8_t ZcProtocol_GetCrc(uint8_t *message, uint16_t length)
+{
+    uint8_t crc = 0;
+    for (uint16_t i = 0; i < (length - 2); i++) //å¡«å……CRC
+    {   crc += message[i];  }
+
+    crc ^= 0xFF;
+
+    return crc;
 }
 /*********************************************************************************************
 
-  * @brief  ×¾³ÏĞ­Òé=¡·Ğ­ÒéÊµÀıID×ÔÔö
+  * @brief  åè®®åˆå§‹åŒ–
+  * @param  DeviceTypeï¼šè®¾å¤‡ç±»å‹
+            addressï¼šè®¾å¤‡åœ°å€æŒ‡é’ˆ
+  * @retval 
+  * @remark åœ¨ç¨‹åºåˆå§‹åŒ–æ—¶ï¼Œéœ€è¦å°†åè®®å®ä¾‹è¿›è¡Œåˆå§‹åŒ–
+
+  ********************************************************************************************/
+void ZcProtocol_InstanceInit(uint8_t DeviceType, uint8_t *address, uint8_t startId)
+{
+    zcPrtc.head.head = 0x68;
+    zcPrtc.head.control = DeviceType;
+    zcPrtc.head.id = startId; // 0æ˜¯é¢„ç•™ç»™æ— çº¿è®¾å¤‡è¯·æ±‚
+    zcPrtc.head.timestamp = 0;
+
+    memcpy(zcPrtc.head.address, address, 7); //å¤åˆ¶7å­—èŠ‚åœ°å€ï¼Œåœ¨äº§å“å®é™…è¿ç”¨åï¼Œåœ°å€æ˜¯ä¸ä¼šæ”¹å˜çš„ï¼ˆè·Ÿå¾®ä¿¡æŒ‚é’©ï¼‰
+}
+/*********************************************************************************************
+
+  * @brief  æ‹™è¯šåè®®=ã€‹åè®®å®ä¾‹IDè‡ªå¢
   * @param  
   * @retval 
-  * @remark 0Ô¤Áô¸øÆäËûÉè±¸
+  * @remark 0é¢„ç•™ç»™å…¶ä»–è®¾å¤‡
 
   ********************************************************************************************/
 void ZcProtocol_HeadIdIncrease()
 {
-  zcPrtc.head.id ++;
-  if(zcPrtc.head.id == 0)
-  { zcPrtc.head.id = 1; }
+    zcPrtc.head.id++;
+    if (zcPrtc.head.id == 0)
+    {   zcPrtc.head.id = 1; }
 }
 /*********************************************************************************************
 
-  * @brief  ×¾³ÏĞ­Òé ·¢ËÍÇëÇó
-  * @param  communicate£ºÍ¨Ñ¶½á¹¹Ìå¶ÔÏó
-            cmd: ÃüÁî×Ö
-            data:  ±¨ÎÄÖ¸Õë
-            dataLen£º±¨ÎÄ³¤¶È
-            isUpdateId£ºÊÇ·ñĞèÒª¸üĞÂID
-            txMode£º·¢ËÍÄ£Ê½
-  * @retval ¸ÃÇëÇóÃüÁîµÄid
-  * @remark Í¨¹ıÊäÈëÃüÁîÒÔ¼°Êı¾İ£¬²¢ÌîĞ´µ½·¢ËÍ»º³åµ±ÖĞ
+  * @brief  æ‹™è¯šåè®® å‘é€è¯·æ±‚
+  * @param  communicateï¼šé€šè®¯ç»“æ„ä½“å¯¹è±¡
+            cmd: å‘½ä»¤å­—
+            data:  æŠ¥æ–‡æŒ‡é’ˆ
+            dataLenï¼šæŠ¥æ–‡é•¿åº¦
+            isUpdateIdï¼šæ˜¯å¦éœ€è¦æ›´æ–°ID
+            txModeï¼šå‘é€æ¨¡å¼
+  * @retval è¯¥è¯·æ±‚å‘½ä»¤çš„id
+  * @remark é€šè¿‡è¾“å…¥å‘½ä»¤ä»¥åŠæ•°æ®ï¼Œå¹¶å¡«å†™åˆ°å‘é€ç¼“å†²å½“ä¸­
 
   ********************************************************************************************/
-uint8_t ZcProtocol_Request(CommunicateStruct *communicate, uint8_t cmd, uint8_t *data, uint16_t dataLen, BoolEnum isUpdateId, TxModeEnum txMode)
+uint8_t ZcProtocol_Request(CommunicateStruct *communicate, uint8_t cmd, uint8_t *data, uint16_t dataLen, bool isUpdateId, uint8_t txMode)
 {
-  char* httpMsg;
-  ArrayStruct *msg;
-  uint8_t temp8 = 0;
-  
-    /* È¡Ò»¸öĞÂID */
-  if(isUpdateId == TRUE)
-  { ZcProtocol_HeadIdIncrease(); }
-  temp8 = zcPrtc.head.id;
-  
-  zcPrtc.head.timestamp = timeStamp;      //¸üĞÂÊ±¼ä´Á
-  zcPrtc.head.cmd = cmd;
-  
-  /* ¸ù¾İ²»Í¬µÄÔ´£¬½øĞĞ²»Í¬µÄ·¢ËÍ´¦Àí */
-  switch(communicate->medium)
-  {
-  // ÍøÂçÍ¨Ñ¶·½Ê½£¬ĞèÒªÌí¼ÓGET·½Ê½µÄÍ·£¬²¢ÇÒ°ÑHEX×ª»»ÎªBCD
-  case COM_NET:
-    httpMsg = ZcProtocol_ConvertHttpString(&zcPrtc, data, dataLen);         //×ª»»ÎªHTTPĞ­Òé£¬
-    TxQueue_AddWithId(communicate->txQueue, 
-                      (uint8_t*)httpMsg, 
-                      strlen(httpMsg), 
-                      txMode,
-                      zcPrtc.head.id);  
-    Free(httpMsg);
-    break;
-    
-  // ÓĞÏß¡¢ÎŞÏßÍ¨Ñ¶·½Ê½£¬²»ĞèÒª¶ÔĞ­Òé½øĞĞĞŞÕıÌí¼ÓµÈ²Ù×÷ 
-  case COM_24G:
-  case COM_485:
-    msg = ZcProtocol_ConvertMsg(&zcPrtc, data ,dataLen);
-    TxQueue_AddWithId(communicate->txQueue, 
-                      msg->packet, 
-                      msg->length, 
-                      txMode,
-                      zcPrtc.head.id);  
-    Array_Free(msg);
-    break;
-  }
-  
-  /* È¡Ò»¸öĞÂID */
-  if(isUpdateId == TRUE)
-  { ZcProtocol_HeadIdIncrease(); } 
-  
-  return temp8;
+    uint8_t *msg;
+    uint8_t temp8u;
+
+    /* å–ä¸€ä¸ªæ–°ID */
+    if (isUpdateId == true)
+    {   ZcProtocol_HeadIdIncrease();    }
+    temp8u = zcPrtc.head.id;
+
+    zcPrtc.head.timestamp = timeStamp; //æ›´æ–°æ—¶é—´æˆ³
+    zcPrtc.head.cmd = cmd;
+
+    msg = ZcProtocol_ConvertMsg(&zcPrtc, data, dataLen);
+    TxQueue_AddWithId(communicate->txQueue, msg, msg[3], txMode | TX_FLAG_IS_MALLOC, zcPrtc.head.id);
+
+    /* å–ä¸€ä¸ªæ–°ID */
+    if (isUpdateId == true)
+    {   ZcProtocol_HeadIdIncrease();    }
+
+    return temp8u;
 }
 /*********************************************************************************************
 
-  * @brief  ×¾³ÏĞ­Òé »Ø¸´£¬ÔÚ½ÓÊÕµ½ÃüÁîºóµÄ»Ø¸´
-  * @param  communicate£ºÍ¨Ñ¶½á¹¹Ìå¶ÔÏó
-            zcProtocol£º½ÓÊÕ°üÖĞ½âÎö³öÀ´µÄÊı¾İ½á¹¹Ö¸Õë
-            data:  ±¨ÎÄÖ¸Õë
-            dataLen£º±¨ÎÄ³¤¶È
+  * @brief  æ‹™è¯šåè®® å›å¤ï¼Œåœ¨æ¥æ”¶åˆ°å‘½ä»¤åçš„å›å¤
+  * @param  communicateï¼šé€šè®¯ç»“æ„ä½“å¯¹è±¡
+            zcProtocolï¼šæ¥æ”¶åŒ…ä¸­è§£æå‡ºæ¥çš„æ•°æ®ç»“æ„æŒ‡é’ˆ
+            data:  æŠ¥æ–‡æŒ‡é’ˆ
+            dataLenï¼šæŠ¥æ–‡é•¿åº¦
   * @retval 
-  * @remark ÓëÇëÇó²»Í¬£¬»Ø¸´Ò»°ãÊÇÓÃÇëÇóµÄID¡¢CMDµÈ£¬½ö½öÊÇÊı¾İ²¿·ÖÓĞÇø±ğ
+  * @remark ä¸è¯·æ±‚ä¸åŒï¼Œå›å¤ä¸€èˆ¬æ˜¯ç”¨è¯·æ±‚çš„IDã€CMDç­‰ï¼Œä»…ä»…æ˜¯æ•°æ®éƒ¨åˆ†æœ‰åŒºåˆ«
 
   ********************************************************************************************/
-void ZcProtocol_Response(CommunicateStruct *communicate, ZcProtocol *zcProtocol, uint8_t *data, uint16_t dataLen)
+void ZcProtocol_Response(CommunicateStruct *communicate, ZcProtocol *zcProtocol, uint8_t *data, uint16_t dataLen, uint8_t txMode)
 {
-  char* httpMsg;
-  ArrayStruct *msg;
-  
-  /* ¸ù¾İ²»Í¬µÄÔ´£¬½øĞĞ²»Í¬µÄ·¢ËÍ´¦Àí */
-  switch(communicate->medium)
-  {
-  // ÍøÂçÍ¨Ñ¶·½Ê½£¬ĞèÒªÌí¼ÓGET·½Ê½µÄÍ·£¬²¢ÇÒ°ÑHEX×ª»»ÎªBCD
-  case COM_NET:
-    httpMsg = ZcProtocol_ConvertHttpString(zcProtocol, data, dataLen);         //×ª»»ÎªHTTPĞ­Òé£¬
-    TxQueue_AddWithId(communicate->txQueue, 
-                      (uint8_t*)httpMsg, 
-                      strlen(httpMsg), 
-                      TX_MULTI_MC,
-                      zcProtocol->head.id);  
-    Free(httpMsg);
-    break;
-    
-  // ÓĞÏß¡¢ÎŞÏßÍ¨Ñ¶·½Ê½£¬²»ĞèÒª¶ÔĞ­Òé½øĞĞĞŞÕıÌí¼ÓµÈ²Ù×÷   
-  case COM_24G:
-  case COM_485:
-    msg = ZcProtocol_ConvertMsg(zcProtocol, data ,dataLen);
-    TxQueue_AddWithId(communicate->txQueue, 
-                      msg->packet, 
-                      msg->length, 
-                      TX_ONCE_AC,
-                      zcProtocol->head.id);  
-    Array_Free(msg);
-    break;
-  }
+    uint8_t *msg;
+
+    /* æ ¹æ®ä¸åŒçš„æºï¼Œè¿›è¡Œä¸åŒçš„å‘é€å¤„ç† */
+    msg = ZcProtocol_ConvertMsg(zcProtocol, data, dataLen);
+    TxQueue_AddWithId(communicate->txQueue, msg, msg[3], txMode | TX_FLAG_IS_MALLOC, zcProtocol->head.id);
 }
-
-/*********************************************************************************************
-
-  * @brief  ´íÎó´¦Àí
-  * @param  communicate£ºÍ¨Ñ¶½á¹¹Ìå¶ÔÏó
-            txMode£º·¢ËÍÄ£Ê½
-  * @retval 
-  * @remark µ±´íÎó±êÖ¾Î»Óë»º´æ²»Í¬Ê±£¬ÔòÉÏ´«´íÎó
-
-  ********************************************************************************************/
-void ZcError_Upload(CommunicateStruct *communicate, TxModeEnum txMode)
-{
-  if(zcError.flag != zcError.flagCache && timeStamp > 152000000)
-  {
-    /* Ïò·şÎñÆ÷·¢ËÍµ±Ç°¿ª¹Ø·§Ê±¼ä */
-    uint8_t *data = (uint8_t *)Malloc(8);
-    *(uint32_t *)(data + 0) = zcError.flag;
-    *(uint32_t *)(data + 4) = timeStamp;
-    
-    ZcProtocol_Request(communicate, ZC_CMD_ALARM, data, 8, TRUE, txMode);
-    Free(data);  
-
-    zcError.flagCache = zcError.flag;
-  }
-}
-

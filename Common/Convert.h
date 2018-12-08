@@ -2,29 +2,30 @@
 #define _CONVERT_H_
 
 /* Includes ------------------------------------------------------------------*/
-#include "../Sys_Conf.h"
-#include "Array.h"
+#include "../Module.h"
 
 /* Public typedef -----------------------------------------------------------*/
 /* Public define ------------------------------------------------------------*/
 typedef struct
 {
-  uint16_t year;
-  uint8_t month;
-  uint8_t day;
-  uint8_t hour;
-  uint8_t min;
-  uint8_t sec;
-}CalendarStruct;
+    uint16_t year;
+    uint8_t month;
+    uint8_t day;
+    uint8_t hour;
+    uint8_t min;
+    uint8_t sec;
+    uint32_t numOfDay;
+} CalendarStruct;
 /* Public macro --------------------------------------------------------------*/
 /* Public variables ----------------------------------------------------------*/
 /* Public function prototypes ------------------------------------------------*/
-ArrayStruct* String2Msg(char* string, uint16_t specifyLen);
-char* Msg2String(uint8_t *message, uint16_t length);
-char* Uint2String(uint32_t number);
-uint32_t NumberString2Uint(const char* numString);
-ArrayStruct* Number2Array(uint32_t number, BoolEnum isPositiveSequence);
-void EndianExchange(uint8_t* dst, uint8_t* src, uint8_t len);
+int String2Msg(uint8_t **dst, char *srcStr, uint16_t specifyLen);
+int Msg2String(char *dst, uint8_t *message, uint16_t length);
+int Uint2String(char *dst, uint32_t number);
+
+uint32_t NumberString2Uint(const char *numString);
+int Number2Array(uint8_t **dst, uint32_t number, bool isPositiveSequence);
+void EndianExchange(uint8_t *dst, uint8_t *src, uint8_t len);
 
 void TimeStamp2Calendar(uint32_t timeStamp, CalendarStruct *calendar, uint8_t timeZone);
 uint32_t Calendar2TimeStamp(CalendarStruct *calendar, uint8_t timeZone);

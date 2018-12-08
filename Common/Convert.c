@@ -2,9 +2,9 @@
 #include "stdlib.h"
 #include "string.h"
 #include "math.h"
+#include "stdio.h"
 
 #include "../Common/Malloc.h"
-#include "Array.h"
 #include "Convert.h"
 
 /* Private typedef -----------------------------------------------------------*/
@@ -14,263 +14,291 @@
 /* Private function prototypes ------------------------------------------------*/
 /*********************************************************************************************
 
-  * @brief  ¶ş½øÖÆ×ª×Ö·û
-  * @param  x£º¶ş½øÖÆbyte
-  * @remark µ¥×Ö½Ú×ª»»
+  * @brief  äºŒè¿›åˆ¶è½¬å­—ç¬¦
+  * @param  xï¼šäºŒè¿›åˆ¶byte
+  * @remark å•å­—èŠ‚è½¬æ¢
 
   ********************************************************************************************/
 char Hex2Char(uint8_t x)
 {
-  x &= 0x0F;
-  return (x > 9)? (0x41 + x - 10): (0x30 + x);
+    x &= 0x0F;
+    return (x > 9) ? (0x41 + x - 10) : (0x30 + x);
 }
 /*********************************************************************************************
 
-  * @brief  ×Ö·û×ª¶ş½øÖÆ
-  * @param  x£º×Ö·û
-  * @remark µ¥×Ö½Ú×ª»»
+  * @brief  å­—ç¬¦è½¬äºŒè¿›åˆ¶
+  * @param  xï¼šå­—ç¬¦
+  * @remark å•å­—èŠ‚è½¬æ¢
 
   ********************************************************************************************/
 uint8_t Char2Hex(char x)
 {
-  return (x > 0x40)? (x - 0x41 + 10): (x - 0x30);
+    return (x > 0x40) ? (x - 0x41 + 10) : (x - 0x30);
 }
 /*********************************************************************************************
 
-  * @brief  10µÄN´Î·½ÔËËã
-  * @param  x£º×Ö·û
-  * @remark µ¥×Ö½Ú×ª»»
+  * @brief  10çš„Næ¬¡æ–¹è¿ç®—
+  * @param  xï¼šå­—ç¬¦
+  * @remark å•å­—èŠ‚è½¬æ¢
 
   ********************************************************************************************/
 uint32_t Math_10nthPower(uint8_t nth)
 {
-  return (uint32_t)(pow(10, nth) + 0.2);
+    return (uint32_t)(pow(10, nth) + 0.2);
 }
 /*********************************************************************************************
 
-  * @brief  ×Ö·û´®×ª±¨ÎÄ
-  * @param  string£º×Ö·û´®
-  * @remark ×ª»»Íê³ÉµÄ±¨ÎÄÊı×é
+  * @brief  å­—ç¬¦ä¸²è½¬æŠ¥æ–‡
+  * @param  stringï¼šå­—ç¬¦ä¸²
+            specifyLenï¼šæŒ‡å®šé•¿åº¦
+            packetï¼šè½¬æ¢å®Œæˆçš„æ•°ç»„
+  * @remark è½¬æ¢å®Œæˆçš„æŠ¥æ–‡æ•°ç»„æŒ‡é’ˆï¼Œéœ€è¦é€šè¿‡Freeé‡Šæ”¾
 
   ********************************************************************************************/
-ArrayStruct* String2Msg(char* string, uint16_t specifyLen)
+int String2Msg(uint8_t **dst, char *srcStr, uint16_t specifyLen)
 {
-  uint16_t length = (specifyLen == 0)? strlen(string): specifyLen;
-  ArrayStruct* msg = Array_New(length / 2);
-  
-  for(uint16_t i=0; i<(length / 2); i++)
-  {
-    msg->packet[i] = 0;
-    msg->packet[i] |= Char2Hex(string[i * 2]) << 4;
-    msg->packet[i] |= Char2Hex(string[i * 2 + 1]);
-  }
-  
-  return msg;
+    int length = (specifyLen == 0) ? strlen(srcStr) : specifyLen;
+    uint8_t *msg = (uint8_t *)Malloc(length / 2);
+
+    for (uint16_t i = 0; i < (length / 2); i++)
+    {
+        msg[i] = 0;
+        msg[i] |= Char2Hex(srcStr[i * 2]) << 4;
+        msg[i] |= Char2Hex(srcStr[i * 2 + 1]);
+    }
+
+    *dst = msg;
+    return (length / 2);
 }
 /*********************************************************************************************
 
-  * @brief  ±¨ÎÄ×ª×Ö·û´®
-  * @param  message£º±¨ÎÄÖ¸Õë
-            length£º³¤¶È
-  * @retval ×ª»»Íê³ÉµÄ×Ö·û´®
+  * @brief  æŠ¥æ–‡è½¬å­—ç¬¦ä¸²
+  * @param  dstï¼šç›®çš„å­—ç¬¦ä¸²
+            messageï¼šæŠ¥æ–‡æŒ‡é’ˆ
+            lengthï¼šé•¿åº¦
+  * @retval å­—ç¬¦ä¸²é•¿åº¦
   * @remark 
 
   ********************************************************************************************/
-char* Msg2String(uint8_t *message, uint16_t length)
+int Msg2String(char *dst, uint8_t *message, uint16_t length)
 {
-  char *string = (char*)Malloc(length * 2 + 1);
-  
-  for(uint8_t i=0; i<length; i++)
-  {
-    string[i * 2] = Hex2Char(message[i] >> 4);
-    string[i * 2 + 1] = Hex2Char(message[i] & 0x0F);
-  }
-  
-  string[length * 2] = 0;  //½áÊø·û
-  
-  return string;
-}
-/*********************************************************************************************
-
-  * @brief  ×Ö·û´®Êı×Ö×ª»»ÎªÎŞ·ûºÅÕûÊı
-  * @param  numString£ºÊı×Ö×Ö·û´®
-  * @retval ¼ÆËãÍê³ÉµÄÎŞ·ûºÅÊı
-  * @remark 
-
-  ********************************************************************************************/
-uint32_t NumberString2Uint(const char* numString)
-{
-  uint32_t temp32u = 0;
-  uint8_t len = strlen(numString);
-  
-  for(uint8_t i=0; i<len; i++)
-  { temp32u += (*(uint8_t *)(numString + i) - 0x30) * Math_10nthPower(len - 1 - i); }
-  
-  return temp32u;
-}
-/*********************************************************************************************
-
-  * @brief  uint×ª×Ö·û´®
-  * @param  number Êı×Ö
-  * @retval ×ª»»Íê³ÉµÄ×Ö·û´®
-  * @remark 
-
-  ********************************************************************************************/
-char* Uint2String(uint32_t number)
-{
-  uint8_t len = (uint8_t)log10((double)number) + 1;
-  uint32_t temp = 0;
-  
-  /* ÉêÇëÄÚ´æ×¼±¸·ÅÖÃ×Ö·û´® */ 
-  char *numString = (char*)Malloc(len + 1);     // ÉêÇë¶ÔÓ¦ÄÚ´æ
-  memset(numString, 0, len + 1);        // È«²¿ÖÃÁã
-  
-  /* ×Ö·û´®¸³Öµ */
-  temp = number;        // »º´ænumber
-  for(uint8_t i=0; i<len; i++)
-  {
-    numString[i] = Hex2Char(temp / (int)Math_10nthPower(len - 1 - i));  // ×î¸ßÎ»¿ªÊ¼×ª»»
-    temp = temp % (int)Math_10nthPower(len - 1 - i);                    // ¼ÇÂ¼Ê£ÓàÖµ
-  }
-  
-  return numString;
-}
-/*********************************************************************************************
-
-  * @brief  Êı×Ö×ª»»ÎªÊı×Ö 4321 => {4,3,2,1}
-  * @param  number£ºĞèÒª×ª»»µÄÊı×Ö
-            isPositiveSequence£ºÊÇ·ñÎªÕıĞò£¬4321 => {4,3,2,1} µ¹Ğò {1,2,3,4}
-  * @retval ¸ù¾İÊı¾İ×ª»»ÎªÊı×é
-  * @remark 
-
-  ********************************************************************************************/
-ArrayStruct* Number2Array(uint32_t number, BoolEnum isPositiveSequence)
-{
-  uint8_t powIndex = (uint8_t)log10(number);
-  uint32_t temp32 = number;
-  uint32_t remain = 0;
-  
-  /* ÉêÇëÄÚ´æ²¢Ìî³ä */
-  ArrayStruct* numArray = Array_New(powIndex + 1);     // ÉêÇë¶ÔÓ¦ÄÚ´æ
-  
-  for(int8_t i=powIndex; i>=0; i--)
-  {
-    if(isPositiveSequence == TRUE)
-    { numArray->packet[powIndex - i] = temp32 / Math_10nthPower(i); }
-    else
-    { numArray->packet[i] = temp32 / Math_10nthPower(i); }
+    int index = 0, i = 0;
     
-    remain = Math_10nthPower(i);      // pow·µ»Ø¸¡µãÊı£¬ÓĞ¿ÉÄÜ99.999×ª»»Îª99£¬Ôò¼Ó0.1±£Ö¤
-    temp32 %= remain;
-  }
-  
-  return numArray;
+    /* æ‰¾åˆ°å­—ç¬¦ä¸²æœ«å°¾ */
+    while(dst[index] != '\0')
+    {   index++;    }
+    
+    /* å¼€å§‹å¡«å…… */
+    for (i = 0; i < length; i++)
+    {
+        dst[i * 2 + index] = Hex2Char(message[i] >> 4);
+        dst[i * 2 + 1 + index] = Hex2Char(message[i] & 0x0F);
+    }
+
+    dst[index + i * 2] = '\0'; //ç»“æŸç¬¦
+
+    return (index + i * 2 - 1);
 }
 /*********************************************************************************************
 
-  * @brief  ×Ö½ÚË³Ğò»¥Ïà×ª»»
-  * @param  dst£ºÄ¿µÄÖ¸Õë
-  * @param  src£ºÔ´Ö¸Õë
-  * @param  len£º³¤¶È
+  * @brief  uintè½¬å­—ç¬¦ä¸²
+  * @param  dstï¼šç›®çš„å­—ç¬¦ä¸²
+            number æ•°å­—
+  * @retval å­—ç¬¦ä¸²é•¿åº¦
+  * @remark 
+
+  ********************************************************************************************/
+int Uint2String(char *dst, uint32_t number)
+{
+    int index = 0, i = 0;
+    int len = (uint8_t)log10((double)number) + 1;
+    uint32_t temp32u;
+    
+    /* æ‰¾åˆ°å­—ç¬¦ä¸²æœ«å°¾ */
+    while(dst[index] != '\0')
+    {   index++;    }
+
+    /* å­—ç¬¦ä¸²èµ‹å€¼ */
+    temp32u = number;                                                               // ç¼“å­˜number
+    for (i = 0; i < len; i++)
+    {
+        dst[i + index] = Hex2Char(temp32u / (int)Math_10nthPower(len - 1 - i));     // æœ€é«˜ä½å¼€å§‹è½¬æ¢
+        temp32u = temp32u % (int)Math_10nthPower(len - 1 - i);                      // è®°å½•å‰©ä½™å€¼
+    }
+
+    dst[index + i] = '\0'; //ç»“æŸç¬¦
+
+    return (index + i - 1);
+}
+/*********************************************************************************************
+
+  * @brief  å­—ç¬¦ä¸²æ•°å­—è½¬æ¢ä¸ºæ— ç¬¦å·æ•´æ•°
+  * @param  numStringï¼šæ•°å­—å­—ç¬¦ä¸²
+  * @retval è®¡ç®—å®Œæˆçš„æ— ç¬¦å·æ•°
+  * @remark 
+
+  ********************************************************************************************/
+uint32_t NumberString2Uint(const char *numString)
+{
+    uint32_t temp32u = 0;
+    uint8_t len = strlen(numString);
+
+    for (uint8_t i = 0; i < len; i++)
+    {
+        temp32u += (*(uint8_t *)(numString + i) - 0x30) * Math_10nthPower(len - 1 - i);
+    }
+
+    return temp32u;
+}
+
+/*********************************************************************************************
+
+  * @brief  æ•°å­—è½¬æ¢ä¸ºæ•°å­— 4321 => {4,3,2,1}
+  * @param  dstï¼šå­˜æ”¾è¯¥æ•°å­—çš„æ•°ç»„æŒ‡é’ˆ
+            numberï¼šéœ€è¦è½¬æ¢çš„æ•°å­—
+            isPositiveSequenceï¼šæ˜¯å¦ä¸ºæ­£åºï¼Œ4321 => {4,3,2,1} å€’åº {1,2,3,4}
+  * @retval æ•°ç»„é•¿åº¦
+  * @remark 
+
+  ********************************************************************************************/
+int Number2Array(uint8_t **dst, uint32_t number, bool isPositiveSequence)
+{
+    uint8_t powIndex = (uint8_t)log10(number);
+    uint32_t temp32 = number;
+    uint32_t remain = 0;
+
+    /* ç”³è¯·å†…å­˜å¹¶å¡«å…… */
+    uint8_t *numArray = (uint8_t *)Malloc(powIndex + 1); // ç”³è¯·å¯¹åº”å†…å­˜
+
+    for (int8_t i = powIndex; i >= 0; i--)
+    {
+        if (isPositiveSequence == true)
+        {   numArray[powIndex - i] = temp32 / Math_10nthPower(i);   }
+        else
+        {   numArray[i] = temp32 / Math_10nthPower(i);  }
+
+        remain = Math_10nthPower(i); // powè¿”å›æµ®ç‚¹æ•°ï¼Œæœ‰å¯èƒ½99.999è½¬æ¢ä¸º99ï¼Œåˆ™åŠ 0.1ä¿è¯
+        temp32 %= remain;
+    }
+    
+    *dst = numArray;
+    return (powIndex + 1);
+}
+/*********************************************************************************************
+
+  * @brief  å­—èŠ‚é¡ºåºäº’ç›¸è½¬æ¢
+  * @param  dstï¼šç›®çš„æŒ‡é’ˆ
+  * @param  srcï¼šæºæŒ‡é’ˆ
+  * @param  lenï¼šé•¿åº¦
   * @retval 
   * @remark 
 
   ********************************************************************************************/
-void EndianExchange(uint8_t* dst, uint8_t* src, uint8_t len)
+void EndianExchange(uint8_t *dst, uint8_t *src, uint8_t len)
 {
-  for(uint8_t i=0; i<len; i++)
-  { dst[i] = src[len - i - 1]; }
+    for (uint8_t i = 0; i < len; i++)
+    {
+        dst[i] = src[len - i - 1];
+    }
 }
 /*********************************************************************************************
 
-  * @brief  Ê±¼ä´Á×ªÈÕÀú
-  * @param  timeStamp£ºÊ±¼ä´Á
-  * @param  calendar£ºÈÕÀúÖ¸Õë
-            timeZone£ºÊ±Çø
+  * @brief  æ—¶é—´æˆ³è½¬æ—¥å†
+  * @param  timeStampï¼šæ—¶é—´æˆ³
+  * @param  calendarï¼šæ—¥å†æŒ‡é’ˆ
+            timeZoneï¼šæ—¶åŒº
   * @retval 
   * @remark 
 
   ********************************************************************************************/
 void TimeStamp2Calendar(uint32_t timeStamp, CalendarStruct *calendar, uint8_t timeZone)
 {
-  timeStamp += timeZone * 3600L;
-  uint32_t daySec = 3600L * 24L;
-  uint32_t days = timeStamp / daySec;
-  uint32_t secs = timeStamp % daySec;
-  uint16_t years4List[4] = {365, 365, 366, 365};
-  uint8_t monthList[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-  uint8_t i=0;
-  
-  uint16_t remainDays = days % 1461;            // 4ÄêÖ®ÄÚµÄ
-  
-  calendar->year = 1970 + (days / 1461) * 4;
-  
-  /************** Äê·İ¼ÆËã **************/
-  for(i=0; i<4; i++)
-  {
-    if(remainDays <= years4List[i])
+    timeStamp += timeZone * 3600L;
+    uint32_t daySec = 3600L * 24L;
+    calendar->numOfDay = timeStamp / daySec;
+    uint32_t secs = timeStamp % daySec;
+    uint16_t years4List[4] = {365, 365, 366, 365};
+    uint8_t monthList[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+    uint8_t i = 0;
+
+    uint16_t remainDays = calendar->numOfDay % 1461; // 4å¹´ä¹‹å†…çš„
+
+    calendar->year = 1970 + (calendar->numOfDay / 1461) * 4;
+
+    /************** å¹´ä»½è®¡ç®— **************/
+    for (i = 0; i < 4; i++)
     {
-      calendar->year += i;              // ÄêÔö¼Ó
-      if(i == 2)
-      { monthList[1] += 1; }               // ÈòÔÂ¶şÔÂ¼ÓÒ»Ìì
-      break;
+        if (remainDays <= years4List[i])
+        {
+            calendar->year += i; // å¹´å¢åŠ 
+            if (i == 2)
+            {
+                monthList[1] += 1;
+            } // é—°æœˆäºŒæœˆåŠ ä¸€å¤©
+            break;
+        }
+        remainDays -= years4List[i];
     }
-    remainDays -= years4List[i];        
-  }
-  
-  /************** ÔÂÈÕ¼ÆËã **************/
-  for(i=0; i<12; i++)
-  {
-    if(remainDays <= monthList[i])
+
+    /************** æœˆæ—¥è®¡ç®— **************/
+    for (i = 0; i < 12; i++)
     {
-      calendar->month = i + 1;
-      calendar->day = remainDays + 1;
-      break;
+        if (remainDays <= monthList[i])
+        {
+            calendar->month = i + 1;
+            calendar->day = remainDays + 1;
+            break;
+        }
+        remainDays -= monthList[i];
     }
-    remainDays -= monthList[i];
-  }
-  
-  calendar->hour = secs / 3600;
-  calendar->min = (secs % 3600) / 60;
-  calendar->sec = secs % 60;
+
+    calendar->hour = secs / 3600;
+    calendar->min = (secs % 3600) / 60;
+    calendar->sec = secs % 60;
 }
 /*********************************************************************************************
 
-  * @brief  ÈÕÀú×ªÊ±¼ä´Á
-  * @param  calendar£ºÈÕÀúÖ¸Õë
-            timeZone£ºÊ±Çø
+  * @brief  æ—¥å†è½¬æ—¶é—´æˆ³
+  * @param  calendarï¼šæ—¥å†æŒ‡é’ˆ
+            timeZoneï¼šæ—¶åŒº
   * @retval 
   * @remark 
 
   ********************************************************************************************/
 uint32_t Calendar2TimeStamp(CalendarStruct *calendar, uint8_t timeZone)
 {
-  uint32_t temp32u = 0;
-  uint8_t i=0;
-  uint16_t years4List[4] = {365, 365, 366, 365};
-  uint8_t monthList[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
-  
-  uint8_t temp8u = (calendar->year - 1970L) / 4;
-  temp32u += temp8u * 1461L;
-  temp8u = (calendar->year - 1970L) % 4;
-  for(i=0; i<temp8u; i++)
-  { temp32u += years4List[i]; }
-  
-  if(temp8u == 2)
-  { monthList[1] += 1; }
-  
-  for(i=0; i<(calendar->month - 1); i++)
-  { temp32u += monthList[i];}
-  
-  temp32u += (calendar->day - 1);
-  
-  temp32u *= 24L * 3600L;
-  
-  temp32u += calendar->hour * 3600L;
-  temp32u += calendar->min * 60L;
-  temp32u += calendar->sec;
-  
-  temp32u -= timeZone * 3600L;
-  
-  return temp32u;
+    uint32_t temp32u = 0;
+    uint8_t i = 0;
+    uint16_t years4List[4] = {365, 365, 366, 365};
+    uint8_t monthList[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+
+    uint8_t temp8u = (calendar->year - 1970L) / 4;
+    temp32u += temp8u * 1461L;
+    temp8u = (calendar->year - 1970L) % 4;
+    for (i = 0; i < temp8u; i++)
+    {
+        temp32u += years4List[i];
+    }
+
+    if (temp8u == 2)
+    {
+        monthList[1] += 1;
+    }
+
+    for (i = 0; i < (calendar->month - 1); i++)
+    {
+        temp32u += monthList[i];
+    }
+
+    temp32u += (calendar->day - 1);
+
+    temp32u *= 24L * 3600L;
+
+    temp32u += calendar->hour * 3600L;
+    temp32u += calendar->min * 60L;
+    temp32u += calendar->sec;
+
+    temp32u -= timeZone * 3600L;
+
+    return temp32u;
 }

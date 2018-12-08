@@ -1,19 +1,25 @@
 #ifndef _ESP8266_HAL_H_
 #define _ESP8266_HAL_H_
 
-/* Includes ------------------------------------------------------------------*/
-#include "../BufferQueue/BufferQueue.h"
-#include "../Sys_Conf.h"
+/* Includes -----------------------------------------------------------*/
+#include "../Module.h"
+#include "HAL/HAL.h"
 
-/* Public typedef ------------------------------------------------------------*/
-/* Public define -------------------------------------------------------------*/
+/* typedef ------------------------------------------------------------*/
+/* define -------------------------------------------------------------*/
+/* macro --------------------------------------------------------------*/
 
+#define EPS8266_POWER_IS_ON()   ((GPIO_getOutputPinValue(COM_POWER_PORT, COM_POWER_PIN) == 0)? true : false)
+#define ESP8266_POWER_ON()      GPIO_setOutputLowOnPin(COM_POWER_PORT, COM_POWER_PIN)
+#define ESP8266_POWER_OFF()     GPIO_setOutputHigOnPin(COM_POWER_PORT, COM_POWER_PIN)
 
-/* Public macro --------------------------------------------------------------*/
-/* Public variables ----------------------------------------------------------*/
-/* Public function prototypes ------------------------------------------------*/
-BoolEnum ESP8266_HalTrans(uint8_t *data, uint16_t length);
-void ESP8266_Reset();
-void ESP8266_UART(BoolEnum isOn);
+#define ESP8266_RST_ENABLE()    GPIO_setOutputLowOnPin(COM_RESET_PORT, COM_RESET_PIN)
+#define ESP8266_RST_DISABLE()   GPIO_setOutputHighOnPin(COM_RESET_PORT, COM_RESET_PIN)
+
+#define ESP8266_UART_ENABLE()   EUSCI_A_UART_enable(COM_UART_BASE_ADDR)
+#define ESP8266_UART_DISABLE()  EUSCI_A_UART_disable(COM_UART_BASE_ADDR)
+
+/* variables ----------------------------------------------------------*/
+/* function prototypes ------------------------------------------------*/
 
 #endif

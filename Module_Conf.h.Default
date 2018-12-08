@@ -1,37 +1,39 @@
-#ifndef _SYS_CONF_H_
-#define _SYS_CONF_H_
+#ifndef _MODULE_CONF_H_
+#define _MODULE_CONF_H_
 
 /* Includes ------------------------------------------------------------------*/
-#include "stm32f0xx_hal.h"
+#include "driverlib.h"
 #include "stdint.h"
-#include "main.h"
+#include "string.h"
+#include "stdlib.h"
+#include "stdbool.h"
+#include "Time.h"
 
 /* Public typedef ------------------------------------------------------------*/
 typedef enum
 {
-  FALSE = 0,
-  TRUE = 1
-}BoolEnum;
-
-typedef enum
-{
-  Process_Init = 0,
-  Process_Idle,
-  Process_Start,
-  Process_Run,
-  Process_Finish,
-  Process_Wait,
-}ProcessEnum;
-
+    Process_Init = 0,
+    Process_Idle,
+    Process_Start,
+    Process_Run,
+    Process_Finish,
+    Process_LongWait,
+    Process_Wait,
+    Process_Reset,
+    Process_ResetWait,
+    Process_OrderAt,
+    Process_OrderAtWait,
+} ProcessEnum;
 /* Public variables ----------------------------------------------------------*/
-extern uint32_t realTimeCounter,uwTick,timeStampCounter;
+extern uint32_t realTimeCounter, sysTimeCounter, timeStampCounter;
 
 /* Public define -------------------------------------------------------------*/
-#define sysTime uwTick
+#define sysTime sysTimeCounter
+//#define realTime (*(uint32_t *)(0x4B0))
 #define realTime realTimeCounter
 #define timeStamp timeStampCounter
 
-//#define DEBUG   1       
+#define DEBUG 1
 
 /* Public macro --------------------------------------------------------------*/
 /* Public function prototypes ------------------------------------------------*/

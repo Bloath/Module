@@ -5,8 +5,8 @@
 #include "Malloc.h"
 #include "Delay.h"
 #include "Convert.h"
-#include "Array.h"
 #include "StringPlus.h"
+#include "ArrayMacro.h"
 
 /* Public define -------------------------------------------------------------*/
 /* Public macro --------------------------------------------------------------*/

@@ -2,39 +2,47 @@
 #define _COMMUNICATE_API_H_
 
 /* Includes ------------------------------------------------------------------*/
-#include "../Sys_Conf.h"
-#include "../BufferQueue/BufferQueue.h"
+#include "../Module_Conf.h"
+#include "../DataStruct/DataStruct.h"
+
 /* Public typedef -----------------------------------------------------------*/
 typedef enum
 {
-  COM_NET = 0,
-  COM_485,
-  COM_24G,
-  COM_NB
-}CommunicateMediumEnum;
+    COM_NET = 0,
+    COM_485,
+    COM_24G,
+    COM_NBIOT
+} CommunicateMediumEnum;
 
-typedef struct
+typedef struct __communicate
 {
-  /* Ä¬ÈÏÏî²ÎÊı */
-  uint32_t time;                // ¼ÇÂ¼Ê±¼ä
-  ProcessEnum process;          // Á÷³Ì
-  
-  /* ÊÖ¶¯ÉèÖÃÏî */
-  CommunicateMediumEnum medium; // Í¨Ñ¶½éÖÊ
-  BoolEnum isFullDuplex;        // ÊÇ·ñÈ«Ë«¹¤
-  BoolEnum isHDMaster;          // °ëË«¹¤-Ö÷»ú 
-  TxQueueStruct *txQueue;       // ·¢ËÍ»º³å£¬ÒµÎñ²ã ÔÚ½øĞĞÒµÎñ´¦Àíºó£¬½«ĞèÒª´¦ÀíµÄÒµÎñÖ±½ÓÌî³äµ½¸Ã»º³åÖĞ(²»¶ÏÑ­»·)
-  RxQueueStruct *rxQueue;       // ½ÓÊÕ»º³å£¬ÒµÎñ²ã RxQueue_Handle(communicate->rxQueue, Communicate_RxHandle, (void*)communicate); 
-  uint16_t loopInterval;        // ÂÖÑ¯Ê±¼ä£¨°ëË«¹¤ÓĞĞ§£©
-  uint32_t *refTime;            // ²Î¿¼Ê±¼ä£¬ÎªÏµÍ³Ê±¼ä(sysTime)»¹ÊÇÕæÊµÊ±¼ä(realTime) ==£¨°ëË«¹¤ÓĞĞ§£©
-  
-  BoolEnum (*CallBack_TxFunc)(uint8_t*, uint16_t);                  // ÒµÎñ²ã·¢ËÍ´¦Àíº¯Êı
-}CommunicateStruct;
+    /* é»˜è®¤é¡¹å‚æ•° */
+    uint32_t time;                  // è®°å½•æ—¶é—´
+    ProcessEnum process;            // æµç¨‹
+
+    /* æ‰‹åŠ¨è®¾ç½®é¡¹ */
+    CommunicateMediumEnum medium; // é€šè®¯ä»‹è´¨
+    uint8_t attribute;            // å±æ€§ï¼Œé»˜è®¤ä¸ºå…¨åŒå·¥
+    TxQueueStruct *txQueue;       // å‘é€ç¼“å†²ï¼Œä¸šåŠ¡å±‚ åœ¨è¿›è¡Œä¸šåŠ¡å¤„ç†åï¼Œå°†éœ€è¦å¤„ç†çš„ä¸šåŠ¡ç›´æ¥å¡«å……åˆ°è¯¥ç¼“å†²ä¸­(ä¸æ–­å¾ªç¯)
+    RxQueueStruct *rxQueue;       // æ¥æ”¶ç¼“å†²ï¼Œä¸šåŠ¡å±‚ RxQueue_Handle(communicate->rxQueue, Communicate_RxHandle, (void*)communicate);
+    uint16_t loopInterval;        // è½®è¯¢æ—¶é—´ï¼ˆåŠåŒå·¥å®¢æˆ·ç«¯æœ‰æ•ˆï¼ŒCOM_ATTR_POLL_MCæ— æ•ˆï¼‰
+    uint32_t *refTime;            // å‚è€ƒæ—¶é—´ï¼Œä¸ºç³»ç»Ÿæ—¶é—´(sysTime)è¿˜æ˜¯çœŸå®æ—¶é—´(realTime) ==ï¼ˆåŠåŒå·¥å®¢æˆ·ç«¯æœ‰æ•ˆï¼ŒCOM_ATTR_POLL_MCæ— æ•ˆï¼‰
+
+    /* å›è°ƒ */
+    bool (*CallBack_TxFunc)(uint8_t *, uint16_t);                   // ä¸šåŠ¡å±‚å‘é€å¤„ç†å‡½æ•°
+    void *txFuncParam;                                              // å‘é€å‡½æ•°å›è°ƒå‚æ•°ï¼ˆç”¨äºå°åŒ…ï¼‰
+    void (*CallBack_RxHandleFunc)(uint8_t *, uint16_t, void*);      // ä¸šåŠ¡å±‚æ¥æ”¶å¤„ç†å‡½æ•°ï¼Œ paramä¸ºcommunicateæœ¬èº«
+    void (*CallBack_FillHoldMsg)(struct __communicate *);           // å¡«å……ç©ºé—²æŠ¥æ–‡å‡½æ•°ï¼ŒåŠåŒå·¥å®¢æˆ·ç«¯ä½¿ç”¨ï¼Œå…¶ä»–æ— è§†
+} CommunicateStruct;
 
 /* Public define ------------------------------------------------------------*/
+#define COM_ATTR_FD (1<<0)          // å…¨åŒå·¥
+#define COM_ATTR_HD_CLINET (1<<1)   // åŠåŒå·¥å®¢æˆ·ç«¯ï¼Œé»˜è®¤ä¸ºåŠåŒå·¥æœåŠ¡å™¨
+#define COM_ATTR_POLL_MNL (1<<2)    // æ‰‹åŠ¨å¤„ç†è½®è¯¢ï¼ˆonly for åŠåŒå·¥å®¢æˆ·ç«¯ï¼‰
+
 /* Public macro --------------------------------------------------------------*/
 /* Public variables ----------------------------------------------------------*/
 /* Public function prototypes ------------------------------------------------*/
 void Communicate_Handle(CommunicateStruct *communicate);
 
-#endif 
+#endif

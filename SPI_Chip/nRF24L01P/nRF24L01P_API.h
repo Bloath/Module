@@ -11,8 +11,8 @@
 #define	CE        P14             // Chip Enable pin signal (output)
 #define	IRQ       P11             // Interrupt signal, from nRF24L01 (input)
 
-#define ADR_WIDTH   5  				// 5×Ö½Ú¿í¶ÈµÄ·¢ËÍ/½ÓÊÕµØÖ·
-#define PLOAD_WIDTH 32  			// Êı¾İÍ¨µÀÓĞĞ§Êı¾İ¿í¶È
+#define ADR_WIDTH   5  				// 5å­—èŠ‚å®½åº¦çš„å‘é€/æ¥æ”¶åœ°å€
+#define PLOAD_WIDTH 32  			// æ•°æ®é€šé“æœ‰æ•ˆæ•°æ®å®½åº¦
 
 //********************************************************************************************************************//
 // SPI(nRF24L01+) commands

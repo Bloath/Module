@@ -2,42 +2,64 @@
 #define _ZCPROTOCOL_API_H_
 
 /* Includes ------------------------------------------------------------------*/
-#include "../Sys_Conf.h"
-#include "../BufferQueue/BufferQueue.h"
-#include "../Communicate/Communicate_API.h"
-#include "ZcProtocol.h"
+#include "../Module_Conf.h"
+#include "ZcProtocol_Conf.h"
 
-/* Public typedef ------------------------------------------------------------*/
+/* typedef ------------------------------------------------------------*/
+typedef struct
+{
+    uint8_t head;
+    uint8_t id;
+    uint8_t control;
+    uint8_t length;
+    uint32_t timestamp;
+    uint8_t address[7];
+    uint8_t cmd;
+} ZcProtocolHead;
+
+typedef struct
+{
+    uint8_t crc;
+    uint8_t end;
+} ZcProtocolEnd;
+
+typedef struct
+{
+    ZcProtocolHead head;
+    uint8_t data[1];
+} ZcProtocol;
+
 typedef enum
 {
-  ZcHandleStatus_Init = 0,
-  ZcHandleStatus_PollInterval,
-  ZcHandleStatus_Trans,
-  ZcHandleStatus_Wait
-}ZcProtocolStatus;
+    ZcHandleStatus_Init = 0,
+    ZcHandleStatus_PollInterval,
+    ZcHandleStatus_Trans,
+    ZcHandleStatus_Wait
+} ZcProtocolStatus;
 
+/* define -------------------------------------------------------------*/
+#define ZC_HEAD 0x68
+#define ZC_END 0x16
 
-/* Public define -------------------------------------------------------------*/
-/* Public macro --------------------------------------------------------------*/
-/* Public variables ----------------------------------------------------------*/
+#define ZC_HEAD_LEN sizeof(ZcProtocolHead) //ç»“æ„ä½“é•¿åº¦æŒ‰ç…§ æœ€å®½ç±»å‹ çš„æ•´æ•°å€ï¼Œä¸ç¬¦åˆåˆ™å¡«å……
+#define ZC_END_LEN sizeof(ZcProtocolEnd)
+#define ZC_UNDATA_LEN (ZC_HEAD_LEN + ZC_END_LEN)
+#define ZC_DATA_LEN
+
+#define ZC_CMD_QUERY_HOLD 0x00     // æš‚å­˜
+#define ZC_CMD_FAIL 0xFE           // å¤±è´¥æŠ¥æ–‡
+#define ZC_CMD_SERVER_CONFIRM 0xFF // æœåŠ¡å™¨ç¡®è®¤æŠ¥æ–‡
+/* macro --------------------------------------------------------------*/
+/* variables ----------------------------------------------------------*/
 extern ZcProtocol zcPrtc;
-extern ZcErrorStruct zcError;
-/* Public function prototypes ------------------------------------------------*/
-void ZcProtocol_InstanceInit(uint8_t DeviceType, uint8_t* address, uint8_t startId);     //È«¾Ö±äÁ¿ZcPrtc³õÊ¼»¯£¬ÓÃÓÚĞ­ÒéÍ·²¿Ò»Ğ©³£ÓÃÊı¾İµÄĞ´Èë
 
-// Ö÷¶¯½øĞĞÉÏ´«´¦Àí£¬Ê¹ÓÃ¸Ãº¯Êı
-uint8_t ZcProtocol_Request(CommunicateStruct *communicate, 
-                           uint8_t cmd, 
-                           uint8_t *data, 
-                           uint16_t dataLen, 
-                           BoolEnum isUpdateId,
-                           TxModeEnum txMode);  
+/* function prototypes ------------------------------------------------*/
+void ZcProtocol_Init();
+uint8_t *ZcProtocol_ConvertMsg(ZcProtocol *zcProtocol, uint8_t *data, uint16_t dataLen);    //å°†å¤´éƒ¨å’Œæ•°æ®ç»„åˆï¼Œè½¬æ¢ä¸ºæŠ¥æ–‡
+ZcProtocol *ZcProtocol_Check(uint8_t *message, uint16_t length);
 
-// ÔÚ´¦Àí½ÓÊÕ±¨ÎÄÊ±£¬Ê¹ÓÃreponse½øĞĞ»Ø¸´
-void ZcProtocol_Response(CommunicateStruct *communicate, 
-                         ZcProtocol *zcProtocol, 
-                         uint8_t *data, uint16_t 
-                           dataLen);                                 
+void ZcProtocol_InstanceInit(uint8_t DeviceType, uint8_t *address, uint8_t startId);        //å…¨å±€å˜é‡ZcPrtcåˆå§‹åŒ–ï¼Œç”¨äºåè®®å¤´éƒ¨ä¸€äº›å¸¸ç”¨æ•°æ®çš„å†™å…¥
+uint8_t ZcProtocol_Request(CommunicateStruct *communicate, uint8_t cmd, uint8_t *data, uint16_t dataLen, bool isUpdateId, uint8_t txMode);
+void ZcProtocol_Response(CommunicateStruct *communicate, ZcProtocol *zcProtocol, uint8_t *data, uint16_t dataLen, uint8_t txMode);
 
-void ZcError_Upload(CommunicateStruct *communicate, TxModeEnum txMode);
 #endif

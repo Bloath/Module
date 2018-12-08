@@ -1,0 +1,88 @@
+#ifndef _ESP8266_API_H_
+#define _ESP8266_API_H_
+
+/* Includes ------------------------------------------------------------------*/
+#include "../Module_Conf.h"
+#include "../DataStruct/DataStruct.h"
+#include "ESP8266_Conf.h"
+#include "ESP8266_HAL.h"
+
+/* Public typedef ------------------------------------------------------------*/
+typedef enum
+{
+    Error_Timeout,
+    Error_CipSendError,
+    Error_ResponseError,
+    Error_TcpTimeout,
+    Error_AirKissError,
+    Error_NoAP,
+} ESP8266_Error;
+
+typedef enum
+{
+    ConnectStatus_Init = 0,
+    ConnectStatus_Idle,
+    ConnectStatus_Reset,
+    ConnectStatus_ResetWait,
+    ConnectStatus_ResetFinish,
+    ConnectStatus_AirKiss,
+    ConnectStatus_AirKissWait,
+    ConnectStatus_Connected,
+    ConnectStatus_WaitAck,
+} ESP8266_ConnectProcessEnum;
+
+typedef enum
+{
+    TcpStatus_Init,
+    TcpStatus_Connected,
+    TcpStatus_StartTrans,
+    TcpStatus_WaitAck,
+    TcpStatus_SendOk
+} ESP8266_TcpProcessEnum;
+
+typedef struct
+{
+    char *host;
+    char *port;
+    int (*CallBack_PacketLength)(uint16_t length, char *host, char *port);
+    char* (*CallBack_HttpPackage)(uint8_t *message, uint16_t length, char *host, char *port);
+}Esp8266HttpStruct;
+
+typedef struct
+{
+    ESP8266_ConnectProcessEnum conProcess;              // 连接流程，包括airkiss、查询是否连接等
+    ESP8266_TcpProcessEnum  tcpProcess;                 // TCP连接流程，建立TCP连接，发送数据
+    Esp8266HttpStruct http;                             // Http相关
+    
+    uint8_t tcpFailCounter;                             // 发送错误计数器，有可能网络不稳或延迟导致的
+    uint8_t flag;                                       // 标志位，表示当前模块状态
+    
+    TxQueueStruct *txQueueHal;                          // 硬件层 发送队列
+    TxQueueStruct *txQueueService;                      // 业务层 发送队列
+    RxQueueStruct *rxQueueService;                      // 业务层 接收队列，拆包后填充至该队列
+    
+    bool (*CallBack_HalTxFunc)(uint8_t *, uint16_t);    // 硬件层 发送处理函数
+    void *halTxParam;                                   // 硬件层 发送处理函数参数  
+    
+    void (*CallBack_ErrorHandle)(ESP8266_Error);        // 业务层
+}Esp8266Struct;
+
+/* Public define -------------------------------------------------------------*/
+#define ESP8266_WIFI_CONNECTED (1 << 0)
+#define ESP8266_TCP_CONNECTED (1 << 1)
+#define ESP8266_AIRKISS (1 << 2)            // 有airkiss的操作
+#define ESP8266_AIRKISSING (1 << 3)         // 正在airkiss的期间
+
+/* Public macro --------------------------------------------------------------*/
+/* Public variables ----------------------------------------------------------*/
+extern Esp8266Struct esp8266;
+/* Public function prototypes ------------------------------------------------*/
+
+void ESP8266_Handle();
+void ESP8266_Reset();
+void ESP8266_PowerOn();
+void ESP8266_EnableAirkiss();
+void ESP8266_RxMsgHandle(uint8_t *message, uint16_t length, void *param);
+void ESP8266_SendAtString(const char *cmd);
+
+#endif

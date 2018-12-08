@@ -1,7 +1,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "string.h"
 
-#include "../Sys_Conf.h"
+#include "../Module.h"
 #include "Malloc.h"
 #include "Malloc_Conf.h"
 #include "Malloc_Handle.h"
@@ -14,72 +14,75 @@ MemoryManageUnitcStruct mmu;
 
 /* Private function prototypes ------------------------------------------------*/
 /*******************************************************************************
-* Function Name   : Malloc
-* Description     : ×Ô¶¨ÒåÉêÇëÄÚ´æµÄ³¤¶È£¬Óëmalloc²»Í¬£¬ÊÇÍ¨¹ıÈ«¾Ö³¤Êı×é+¶à¸öÉêÇë¿é½øĞĞ¹ÜÀí
-* Parameter       : size£¬ÉêÇë³¤¶È
-* Return          : ÉêÇë¡°ÄÚ´æ¡±¿ÕÏĞÖ¸Õë£¬Ã»ÉêÇëµ½ÔòÎªNULL
-*******************************************************************************/
-void* Malloc(uint16_t size)
-{
-  DISABLE_ALL_INTERRPUTS();
-  
-  MALLOC_BLOCK_COUNT_SIZE applyBlockCount = ((size % MALLOC_BLOCK_SIZE) == 0)? (size / MALLOC_BLOCK_SIZE): (size / MALLOC_BLOCK_SIZE + 1);
-  MALLOC_BLOCK_COUNT_SIZE tempCounter = 0;
-  MALLOC_BLOCK_COUNT_SIZE index;
 
-  /* Ê£ÓàÈİÁ¿²»×ã */
-  if(mmu.usedBlockQuantity >= MALLOC_BLOCK_COUNT)
-  {
-    Malloc_ErrorHandle(Malloc_OutOfMemory);
-    return NULL;
-  }
-  
-  /* Ñ­»·²éÕÒÊÇ·ñÓĞºÏÊÊµÄÇøÓò£¬Á¬Ğø¶à¸ö¿éµÄÖµ²»Îª0 */
-  for(index=0; index<MALLOC_BLOCK_COUNT; index++)
-  {
-    tempCounter = (mmu.blocks[index] == 0)? (tempCounter + 1) : 0;
-    if(tempCounter == applyBlockCount)
-    { break; }
-  }
-  
-  /* ¸ù¾İÉ¨Ãè½á¹û£¬·µ»ØÖ¸Õë */
-  if(index != MALLOC_BLOCK_COUNT)
-  {
-    mmu.usedBlockQuantity += applyBlockCount;
-    for(MALLOC_BLOCK_COUNT_SIZE i=0; i<applyBlockCount; i++)
-    { mmu.blocks[index - applyBlockCount + i + 1] = applyBlockCount; }
+* Function Name   : Malloc
+* Description     : è‡ªå®šä¹‰ç”³è¯·å†…å­˜çš„é•¿åº¦ï¼Œä¸mallocä¸åŒï¼Œæ˜¯é€šè¿‡å…¨å±€é•¿æ•°ç»„+å¤šä¸ªç”³è¯·å—è¿›è¡Œç®¡ç†
+* Parameter       : sizeï¼Œç”³è¯·é•¿åº¦
+* Return          : ç”³è¯·â€œå†…å­˜â€ç©ºé—²æŒ‡é’ˆï¼Œæ²¡ç”³è¯·åˆ°åˆ™ä¸ºNULL
+
+*******************************************************************************/
+void *Malloc(uint16_t size)
+{
+    DISABLE_ALL_INTERRPUTS();
     
-    // ½«ËùÕ¼ÄÚ´æÈ«²¿ÇåÁã
-    memset(mmu.mallocPool + (index - applyBlockCount + 1) * MALLOC_BLOCK_SIZE, 0, applyBlockCount * MALLOC_BLOCK_SIZE);                  
-    
-    ENABLE_ALL_INTERRPUTS();
-    return (void *)(mmu.mallocPool + (index - applyBlockCount + 1) * MALLOC_BLOCK_SIZE);
-  }
-  else
-  {  
-    Malloc_ErrorHandle(Malloc_MemoryUnreasonable);
-    ENABLE_ALL_INTERRPUTS();
-    return NULL;
-  }
-  
+    uint8_t *pool = (uint8_t *)mmu.mallocPool;          // mmu.mallocPoolä¸º32ä½æ•°ç»„ï¼ˆä¸ºäº†å¯¹é½ï¼‰ï¼Œä¸‹é¢çš„æ“ä½œéƒ½æ˜¯ä½¿ç”¨å­—èŠ‚æ•°ç»„
+
+    /* é€šè¿‡sizeçš„å¤§å°è½¬æ¢ä¸ºç”³è¯·å—çš„ä¸ªæ•°ï¼Œä¾‹å¦‚å—å®½åº¦ä¸º32å­—èŠ‚ï¼Œç”³è¯·sizeä¸º33ï¼Œåˆ™ç”³è¯·2å—ï¼Œ31åˆ™ç”³è¯·1å— */
+    MALLOC_BLOCK_COUNT_SIZE applyBlockCount = ((size % MALLOC_BLOCK_SIZE) == 0) ? (size / MALLOC_BLOCK_SIZE) : (size / MALLOC_BLOCK_SIZE + 1); 
+    MALLOC_BLOCK_COUNT_SIZE tempCounter = 0;
+    MALLOC_BLOCK_COUNT_SIZE index;
+
+    /* å‰©ä½™å®¹é‡ä¸è¶³ */
+    if (mmu.usedBlockQuantity >= MALLOC_BLOCK_COUNT)
+    {
+        Malloc_ErrorHandle(Malloc_OutOfMemory);
+        return NULL;
+    }
+
+    /* å¾ªç¯æŸ¥æ‰¾æ˜¯å¦æœ‰åˆé€‚çš„åŒºåŸŸï¼Œè¿ç»­å¤šä¸ªå—çš„å€¼ä¸ä¸º0 */
+    for (index = 0; index < MALLOC_BLOCK_COUNT; index++)
+    {
+        tempCounter = (mmu.blocks[index] == 0) ? (tempCounter + 1) : 0;
+        if (tempCounter == applyBlockCount)
+        {   break;  }
+    }
+
+    /* æ ¹æ®æ‰«æç»“æœï¼Œè¿”å›æŒ‡é’ˆ */
+    if (index != MALLOC_BLOCK_COUNT)
+    {
+        mmu.usedBlockQuantity += applyBlockCount;                                   // ä½¿ç”¨å—ä¸ªæ•°ç´¯åŠ 
+        
+        for (MALLOC_BLOCK_COUNT_SIZE i = 0; i < applyBlockCount; i++)
+        {   mmu.blocks[index - applyBlockCount + i + 1] = applyBlockCount;  }       // é€šè¿‡å¾ªç¯ï¼Œå°†å—ç®¡ç†ä¸­å¯¹åº”å—çš„åœ°å€å¡«å……ï¼ˆæ ‡è®°ä¸ºå¯ç”¨ï¼Œå†…å®¹ä¸ºç”³è¯·å—ä¸ªæ•°ï¼‰
+
+        memset(pool + (index - applyBlockCount + 1) * MALLOC_BLOCK_SIZE, 0, applyBlockCount * MALLOC_BLOCK_SIZE);   // å°†æ‰€å å†…å­˜å…¨éƒ¨æ¸…é›¶
+
+        ENABLE_ALL_INTERRPUTS();
+        return (void *)(pool + (index - applyBlockCount + 1) * MALLOC_BLOCK_SIZE);
+    }
+    else
+    {
+        Malloc_ErrorHandle(Malloc_MemoryUnreasonable);
+        ENABLE_ALL_INTERRPUTS();
+        return NULL;
+    }
 }
 /*******************************************************************************
 * Function Name   : Free
-* Description     : ÊÍ·ÅÉêÇëµÄ¡°ÄÚ´æ¿ÕÏĞ¡±
-* Parameter       : ĞèÒªÊÍ·ÅµÄÖ¸Õë
+* Description     : é‡Šæ”¾ç”³è¯·çš„â€œå†…å­˜ç©ºé—²â€
+* Parameter       : éœ€è¦é‡Šæ”¾çš„æŒ‡é’ˆ
 * Return          : 
 *******************************************************************************/
-void Free(void* pointer)
+void Free(void *pointer)
 {
-  DISABLE_ALL_INTERRPUTS();
-  
-  MALLOC_BLOCK_COUNT_SIZE index = ((uint32_t)pointer - (uint32_t)mmu.mallocPool) / MALLOC_BLOCK_SIZE;   // ²éÕÒÊôÓÚÄÄÒ»¿é
-  MALLOC_BLOCK_COUNT_SIZE len = mmu.blocks[index];              // ²éÕÒÆäËùÕ¼³¤¶È
-  mmu.usedBlockQuantity -= len;                                 
-  
-  for(MALLOC_BLOCK_COUNT_SIZE i=0; i<len; i++)
-  { mmu.blocks[index + i] = 0; }                                // ÔÚ¹ÜÀíµ¥ÔªÖĞÊÍ·Å¸ÃÎ»
-  ///memset(pointer, 0, MALLOC_BLOCK_SIZE * len);                  // ½«ËùÕ¼ÄÚ´æÈ«²¿ÇåÁã
-  
-  ENABLE_ALL_INTERRPUTS();
+    DISABLE_ALL_INTERRPUTS();
+
+    MALLOC_BLOCK_COUNT_SIZE index = ((uint32_t)pointer - (uint32_t)mmu.mallocPool) / MALLOC_BLOCK_SIZE; // æŸ¥æ‰¾å±äºå“ªä¸€å—
+    MALLOC_BLOCK_COUNT_SIZE len = mmu.blocks[index];                                                    // æŸ¥æ‰¾å…¶æ‰€å é•¿åº¦
+    mmu.usedBlockQuantity -= len;
+
+    for (MALLOC_BLOCK_COUNT_SIZE i = 0; i < len; i++)
+    {   mmu.blocks[index + i] = 0;  } // åœ¨ç®¡ç†å•å…ƒä¸­é‡Šæ”¾è¯¥ä½
+
+    ENABLE_ALL_INTERRPUTS();
 }

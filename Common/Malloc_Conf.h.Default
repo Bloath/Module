@@ -1,14 +1,12 @@
 #ifndef _MALLOC_CONF_H_
 #define _MALLOC_CONF_H_
 
+#define MALLOC_BLOCK_SIZE 32                                          // ÁºìÂÜ≤ÂùóÂ§ßÂ∞è
+#define MALLOC_BLOCK_COUNT 40                                         // ÁºìÂÜ≤Ê±†Â§ßÂ∞è
+#define MALLOC_POOL_SIZE (MALLOC_BLOCK_SIZE / 4) * MALLOC_BLOCK_COUNT // ÁºìÂÜ≤Ê±†Â§ßÂ∞è
+#define MALLOC_BLOCK_COUNT_SIZE uint8_t                               //ÂùóÊï∞ÈáèÁöÑÂÆΩÂ∫¶
 
-
-#define MALLOC_BLOCK_SIZE      32       // ª∫≥ÂøÈ¥Û–°
-#define MALLOC_BLOCK_COUNT     65     // ª∫≥Â≥ÿ¥Û–°
-#define MALLOC_POOL_SIZE       MALLOC_BLOCK_SIZE * MALLOC_BLOCK_COUNT  // ª∫≥Â≥ÿ¥Û–°
-#define MALLOC_BLOCK_COUNT_SIZE uint8_t //øÈ ˝¡øµƒøÌ∂»
-
-#define DISABLE_ALL_INTERRPUTS()        asm("CPSID i")
-#define ENABLE_ALL_INTERRPUTS()         asm("CPSIE i")
+#define DISABLE_ALL_INTERRPUTS() __bic_SR_register(GIE)
+#define ENABLE_ALL_INTERRPUTS() __bis_SR_register(GIE)
 
 #endif

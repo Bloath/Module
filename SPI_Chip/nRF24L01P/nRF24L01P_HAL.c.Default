@@ -11,17 +11,17 @@ extern SPI_HandleTypeDef hspi1;
 /* Private functions ---------------------------------------------------------*/
 /*********************************************************************************************
 
-  * @brief  SPI µ¥×Ö½Ú¶ÁĞ´
-  * @param  byte: ÒªĞ´ÈëµÄÊı¾İ×Ö½Ú
-  * @retval ·µ»ØÒ»¸ö×Ö½ÚÊı¾İ
+  * @brief  SPI å•å­—èŠ‚è¯»å†™
+  * @param  byte: è¦å†™å…¥çš„æ•°æ®å­—èŠ‚
+  * @retval è¿”å›ä¸€ä¸ªå­—èŠ‚æ•°æ®
   * @remark 
 
   ********************************************************************************************/
 uint8_t SPI_RW(uint8_t data)
-{     
-  uint8_t temp;
+{
+    uint8_t temp;
 
-  HAL_SPI_TransmitReceive(&hspi1, &data, &temp, 1, 1000);
+    HAL_SPI_TransmitReceive(&hspi1, &data, &temp, 1, 1000);
 
-  return temp;
+    return temp;
 }

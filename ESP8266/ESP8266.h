@@ -1,12 +1,15 @@
-#ifndef _STRINGPLUS_H_
-#define _STRINGPLUS_H_
+#ifndef _ESP8266_H_
+#define _ESP8266_H_
 
 /* Includes -----------------------------------------------------------*/
+#include "../Module.h"
+#include "ESP8266_HAL.h"
+#include "ESP8266_API.h"
+#include "ESP8266_Conf.h"
+
+/* typedef ------------------------------------------------------------*/
 /* define -------------------------------------------------------------*/
 /* macro --------------------------------------------------------------*/
-/* typedef ------------------------------------------------------------*/
 /* variables ----------------------------------------------------------*/
 /* function prototypes ------------------------------------------------*/
-char *String_CutByStr(const char *srcString, const char *strLeft, const char *strRight);
-char *String_CutByChr(const char *srcString, char strLeft, char strRight);
 #endif

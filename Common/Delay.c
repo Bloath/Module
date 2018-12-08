@@ -8,31 +8,33 @@
 /* Private function prototypes ------------------------------------------------*/
 /*******************************************************************************
 * Function Name   : Delay_ms
-* Description     : ºÁÃë¼¶ÑÓÊ±£¬×¼È·
-* Parameter       : count£¬ÑÓÊ±Ê±¼ä
+* Description     : æ¯«ç§’çº§å»¶æ—¶ï¼Œå‡†ç¡®
+* Parameter       : countï¼Œå»¶æ—¶æ—¶é—´
 * Return          : 
 *******************************************************************************/
 void Delay_ms(uint16_t count)
 {
-  uint32_t time = 0;
-  
-  time = sysTime;
-  while((time + count) > sysTime);
+    uint32_t time = 0;
+
+    time = sysTime;
+    while ((time + count) > sysTime)
+        ;
 }
 
 /*******************************************************************************
 * Function Name   : Delay_us
-* Description     : Î¢Ãë¼¶ÑÓÊ±£¬²»×¼È·
-* Parameter       : count£¬ÑÓÊ±Ê±¼ä
+* Description     : å¾®ç§’çº§å»¶æ—¶ï¼Œä¸å‡†ç¡®
+* Parameter       : countï¼Œå»¶æ—¶æ—¶é—´
 * Return          : 
 *******************************************************************************/
 void Delay_us(uint16_t count)
 {
-  uint16_t i=0;;
-  
-  while(count --)
-  {
-    for(uint16_t j=0; j<10; j++)
-    {  i++; }
-  }
+    uint16_t i = 0;
+    ;
+
+    while (count--)
+    {
+        for (uint16_t j = 0; j < 10; j++)
+        {   i++;    }
+    }
 }

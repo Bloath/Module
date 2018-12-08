@@ -3,22 +3,24 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "../Common/Delay.h"
-#include "main.h"
+#include "../Module.h"
+
+#include "../../HAL/HAL.h"
 
 /* Public define ------------------------------------------------------------*/
 
-#define DATA_TYPE               uint16_t                 // Êı¾İ¿í¶È£¬8Î»ÒÔÉÏµÄÊı¾İÔÚ·¢ËÍÊ±²¢·Ç¼òµ¥µÄ¶àÑ­»·£¬¶øÊÇ¶à×Ö½Ú·¢ËÍ
-#define DATA_SIZE               sizeof(DATA_TYPE)       // Êı¾İ¿í¶ÈËùÕ¼×Ö½Ú¸öÊı
+#define DATA_TYPE               uint8_t                 // æ•°æ®å®½åº¦ï¼Œ8ä½ä»¥ä¸Šçš„æ•°æ®åœ¨å‘é€æ—¶å¹¶éç®€å•çš„å¤šå¾ªç¯ï¼Œè€Œæ˜¯å¤šå­—èŠ‚å‘é€
+#define DATA_SIZE               sizeof(DATA_TYPE)       // æ•°æ®å®½åº¦æ‰€å å­—èŠ‚ä¸ªæ•°
 
  
-#define SCL_Set() HAL_GPIO_WritePin(SCL_GPIO_Port, SCL_Pin, GPIO_PIN_SET)
-#define SCL_Clr() HAL_GPIO_WritePin(SCL_GPIO_Port, SCL_Pin, GPIO_PIN_RESET)
-#define SDA_Set() HAL_GPIO_WritePin(SDA_GPIO_Port, SDA_Pin, GPIO_PIN_SET)
-#define SDA_Clr() HAL_GPIO_WritePin(SDA_GPIO_Port, SDA_Pin, GPIO_PIN_RESET)
-#define SDA_Status  (HAL_GPIO_ReadPin(SDA_GPIO_Port,SDA_Pin) == GPIO_PIN_SET)
+#define SCL_Set()               GPIO_setOutputHighOnPin(SCL_PORT, SCL_PIN)
+#define SCL_Clr()               GPIO_setOutputLowOnPin(SCL_PORT, SCL_PIN)
+#define SDA_Set()               GPIO_setOutputHighOnPin(SDA_PORT, SDA_PIN)
+#define SDA_Clr()               GPIO_setOutputLowOnPin(SDA_PORT, SDA_PIN)
+#define SDA_Status              ((GPIO_getInputPinValue(SDA_PORT, SDA_PIN) == GPIO_INPUT_PIN_HIGH)? true:false)
 
 
-#define I2C_Delay()  Delay_us(10);
+#define I2C_Delay() 
 
 /* Public typedef -----------------------------------------------------------*/
 

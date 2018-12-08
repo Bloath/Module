@@ -1,261 +1,365 @@
 /* Includes ------------------------------------------------------------------*/
-#include "stdlib.h"
-#include "string.h"
-
-#include "../BufferQueue/BufferQueue.h"
 #include "../Common/Common.h"
-
-#include "NB_HAL.h"
-#include "NB_Handle.h"
-#include "NB_Conf.h"
 #include "NB_API.h"
 
 /* Private define -------------------------------------------------------------*/
 /* Private macro --------------------------------------------------------------*/
 /* Private typedef ------------------------------------------------------------*/
 /* Private variables ----------------------------------------------------------*/
-TxQueueStruct NB_HalTxQueue;                   // Ä£¿éÓ²¼ş²¿·Ö·¢ËÍ£¬ÓÃÓÚ·¢ËÍATÖ¸ÁîµÈ
-TxQueueStruct NB_TxQueue;                      // Ä£¿éµÄ·¢ËÍ»º³å
-RxQueueStruct NB_RxQueue;                      // Ä£¿éµÄ½ÓÊÕ»º³å
+NBStruct nb;
 
-NbStruct nb;
+const char *nbCmd[] = {
+    "AT+CFUN=0\r\n",                        // 0. å…³é—­å°„é¢‘
+    "AT+NCDP=180.101.147.115\r\n",          // 1. è®¾ç½®åœ°å€
+    "AT+NNMI=1\r\n",                        // 2. è®¾ç½®ä¸‹å‘æ•°æ®å‰ç¼€
+    "AT+NCONFIG=CELL_RESELECTION,true\r\n", // 3. å¼€å¯å°åŒºé‡é€‰
+    "AT+CEREG=1\r\n",                       // 4. å¼€å¯ä¿¡æ¯æç¤º
+    "AT+CFUN=1\r\n",                        // 5. å¯åŠ¨å°„é¢‘     ----> å¯åŠ¨è¿æ¥
+    "AT+CGATT=1\r\n",                       // 6. å¼€å§‹é™„ç€
+    "AT+CFUN=0\r\n",                        // 7. å…³é—­å°„é¢‘     ----> é‡æ–°è¿æ¥
+    "AT+NCSEARFCN\r\n",                     // 8. æ¸…é™¤å…ˆéªŒé¢‘ç‚¹
+    "AT+CSQ\r\n",                           // 9. ä¿¡å·å¼ºåº¦
+    "AT+CCLK?\r\n"                          // 10. æ—¶é—´
+};
 
 /* Private function prototypes ------------------------------------------------*/
-void NB_DataTrans(uint8_t *message, uint16_t len);
 void NB_StringTrans(const char *string);
 
+#define NB_JUMP_ORDERAT(x)            \
+    {                                 \
+        nb.process = Process_OrderAt; \
+        nb.orderAt.index = x;         \
+    }
+
+#define NB_INIT() NB_JUMP_ORDERAT(0)
+#define NB_FINISH_RST() NB_JUMP_ORDERAT(2)
+#define NB_ClEAR_CONNECT() NB_JUMP_ORDERAT(7)
+#define NB_START_CONNECT() NB_JUMP_ORDERAT(5)
+#define NB_GET_SS_TIME() NB_JUMP_ORDERAT(9)
+
+#define NB_RETRY_CON_NEXT()              \
+    {                                    \
+        if (nb.CallBack_TxError != NULL) \
+        {                                \
+            nb.CallBack_TxError();       \
+        }                                \
+        nb.startConnectTime = realTime;  \
+        nb.process = Process_LongWait;   \
+    }
 /*********************************************************************************************
 
-  * @brief  NBÖ÷´¦Àíº¯Êı
+  * @brief  NBä¸»å¤„ç†å‡½æ•°
   * @param  
-  * @retval ÎŞ
-  * @remark ·ÅÖÃÔÚÖ÷³ÌĞòÖĞ
+  * @retval æ— 
+  * @remark æ”¾ç½®åœ¨ä¸»ç¨‹åºä¸­
 
   ********************************************************************************************/
 void NB_Handle()
 {
-  TxQueue_Handle(&NB_HalTxQueue, NB_HalTrans);
-  RxQueue_Handle(&NB_RxQueue, NB_RxMsgHandle, 0);
-  
-  switch(nb.process)
-  {
-  // ³õÊ¼»¯Ê±ÉèÖÃ²ÎÊı
-  // ²ÎÊıÉèÖÃÖ»ÒªÄ£¿éÃ»ÎÊÌâ»ù±¾¶¼»á³É¹¦£¬Ö±½ÓÌø×ª¼´¿É
-  case Process_Init:
-    NB_HalTxQueue.interval = NB_TX_AT_INTERVAL;
-    NB_HalTxQueue.maxTxCount = NB_RETX_COUNT;
-    NB_HalTxQueue.isTxUnordered = TRUE;
-    
-    NB_TxQueue.interval = NB_TX_DATA_INTERVAL;
-    NB_TxQueue.maxTxCount = NB_RETX_COUNT;
-    NB_TxQueue.isTxUnordered = TRUE;
-    
-    NB_StringTrans("AT+NNMI=1\r\n");
-    //NB_StringTrans("AT+NCDP?\r\n");
-    //NB_StringTrans("AT+NCDP=180.101.147.115\r\n");
-    //NB_StringTrans("AT+CGSN=1\r\n");
-    nb.process = Process_Idle;
-    break;
-    
-  // ¿ÕÏĞÊ±£¬È·ÈÏĞÅºÅÇ¿¶È¡¢Á¬½ÓµÈĞÅÏ¢£¬ 
-  // ·µ»Ø+CSQ:21,99£¬ 0-1Î¢Èõ£¨°ÎÌìÏß£©¡¢2-31ÓĞĞÅºÅ, 99 SIM¿¨°Î³ö
-  // ²âÊÔĞÅºÅÇ¿¶ÈµÈ£¬ĞèÒª½øĞĞ¸´Î»£¨SIM¿¨ĞÅÏ¢Ö»»áÔÚÉÏµç¶ÁÒ»´Î£©
-  case Process_Idle:
-    if((nb.time + 3) < realTime)
-    { 
-      NB_StringTrans("AT+CSQ\r\n");
-      //NB_StringTrans("AT+CSCON?\r\n");
-      nb.time = realTime;
+    TxQueue_Handle(nb.txQueueHal, nb.CallBack_HalTxFunc, nb.halTxParam);        // ç¡¬ä»¶å±‚ å‘é€é˜Ÿåˆ—å¤„ç†
+
+    switch (nb.process)
+    {
+    /* åˆå§‹åŒ–æ—¶è®¾ç½®å‚æ•°
+     å‚æ•°è®¾ç½®åªè¦æ¨¡å—æ²¡é—®é¢˜åŸºæœ¬éƒ½ä¼šæˆåŠŸï¼Œç›´æ¥è·³è½¬å³å¯ */
+    case Process_Init:
+        nb.txQueueHal->interval = NB_HAL_TX_INTERVAL;
+        nb.txQueueHal->isTxUnordered = true;
+        nb.txQueueHal->maxTxCount = NB_HAL_RETX_COUNT;
+        
+        nb.txQueueService->interval = NB_SERVICE_TX_INTERVAL;
+        nb.txQueueService->isTxUnordered = true;
+        NB_INIT();
+        break;
+
+    /* æŒ‰é¡ºåºå‘é€ATæŒ‡ä»¤ï¼Œå½“å‘é€å®Œæˆååˆ‡æ¢åˆ°ç­‰å¾…çŠ¶æ€
+     æ ¹æ®æ¥æ”¶åˆ°çš„ATä¸­åŒ…å«çš„OKæˆ–è€…ERRORè¿›è¡Œä¸‹ä¸€æ­¥çš„åˆ¤æ–­*/
+    case Process_OrderAt:
+        NB_StringTrans(nbCmd[nb.orderAt.index]);
+        nb.orderAt.isGetOk = false;
+        nb.orderAt.isGetError = false;
+        nb.time = realTime;
+        nb.process = Process_OrderAtWait;
+        break;
+
+    /* ç­‰å¾…3så¦‚æœæ²¡æœ‰å›å¤åˆ™é‡å‘å‘½ä»¤ 
+     æ”¶åˆ°OKï¼Œåˆ™æ ¹æ®å½“å‰çš„ç´¢å¼•è¿›è¡Œä¸‹ä¸€æ­¥çš„æ“ä½œï¼Œé»˜è®¤ä¸ºç»§ç»­å‘ä¸‹ä¸€ä¸ªATæŒ‡ä»¤
+     æ”¶åˆ°é”™è¯¯ï¼Œåˆ™ç¼–å†™å¯¹åº”çš„é”™è¯¯å¤„ç† */
+    case Process_OrderAtWait:
+        if ((nb.time + 3) < realTime)
+        {   nb.process = Process_OrderAt;   }
+        else
+        {
+            if (nb.orderAt.isGetOk == true)
+            {
+                switch (nb.orderAt.index)
+                {
+                case 1: // å®ŒæˆNCDPè®¾ç½®
+                    nb.process = Process_Reset;
+                    break;
+                case 6: // å®Œæˆå¤ä½åçš„å¯åŠ¨å°„é¢‘ä»¥åŠå¯åŠ¨é™„ç€è®¾ç½®
+                    nb.startConnectTime = realTime;
+                    nb.process = Process_Wait;
+                    break;
+                case 8: // å®Œæˆæ¸…é™¤è¿æ¥ä¿¡æ¯åè·³è½¬åˆ°é‡æ–°è¿æ¥
+                    NB_START_CONNECT();
+                    break;
+
+                case 10: //
+                    if (timeStamp < 1500000000)
+                    {   NB_GET_SS_TIME();   }
+                    else
+                    {   nb.process = Process_Run;   }
+                    break;
+
+                default: // å…¶ä»–çš„åˆ™é¡ºåºå‘ä¸‹æ‰§è¡Œ
+                    nb.orderAt.index++;
+                    nb.process = Process_OrderAt;
+                    break;
+                }
+            }
+            if (nb.orderAt.isGetError == true)
+            {
+                switch (nb.orderAt.index)
+                {
+                case 5:                  // "AT+CFUN=1 ERROR"
+                    NB_RETRY_CON_NEXT(); // ç›´æ¥ç­‰å¾…ä¸‹æ¬¡è¿æ¥
+                    break;
+                }
+            }
+        }
+        break;
+
+    // ç­‰å¾…è¿æ¥
+    case Process_Wait:
+        // æ¯5så‘é€ä¸€æ¬¡æŸ¥è¯¢è¿æ¥
+        if ((nb.time + 5) < realTime)
+        {
+            nb.time = realTime;
+            NB_StringTrans("AT+CGATT?\r\n");
+        }
+
+        // 60sä¹‹åæœªè¿æ¥ï¼Œåˆ™ç­‰å¾…ä¸€å¤©åå†æ¬¡é‡è¿
+        if ((nb.startConnectTime + 60) < realTime)
+        {   NB_RETRY_CON_NEXT();    }
+        break;
+
+    // é•¿æ—¶é—´ç­‰å¾…ï¼Œç­‰å¾…ä¸‹æ¬¡é‡è¿ï¼Œ24å°æ—¶åé‡è¿
+    case Process_LongWait:
+        if ((nb.startConnectTime + 86400L) < realTime)
+        {   NB_ClEAR_CONNECT(); }
+        break;
+
+    // å¼€å§‹å·¥ä½œéƒ¨åˆ†ï¼Œå¯¹äºNBæ¥è¯´ï¼Œæœ‰æ•°æ®ç›´æ¥å‘é€å³å¯ï¼Œç­‰å¾…å›å¤
+    case Process_Run:
+        TxQueue_Handle(nb.txQueueService, nb.CallBack_HalTxFunc, NULL);
+        if (nb.txQueueService->usedBlockQuantity != 0)
+        {
+            nb.time = realTime;
+            nb.isTransmitting = true;
+        }
+
+        if (nb.isTransmitting == true && nb.txQueueService->usedBlockQuantity == 0 && nb.rxQueueService->usedBlockQuantity == 0)
+        {
+            // å»¶è¿Ÿ4så†è¿›å…¥ä¼‘çœ 
+            if ((nb.time + 4) < realTime)
+            {
+                NB_StringTrans("AT+MLWULDATAEX=1,FE,0x0101\r\n");
+                nb.isTransmitting = false;
+            }
+        }
+        break;
+
+    case Process_Reset:
+        NB_StringTrans("AT+NRB\r\n");
+        nb.process = Process_ResetWait;
+        break;
+
+    case Process_ResetWait:
+
+        break;
     }
-    break;
-    
-    
-  // ¿ªÊ¼¹¤×÷²¿·Ö£¬¶ÔÓÚNBÀ´Ëµ£¬ÓĞÊı¾İÖ±½Ó·¢ËÍ¼´¿É£¬µÈ´ı»Ø¸´
-  // 
-  case Process_Start:
-    TxQueue_Handle(&NB_TxQueue, NB_HalTrans);
-    break;
-   
-    
-  // µÈ´ı×´Ì¬£¬µÈ´ı²ÎÊıÉèÖÃÍê³ÉµÈ
-  // ÔÚ½ÓÊÕµ½Êı¾İÊ±£¬ÔÚ½ÓÊÕ´¦ÀíÊ±½øĞĞÇĞ»»£¬Ö»´¦Àí³¬Ê±µÈÎÊÌâ
-  case Process_Wait:
-    if((nb.time + 60) < realTime)
-    { 
-      nb.time = realTime;
-      nb.process = Process_Reset;
-    }
-    break;
-    
-  case Process_Reset:
-    NB_HalTrans("AT+NRB\r\n", 8);
-    nb.process = Process_Wait;
-    break;
-  }
 }
 /*********************************************************************************************
 
-  * @brief  NB½ÓÊÕ²¿·Ö´¦Àí
-  * @param  packet£º½ÓÊÕÊı¾İ°ü
-            len£ºÊı¾İ°ü³¤¶È
-            param£º²ÎÊı
-  * @retval ÎŞ
+  * @brief  NBæ¥æ”¶éƒ¨åˆ†å¤„ç†
+  * @param  packetï¼šæ¥æ”¶æ•°æ®åŒ…
+            lenï¼šæ•°æ®åŒ…é•¿åº¦
+            paramï¼šå‚æ•°
+  * @retval æ— 
   * @remark 
 
   ********************************************************************************************/
 void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
 {
 #ifdef DEBUG
-  extern TxQueueStruct debugTxQueue;
-  TxQueue_Add(&debugTxQueue, packet, len, TX_ONCE_AC);
+    if (nb.CallBack_HalRxGetMsg != NULL)
+    {   nb.CallBack_HalRxGetMsg(packet, len, param);    }
 #endif
-  
-  char *message = (char *)packet;
-  char *data = NULL;
-  char *location = NULL;
-  
-  // ½ÓÊÕµ½ÈÕÆÚ
-  location = strstr(message, "+CCLK");
-  if(location != NULL)
-  {
-    CalendarStruct calendar;
-    calendar.year = 2000 + (location[6] - 0x30) * 10 + location[7] - 0x30;
-    calendar.month = (location[9] - 0x30) * 10 + location[10] - 0x30;
-    calendar.day = (location[12] - 0x30) * 10 + location[13] - 0x30;
-    calendar.hour = (location[15] - 0x30) * 10 + location[16] - 0x30;
-    calendar.min = (location[18] - 0x30) * 10 + location[19] - 0x30;
-    calendar.sec = (location[21] - 0x30) * 10 + location[22] - 0x30;
-    uint8_t timeZone = (location[24] - 0x30) * 10 + location[25] - 0x30;
-    timeStampCounter = Calendar2TimeStamp(&calendar, timeZone);
-  } 
-  
-  // ĞÅºÅÇ¿¶ÈÅĞ¶Ï
-  location = strstr(message, "+CSQ");
-  if(location != NULL)
-  {
-    data = String_CutByChr(location, ':', ',');         // ½«ĞÅºÅÇ¿¶È²¿·Ö²Ã¼ô³öÀ´
-    uint32_t temp32u = NumberString2Uint(data);         // ×ª»»ÎªÊı×Ö
-    
-    // 0-10 Î¢ÈõĞÅºÅ 11-31½ÏÇ¿ 99ÊÕ²»µ½
-    if(temp32u < 10)
-    { nb.signal = NbSignal_Weak; }
-    else if(temp32u == 99)
-    { nb.signal = NbSignal_Undetected; }
-    else
-    { 
-      nb.signal = NbSignal_Normal; 
-      nb.process = Process_Start;
-      NB_StringTrans("AT+CCLK?\r\n");
-    }
-    
-    Free(data);
-    
-    return;
-  }
 
-  // Á¬½Ó×´Ì¬ÅĞ¶Ï
-  // 2018-07-25 È¥µô£¬µ±ÎŞÊı¾İ·¢ËÍÊ±£¬Ä£¿é²»»áÖ÷¶¯¼ÓÈëºËĞÄÍø
-  //            ¶ÔÓÚÊı¾İÀ´Ëµ£¬²»¶ÏÖØ¸´·¢ËÍ£¬µÈ´ıok¼´¿É
-//  location = strstr(message, "+CSCON");
-//  if(location != NULL)
-//  {
-//    if(location[9] == '1')
-//    { nb.process = Process_Start; }
-//    else if 
-//    {}
-//    
-//    return;
-//  }
-  
-  // ½ÓÊÕµ½Êı¾İ
-  if(strstr(message, "+NNMI") != NULL)
-  {
-    char *msgStr = String_CutByChr(strstr(message, "+NNMI"), ',', '\r');         // ½«Êı¾İ´ÓÖ¸ÁîÖĞ²Ã¼ô³öÀ´
-    ArrayStruct *msg = String2Msg(msgStr, 0);                   // ×ª»»Îª×Ö½ÚÊı×é¸ñÊ½
-    TxQueue_FreeById(&NB_TxQueue, msg->packet[0]);              // Çå³ş·¢ËÍ»º³åÖĞÓë½ÓÊÕ×Ö¶ÎÏàÍ¬µÄ¿ì
-    RxQueue_Add(&NB_RxQueue, msg->packet, msg->length);         // Ìî³äµ½½ÓÊÕ»º³åµ±ÖĞ
-    Array_Free(msg);
-    Free(msgStr);
-    return;
-  }
-  
-  
-  // ÖØÆôÍê³É
-  if(strstr(message, "REBOOT_") != NULL)
-  {
-    nb.process = Process_Init;
-    return;
-  }
-  
-  // ´¦ÓÚ·¢ËÍ×´Ì¬
-  // ³öÏÖErrorÊ±£¬ÓĞ¿ÉÄÜ²¢Î´ÈëÍø£¬ERROR³öÏÖ10´ÎÖØÆôÄ£¿é
-  if(nb.process == Process_Start)
-  {
-    // ÔÚÊı¾İ·¢ËÍ´¦Àí²¿·Ö½ÓÊÕµ½error£¬ĞèÒª¸´Î»
-    if(strstr(message, "ERROR") != NULL)
+    char *message = (char *)packet;
+    char *data = NULL;
+    char *location = NULL;
+
+    // åœ¨é¡ºåºå‘é€ATå‡ºç°OKæˆ–è€…ERRORçš„æƒ…å†µ
+    if (nb.process == Process_OrderAtWait)
     {
-      nb.errorCounter ++;
-      
-      if(nb.errorCounter > NB_TX_DATA_MAX)
-      {
-        nb.process = Process_Reset;
-        nb.errorCounter = 0;
-      }
-    }
-    if(strstr(message, "OK") != NULL)
-    { nb.errorCounter = 0; }
-  }
-  
- 
-}
+        if (strstr(message, "OK") != NULL)
+        {   nb.orderAt.isGetOk = true;  }
 
+        if (strstr(message, "ERROR") != NULL)
+        {   nb.orderAt.isGetError = true;   }
+    }
+
+    // æ˜¯å¦é™„ç€æ­£å¸¸åˆ¤æ–­ CGATT
+    location = strstr(message, "+CGATT:1");
+    if (location != NULL)
+    {
+        if (location[7] == '1')
+        {   NB_GET_SS_TIME();   }
+
+        return;
+    }
+
+    // æ¥æ”¶åˆ°æ—¥æœŸ -> æ­£å¼è¿›å…¥å‘é€çŠ¶æ€
+    location = strstr(message, "+CCLK");
+    if (location != NULL)
+    {
+        CalendarStruct calendar;
+        calendar.year = 2000 + (location[6] - 0x30) * 10 + location[7] - 0x30;
+        calendar.month = (location[9] - 0x30) * 10 + location[10] - 0x30;
+        calendar.day = (location[12] - 0x30) * 10 + location[13] - 0x30;
+        calendar.hour = (location[15] - 0x30) * 10 + location[16] - 0x30;
+        calendar.min = (location[18] - 0x30) * 10 + location[19] - 0x30;
+        calendar.sec = (location[21] - 0x30) * 10 + location[22] - 0x30;
+        //uint8_t timeZone = (location[24] - 0x30) * 10 + location[25] - 0x30;
+        timeStampCounter = Calendar2TimeStamp(&calendar, 0);
+    }
+
+    // ä¿¡å·å¼ºåº¦åˆ¤æ–­
+    location = strstr(message, "+CSQ");
+    if (location != NULL)
+    {
+        data = String_CutByChr(location, ':', ','); // å°†ä¿¡å·å¼ºåº¦éƒ¨åˆ†è£å‰ªå‡ºæ¥
+        uint32_t temp32u = NumberString2Uint(data); // è½¬æ¢ä¸ºæ•°å­—
+
+        // 0-2 å¾®å¼±ä¿¡å· 2-10ä¸€èˆ¬ 11-31è¾ƒå¼º 99æ”¶ä¸åˆ°
+        if (temp32u < 2)
+        {   nb.signal = NbSignal_Weak;  }
+        else if (temp32u == 99)
+        {   nb.signal = NbSignal_Undetected;    }
+        else
+        {   nb.signal = NbSignal_Normal;    }
+
+        Free(data);
+        return;
+    }
+
+    // æ¥æ”¶åˆ°æ•°æ®
+    if (strstr(message, "+NNMI") != NULL)
+    {
+        nb.errorCounter = 0;
+
+        char *tempPointer = (char *)message;
+        bool isNeedCheck = false;
+        for (uint8_t i = 0; i < 10; i++)
+        {
+            tempPointer = strstr(tempPointer, "+NNMI"); // æ‰¾åˆ°NMI
+            if (tempPointer == NULL)
+            {   break;  } // æ²¡æ‰¾åˆ°åˆ™ç›´æ¥é€€å‡º
+
+            /* æœ‰å¯èƒ½å‘ç”Ÿå­—ç¬¦ä¸²é»è¿çš„æƒ…å†µï¼Œåˆ™é€šè¿‡ä¸åŒæ–¹å¼è¿›è¡Œåˆ‡å‰²
+               æœ‰æ¢è¡Œç¬¦ï¼Œåˆ™ä½¿ç”¨String_CutByChrï¼Œæ²¡æœ‰ï¼Œåˆ™ç›´æ¥æ‰¾åˆ°,åé¢å­—ç¬¦ä½œä¸ºæŒ‡é’ˆ */
+            char *msgStr = NULL;
+            if (strstr(tempPointer, "\r") == NULL)
+            {
+                msgStr = (char *)((uint32_t)strstr(tempPointer, ",") + 1);
+                isNeedCheck = false;
+            }
+            else
+            {
+                msgStr = String_CutByChr(tempPointer, ',', '\r');
+                tempPointer = strstr(tempPointer, "\r");
+                isNeedCheck = true;
+            }
+
+            uint8_t *msg = NULL;
+            int count = String2Msg(&msg, msgStr, 0);                    // è½¬æ¢ä¸ºå­—èŠ‚æ•°ç»„æ ¼å¼
+            if(count > 0)
+            {   RxQueue_Add(nb.rxQueueService, msg, count, true);     }   // å¡«å……åˆ°æ¥æ”¶ç¼“å†²å½“ä¸­
+            
+            Free(msgStr);
+
+            if (isNeedCheck == false)
+            {   break;  }
+        }
+    }
+
+    // é‡å¯å®Œæˆ
+    if (strstr(message, "REBOOT_") != NULL && nb.process == Process_ResetWait)
+    {
+        NB_FINISH_RST();
+        return;
+    }
+
+    /* å¤„äºå‘é€çŠ¶æ€
+     å‡ºç°Erroræ—¶ï¼Œæœ‰å¯èƒ½å¹¶æœªå…¥ç½‘ï¼ŒERRORå‡ºç°10æ¬¡é‡å¯æ¨¡å— */
+    if (nb.process == Process_Run)
+    {
+        if (strstr(message, "OK") != NULL)
+        {   TxQueue_FreeByIndex(nb.txQueueService, nb.txQueueService->lastIndex); }
+
+        // åœ¨æ•°æ®å‘é€å¤„ç†éƒ¨åˆ†æ¥æ”¶åˆ°errorï¼Œéœ€è¦å¤ä½
+        if (strstr(message, "ERROR") != NULL)
+        {
+            nb.errorCounter++;
+
+            // å‘ç°é”™è¯¯æ¬¡æ•°è¶…è¿‡ç¼“å†²çš„é‡å‘æ¬¡æ•°
+            if (nb.errorCounter >= nb.txQueueService->maxTxCount * 2)
+            {
+                nb.process = Process_Init;
+                nb.errorCounter = 0;
+            }
+        }
+    }
+}
 /*********************************************************************************************
 
-  * @brief  NB ×Ö·û´®·¢ËÍ
-  * @param  string£º×Ö·û´®
-  * @retval ÎŞ
+  * @brief  NB_DataPackage
+  * @param  block
+  * @retval æ— 
+  * @remark 
+
+  ********************************************************************************************/
+void NB_DataPackage(TxBaseBlockStruct *block, void *param, PacketStruct *packet)
+{
+    /* ç”³è¯·å†…å­˜
+       AT+NMGS= 8ä½
+       é•¿åº¦+é€—å· 4ä½
+       \n 1ä½      */
+    char *msg = (char *)Malloc(14 + block->length * 2);
+    memset(msg, 0, 14 + block->length * 2);
+
+    /* æ‹¼æ¥æŒ‡ä»¤åè®® */
+    strcat(msg, "AT+NMGS=");                            // ATå¤´
+    Uint2String(msg, block->length);                    // å¡«å……æ•°å­—
+    strcat(msg, ",");                                   // å¡«å……ï¼Œ
+    Msg2String(msg, block->message, block->length);     // å¡«å……æŠ¥æ–‡
+    strcat(msg, "\r\n");                                  // å¡«å……æ¢è¡Œ
+
+    packet->data = (uint8_t *)msg;
+    packet->length = strlen(msg);                       // å°†æ‰“åŒ…å¥½çš„æ•°æ®æŒ‡å‘packetï¼Œåé¢ä¼šè‡ªå·±free
+}
+/*********************************************************************************************
+
+  * @brief  NB å­—ç¬¦ä¸²å‘é€
+  * @param  stringï¼šå­—ç¬¦ä¸²
+  * @retval æ— 
   * @remark 
 
   ********************************************************************************************/
 void NB_StringTrans(const char *string)
 {
-  TxQueue_Add(&NB_HalTxQueue, (uint8_t *)string, strlen(string), TX_ONCE_AC);
+    TxQueue_Add(nb.txQueueHal, (uint8_t *)string, strlen(string), TX_ONCE_AC);
 }
-/*********************************************************************************************
 
-  * @brief  NB ×Ö·û´®·¢ËÍ
-  * @param  message:Êı¾İ
-            len£º³¤¶È
-  * @retval ÎŞ
-  * @remark 
-
-  ********************************************************************************************/
-void NB_DataTrans(uint8_t *message, uint16_t len)
-{
-  // ÉêÇëÄÚ´æ 
-  // AT+NMGS= 8Î»
-  // ³¤¶È+¶ººÅ 4Î»
-  // \r\n 2Î»    
-  char *packet = (char*)Malloc(14 + len * 2);        
-  memset(packet, 0, 14 + len * 2);  
-  
-  /* Æ´½ÓÖ¸ÁîĞ­Òé */
-  strcat(packet, "AT+NMGS=");                   // ATÍ·
-  
-  char* msgLenString = Uint2String(len);
-  strcat(packet, msgLenString);                 // Ìî³ä±¨ÎÄ³¤¶È
-  Free(msgLenString);
-  
-  strcat(packet, ",");
-  
-  char* msgString = Msg2String(message, len);   
-  strcat(packet, msgString);                    // Ìî³ä±¨ÎÄ
-  Free(msgString);
-  
-  strcat(packet, "\r\n");                       // Ìî³ä»»ĞĞ
-
-  // ½«±¨ÎÄÃüÁî×÷ÎªIDÌî³äµ½¶ÓÁĞÖĞ
-  TxQueue_AddWithId(&NB_TxQueue, (uint8_t *)packet, strlen(packet), TX_MULTI_AC, message[0]);
-  
-  Free(packet);
-}

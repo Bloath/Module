@@ -7,6 +7,6 @@
 /* Private macro --------------------------------------------------------------*/
 /* Private variables ----------------------------------------------------------*/
 /* Private function prototypes ------------------------------------------------*/
-void Malloc_ErrorHandle(MallocErrorEnum  mallocError);
+void Malloc_ErrorHandle(MallocErrorEnum mallocError);
 
 #endif

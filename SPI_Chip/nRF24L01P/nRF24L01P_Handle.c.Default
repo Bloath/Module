@@ -7,15 +7,14 @@
 #include "../../Common/Delay.h"
 #include "../../Sys_Conf.h"
 
-// ×Ô¶¨ÒåÌí¼Ó
+// è‡ªå®šä¹‰æ·»åŠ 
 #include "../Module/BufferQueue/BufferQueue.h"
-
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
-uint8_t ADDRESS[ADR_WIDTH] = {0x0F,0xFF,0xFF,0xFF,0xFF};  // ¶¨ÒåÒ»¸ö¾²Ì¬·¢ËÍµØÖ·
+uint8_t ADDRESS[ADR_WIDTH] = {0x0F, 0xFF, 0xFF, 0xFF, 0xFF}; // å®šä¹‰ä¸€ä¸ªé™æ€å‘é€åœ°å€
 
 TxQueueStruct nRF24L01_TxQueue;
 RxQueueStruct nRF24L01_RxQueue;
@@ -27,7 +26,7 @@ void nRF24L01P_SetRxMode(void);
 /* Private functions ---------------------------------------------------------*/
 /*********************************************************************************************
 
-  * @brief  nRF24L01 ³õÊ¼»¯
+  * @brief  nRF24L01 åˆå§‹åŒ–
   * @param  
   * @retval 
   * @remark 
@@ -35,140 +34,138 @@ void nRF24L01P_SetRxMode(void);
   ********************************************************************************************/
 BoolEnum nRF24L01P_Initialization()
 {
-  
-  CE_LOW();
-  
-  nRF24L01P_Write_Reg(W_REG + EN_RXADDR, 0x01);          // Ê¹ÄÜ½ÓÊÕÍ¨µÀ0
-  
-  nRF24L01P_Write_Reg(W_REG + RF_CH, 40);         			// Ñ¡ÔñÉäÆµÍ¨µÀ0x40
-  nRF24L01P_Write_Reg(W_REG + RF_SETUP, 0x0F);    			// Êı¾İ´«ÊäÂÊ2Mbps£¬·¢Éä¹¦ÂÊ0dBm£¬µÍÔëÉù·Å´óÆ÷ÔöÒæ(nRF24L01+ºöÂÔ¸ÃÎ»£©
-  
-  nRF24L01P_Write_Reg(W_REG + SETUP_AW, 0x03);                          // ·¢ËÍ½ÓÊÕµØÖ·³¤¶È
-  
-  nRF24L01P_Write_Buf(W_REG + TX_ADDR, ADDRESS, ADR_WIDTH);             // Ğ´Èë·¢ËÍµØÖ·
-  nRF24L01P_Write_Buf(W_REG + RX_ADDR_P0, ADDRESS, ADR_WIDTH);          // ÎªÁËÓ¦´ğ½ÓÊÕÉè±¸£¬½ÓÊÕÍ¨µÀ0µØÖ·ºÍ·¢ËÍµØÖ·ÏàÍ¬
-  nRF24L01P_Write_Reg(W_REG + RX_PW_P0, PLOAD_WIDTH);  	                // ½ÓÊÕÍ¨µÀ0Ñ¡ÔñºÍ·¢ËÍÍ¨µÀÏàÍ¬ÓĞĞ§Êı¾İ¿í¶È£¬½ÓÊÕÊ±£¬³¬¹ıÕâ¸ö¸öÊı²ÅÄÜ´¥·¢ÖĞ¶Ï
-  
-  nRF24L01P_Write_Reg(W_REG + FEATURE, 0x05);                           // ¿ªÆô¶¯Ì¬½ÓÊÕ
-  
-  nRF24L01P_Write_Reg(W_REG + DYNPD, 0x01);                             // Ê¹ÄÜ¶¯Ì¬½ÓÊÕÍ¨µÀ0
-  
-  nRF24L01P_Write_Reg(W_REG + CONFIG, 0x3E);      			// CRCÊ¹ÄÜ£¬16Î»CRCĞ£Ñé£¬ÉÏµç
-  nRF24L01P_Write_Reg(W_REG + STATUS, 0xff);  				//Çå³ıËùÓĞµÄÖĞ¶Ï±êÖ¾Î»
 
-  //CE_HIGH();
-  
-  return 0;
+    CE_LOW();
+
+    nRF24L01P_Write_Reg(W_REG + EN_RXADDR, 0x01); // ä½¿èƒ½æ¥æ”¶é€šé“0
+
+    nRF24L01P_Write_Reg(W_REG + RF_CH, 40);      // é€‰æ‹©å°„é¢‘é€šé“0x40
+    nRF24L01P_Write_Reg(W_REG + RF_SETUP, 0x0F); // æ•°æ®ä¼ è¾“ç‡2Mbpsï¼Œå‘å°„åŠŸç‡0dBmï¼Œä½å™ªå£°æ”¾å¤§å™¨å¢ç›Š(nRF24L01+å¿½ç•¥è¯¥ä½ï¼‰
+
+    nRF24L01P_Write_Reg(W_REG + SETUP_AW, 0x03); // å‘é€æ¥æ”¶åœ°å€é•¿åº¦
+
+    nRF24L01P_Write_Buf(W_REG + TX_ADDR, ADDRESS, ADR_WIDTH);    // å†™å…¥å‘é€åœ°å€
+    nRF24L01P_Write_Buf(W_REG + RX_ADDR_P0, ADDRESS, ADR_WIDTH); // ä¸ºäº†åº”ç­”æ¥æ”¶è®¾å¤‡ï¼Œæ¥æ”¶é€šé“0åœ°å€å’Œå‘é€åœ°å€ç›¸åŒ
+    nRF24L01P_Write_Reg(W_REG + RX_PW_P0, PLOAD_WIDTH);          // æ¥æ”¶é€šé“0é€‰æ‹©å’Œå‘é€é€šé“ç›¸åŒæœ‰æ•ˆæ•°æ®å®½åº¦ï¼Œæ¥æ”¶æ—¶ï¼Œè¶…è¿‡è¿™ä¸ªä¸ªæ•°æ‰èƒ½è§¦å‘ä¸­æ–­
+
+    nRF24L01P_Write_Reg(W_REG + FEATURE, 0x05); // å¼€å¯åŠ¨æ€æ¥æ”¶
+
+    nRF24L01P_Write_Reg(W_REG + DYNPD, 0x01); // ä½¿èƒ½åŠ¨æ€æ¥æ”¶é€šé“0
+
+    nRF24L01P_Write_Reg(W_REG + CONFIG, 0x3E); // CRCä½¿èƒ½ï¼Œ16ä½CRCæ ¡éªŒï¼Œä¸Šç”µ
+    nRF24L01P_Write_Reg(W_REG + STATUS, 0xff); //æ¸…é™¤æ‰€æœ‰çš„ä¸­æ–­æ ‡å¿—ä½
+
+    //CE_HIGH();
+
+    return 0;
 }
 
 /*********************************************************************************************
-  * @brief  nrf24L01 ½ÓÊÕÊı¾İ
-  * @param  data£º   ½ÓÊÕ»º³å
-  * @param  len£º   ½ÓÊÕ»º³å³¤¶È 
-  * @retval ÎŞ
-  * @remark 0: »ñÈ¡³É¹¦£¬ 1£ºÃ»ÓĞÊı¾İ  2£ºÊı¾İÊıÁ¿²»ÕıÈ·
+  * @brief  nrf24L01 æ¥æ”¶æ•°æ®
+  * @param  dataï¼š   æ¥æ”¶ç¼“å†²
+  * @param  lenï¼š   æ¥æ”¶ç¼“å†²é•¿åº¦ 
+  * @retval æ— 
+  * @remark 0: è·å–æˆåŠŸï¼Œ 1ï¼šæ²¡æœ‰æ•°æ®  2ï¼šæ•°æ®æ•°é‡ä¸æ­£ç¡®
   ********************************************************************************************/
 uint8_t nRF24L01P_Receive()
 {
-  uint8_t status = nRF24L01P_Read_Reg(STATUS);
-  uint8_t packetLen = 0, packet[32] = {0};
-  
-  // PS£ºÖĞ¶Ï½ÓÊÕÓëÂÖÑµ½ÓÊÕ²»ÄÜÍ¬Ê±Ê¹ÓÃ£¬ÓĞ¿ÉÄÜÂÖÑ¯½ÓÊÕSPIÊ±£¬
-  //     ½øÈëÖĞ¶ÏÔÙ¶ÁÈ¡£¬»á³öÏÖ¶ÁÈ¡´íÎóÎÊÌâ
-  if((status & RX_DR) != 0)
-  {
-    packetLen = ReadRXPayload(packet);          // ¶ÁÈ¡»º´æ£¬»ñÈ¡»º´æÖĞµÄ³¤¶È
-    if(packetLen == 0 || packetLen > 32)        // Èç¹ûÁ¬Ğø½ÓÊÕ£¬³¤¶È½«»á±äµÃ·Ç³£´ó                  
-    { 
-      FlushRX();                                // Çå³ı½ÓÊÕ»º³å
-      return 2; 
-    }                               // Èç¹û³¤¶ÈÎª0£¬ÔòÎª³¤¶È³ö´í
-    
-    nRF24L01P_RxPacketHandle(packet, packetLen, (status & 0x0E) >> 1);  // Êı¾İ´¦Àí
-    
-    return 0;
-    
-  }
-  return 1;
+    uint8_t status = nRF24L01P_Read_Reg(STATUS);
+    uint8_t packetLen = 0, packet[32] = {0};
+
+    // PSï¼šä¸­æ–­æ¥æ”¶ä¸è½®è®­æ¥æ”¶ä¸èƒ½åŒæ—¶ä½¿ç”¨ï¼Œæœ‰å¯èƒ½è½®è¯¢æ¥æ”¶SPIæ—¶ï¼Œ
+    //     è¿›å…¥ä¸­æ–­å†è¯»å–ï¼Œä¼šå‡ºç°è¯»å–é”™è¯¯é—®é¢˜
+    if ((status & RX_DR) != 0)
+    {
+        packetLen = ReadRXPayload(packet);    // è¯»å–ç¼“å­˜ï¼Œè·å–ç¼“å­˜ä¸­çš„é•¿åº¦
+        if (packetLen == 0 || packetLen > 32) // å¦‚æœè¿ç»­æ¥æ”¶ï¼Œé•¿åº¦å°†ä¼šå˜å¾—éå¸¸å¤§
+        {
+            FlushRX(); // æ¸…é™¤æ¥æ”¶ç¼“å†²
+            return 2;
+        } // å¦‚æœé•¿åº¦ä¸º0ï¼Œåˆ™ä¸ºé•¿åº¦å‡ºé”™
+
+        nRF24L01P_RxPacketHandle(packet, packetLen, (status & 0x0E) >> 1); // æ•°æ®å¤„ç†
+
+        return 0;
+    }
+    return 1;
 }
 /*********************************************************************************************
-  * @brief  nrf24L01 ½ÓÊÕÊı¾İ´¦Àí
-  * @param  data£º   ½ÓÊÕ»º³å
-  * @param  len£º   ½ÓÊÕ»º³å³¤¶È 
-  * @retval ÎŞ
-  * @remark 0: »ñÈ¡³É¹¦£¬ 1£ºÃ»ÓĞÊı¾İ  2£ºÊı¾İÊıÁ¿²»ÕıÈ·
+  * @brief  nrf24L01 æ¥æ”¶æ•°æ®å¤„ç†
+  * @param  dataï¼š   æ¥æ”¶ç¼“å†²
+  * @param  lenï¼š   æ¥æ”¶ç¼“å†²é•¿åº¦ 
+  * @retval æ— 
+  * @remark 0: è·å–æˆåŠŸï¼Œ 1ï¼šæ²¡æœ‰æ•°æ®  2ï¼šæ•°æ®æ•°é‡ä¸æ­£ç¡®
   ********************************************************************************************/
 void nRF24L01P_RxPacketHandle(uint8_t *packet, uint8_t len, uint8_t pipeID)
 {
-  RxQueue_Add(&nRF24L01_RxQueue, packet, len);
+    RxQueue_Add(&nRF24L01_RxQueue, packet, len);
 }
 
 /*********************************************************************************************
-  * @brief  nrf24L01 ·¢ËÍÊı¾İ
-  * @param  packet£º   ½ÓÊÕ»º³å
-  * @param  len£º   ½ÓÊÕ»º³å³¤¶È 
-  * @retval ÎŞ
+  * @brief  nrf24L01 å‘é€æ•°æ®
+  * @param  packetï¼š   æ¥æ”¶ç¼“å†²
+  * @param  lenï¼š   æ¥æ”¶ç¼“å†²é•¿åº¦ 
+  * @retval æ— 
   * @remark 
   ********************************************************************************************/
 BoolEnum nRF24L01P_Transimit(uint8_t *packet, uint16_t len)
 {
-  uint8_t status = 0;
-  uint16_t counter = 0;
-  
-  CE_LOW();                                             // À­µÍĞ´ÈëÃüÁî
-  
-  uint8_t controlreg = nRF24L01P_Read_Reg(CONFIG);
-  nRF24L01P_Write_Reg(W_REG + CONFIG, controlreg & ~(1<<0) );   // CONFIG ¼Ä´æÆ÷Ğ´ÈëÊı¾İ£¬Éè¶¨Îª·¢ËÍÄ£Ê½
-  
-  FlushTX();					        
-  FlushRX();                                            // Çå³ı»º´æ
-  
-  WriteTXPayload_NoAck(packet, len);
-  
-  CE_HIGH(); 
-  Delay_ms(2);                                          //Æô¶¯·¢ËÍ£¬µÈ´ı2msºóÖ±½ÓÀ­µÍ
-  CE_LOW();
-  
-  do
-  { 
-    status = nRF24L01P_Read_Reg(STATUS);
-    counter++;
-  }
-  while((status & TX_DS) == 0 && counter < 200);                         // µÈ´ı±êÖ¾Î»ÖÃÎ»
-  
-  nRF24L01P_Write_Reg(STATUS, 0xFF);                    // Çå³ıËùÓĞ±êÖ¾Î»
-  
-  nRF24L01P_SetRxMode();	                        // ÇĞ»»Îª½ÓÊÕÄ£Ê½
+    uint8_t status = 0;
+    uint16_t counter = 0;
+
+    CE_LOW(); // æ‹‰ä½å†™å…¥å‘½ä»¤
+
+    uint8_t controlreg = nRF24L01P_Read_Reg(CONFIG);
+    nRF24L01P_Write_Reg(W_REG + CONFIG, controlreg & ~(1 << 0)); // CONFIG å¯„å­˜å™¨å†™å…¥æ•°æ®ï¼Œè®¾å®šä¸ºå‘é€æ¨¡å¼
+
+    FlushTX();
+    FlushRX(); // æ¸…é™¤ç¼“å­˜
+
+    WriteTXPayload_NoAck(packet, len);
+
+    CE_HIGH();
+    Delay_ms(2); //å¯åŠ¨å‘é€ï¼Œç­‰å¾…2msåç›´æ¥æ‹‰ä½
+    CE_LOW();
+
+    do
+    {
+        status = nRF24L01P_Read_Reg(STATUS);
+        counter++;
+    } while ((status & TX_DS) == 0 && counter < 200); // ç­‰å¾…æ ‡å¿—ä½ç½®ä½
+
+    nRF24L01P_Write_Reg(STATUS, 0xFF); // æ¸…é™¤æ‰€æœ‰æ ‡å¿—ä½
+
+    nRF24L01P_SetRxMode(); // åˆ‡æ¢ä¸ºæ¥æ”¶æ¨¡å¼
 }
 /*********************************************************************************************
-  * @brief  nrf24L01 ÉèÖÃÎª½ÓÊÕÄ£Ê½
+  * @brief  nrf24L01 è®¾ç½®ä¸ºæ¥æ”¶æ¨¡å¼
   * @param  
-  * @retval ÎŞ
+  * @retval æ— 
   * @remark 
   ********************************************************************************************/
 void nRF24L01P_SetRxMode(void)
 {
     uint8_t controlreg = 0;
-  
+
     CE_LOW();
-    
+
     controlreg = nRF24L01P_Read_Reg(CONFIG);
     nRF24L01P_Write_Reg(W_REG + CONFIG, controlreg | 0x01);
-    
+
     FlushTX();
-    FlushRX();					//Flush RX
-    
-    CE_HIGH();					//ÔÊĞíÊÕ·¢	 
+    FlushRX(); //Flush RX
+
+    CE_HIGH(); //å…è®¸æ”¶å‘
 }
 
 /*********************************************************************************************
-  * @brief  nrf24L01 ÉèÖÃÎªµôµçÄ£Ê½
+  * @brief  nrf24L01 è®¾ç½®ä¸ºæ‰ç”µæ¨¡å¼
   * @param  
-  * @retval ÎŞ
+  * @retval æ— 
   * @remark 
   ********************************************************************************************/
 void nRF24L01P_PowerDown(void)
 {
     uint8_t controlreg = nRF24L01P_Read_Reg(CONFIG);
-    nRF24L01P_Write_Reg(W_REG + CONFIG, controlreg & ~0x01);	 
+    nRF24L01P_Write_Reg(W_REG + CONFIG, controlreg & ~0x01);
 }
