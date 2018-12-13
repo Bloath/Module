@@ -25,7 +25,7 @@ void ESP8266_ResponseHandle(uint8_t *message, uint16_t length);
   ********************************************************************************************/
 void ESP8266_Reset()
 {
-    esp8266.conProcess = ConnectStatus_Reset;
+    esp8266._conProcess = ConnectStatus_Reset;
 }
 /*********************************************************************************************
 
@@ -40,8 +40,8 @@ void ESP8266_PowerOn()
     /* 有数据时且WIFI电源为切断时，开启WIFI电源，重置运行流程 */
     ESP8266_UART_DISABLE();
     ESP8266_POWER_ON();      
-    esp8266.tcpProcess = TcpStatus_Init;
-    esp8266.conProcess = ConnectStatus_ResetWait;
+    esp8266._tcpProcess = TcpStatus_Init;
+    esp8266._conProcess = ConnectStatus_ResetWait;
 }
 
 /*********************************************************************************************
@@ -54,8 +54,8 @@ void ESP8266_PowerOn()
   ********************************************************************************************/
 void ESP8266_EnableAirkiss()
 {    
-    esp8266.flag |= ESP8266_AIRKISS;
-    esp8266.conProcess = ConnectStatus_Reset;       // 防止处于TCP接收数据部分，不响应AT指令
+    esp8266._flag |= ESP8266_AIRKISS;
+    esp8266._conProcess = ConnectStatus_Reset;       // 防止处于TCP接收数据部分，不响应AT指令
 }
 
 /*********************************************************************************************
@@ -68,11 +68,9 @@ void ESP8266_EnableAirkiss()
   ********************************************************************************************/
 void ESP8266_Handle()
 {
-    static uint32_t time = 0;
-
     TxQueue_Handle(esp8266.txQueueHal, esp8266.CallBack_HalTxFunc, esp8266.halTxParam);
 
-    switch (esp8266.conProcess)
+    switch (esp8266._conProcess)
     {
     /****** 初始化，设置发送队列时长，并发送模式设置与自动连接 ********/
     case ConnectStatus_Init: 
@@ -81,64 +79,64 @@ void ESP8266_Handle()
         
         ESP8266_SendString("AT+CWMODE_DEF=1\r\n");
         ESP8266_SendString("AT+CWAUTOCONN=1\r\n");
-        time = realTime;
-        if ((esp8266.flag & ESP8266_AIRKISS) != 0)
+        esp8266.__time = realTime;
+        if ((esp8266._flag & ESP8266_AIRKISS) != 0)
         {   
-            esp8266.conProcess = ConnectStatus_AirKiss; 
-            esp8266.flag &= ~ESP8266_AIRKISS;
+            esp8266._conProcess = ConnectStatus_AirKiss; 
+            esp8266._flag &= ~ESP8266_AIRKISS;
         }
         else
-        {   esp8266.conProcess = ConnectStatus_Idle;    }
+        {   esp8266._conProcess = ConnectStatus_Idle;    }
         break;
 
     /****** 复位相关，如果复位则先发送复位，再等待2S后开UART ********/
     case ConnectStatus_Reset:
         ESP8266_RST_ENABLE();
         ESP8266_UART_DISABLE();
-        time = realTime;
-        esp8266.conProcess = ConnectStatus_ResetWait;
+        esp8266.__time = realTime;
+        esp8266._conProcess = ConnectStatus_ResetWait;
         break;
 
     case ConnectStatus_ResetWait:
-        if ((time + 2) < realTime)
+        if ((esp8266.__time + 2) < realTime)
         {
             ESP8266_RST_DISABLE();
-            time = realTime;
-            esp8266.conProcess = ConnectStatus_ResetFinish;
+            esp8266.__time = realTime;
+            esp8266._conProcess = ConnectStatus_ResetFinish;
         }
         break;
         
     case ConnectStatus_ResetFinish:
-        if ((time + 5) < realTime)
+        if ((esp8266.__time + 5) < realTime)
         {   
             ESP8266_UART_ENABLE();
-            esp8266.conProcess = ConnectStatus_Init; 
-            esp8266.tcpProcess = TcpStatus_Init;
+            esp8266._conProcess = ConnectStatus_Init; 
+            esp8266._tcpProcess = TcpStatus_Init;
         }
         break;
 
     /********** 空闲状态、检查是否连接wifi ****************/
     case ConnectStatus_Idle:
-        if ((time + ESP8266_INTERVAL) < realTime)
+        if ((esp8266.__time + ESP8266_INTERVAL) < realTime)
         {
             ESP8266_SendString("AT+CWJAP?\r\n");
-            time = realTime;
-            esp8266.conProcess = ConnectStatus_WaitAck;
+            esp8266.__time = realTime;
+            esp8266._conProcess = ConnectStatus_WaitAck;
         }
         break;
 
     /***************** airkiss相关 **********************/
     case ConnectStatus_AirKiss:                         
         ESP8266_SendString("AT+CWSTARTSMART=3\r\n");    // 1. 发送 "AT+CWSTARTSMART=3" 进入等待状态
-        esp8266.conProcess = ConnectStatus_WaitAck;     // 2. 等待接受广播信号，如果接收到 "smartconfig connected" 则发送 "AT+CWSTOPSMART" 释放
-        esp8266.flag |= ESP8266_AIRKISSING;
-        time = realTime;
+        esp8266._conProcess = ConnectStatus_WaitAck;     // 2. 等待接受广播信号，如果接收到 "smartconfig connected" 则发送 "AT+CWSTOPSMART" 释放
+        esp8266._flag |= ESP8266_AIRKISSING;
+        esp8266.__time = realTime;
         break;
 
     case ConnectStatus_AirKissWait:                     // 3. 如果60s内没有收到广播信号，则直接发送 "AT+CWSTOPSMART" 释放
-        if ((time + 60) < realTime)
+        if ((esp8266.__time + 60) < realTime)
         {
-            esp8266.flag &= ~ESP8266_AIRKISSING;
+            esp8266._flag &= ~ESP8266_AIRKISSING;
             ESP8266_SendString("AT+CWSTOPSMART\r\n");
             ESP8266_ErrorHandle(Error_AirKissError);
         }
@@ -146,7 +144,7 @@ void ESP8266_Handle()
 
     /***************** 等待回复 **********************/
     case ConnectStatus_WaitAck:
-        if ((time + ESP8266_INTERVAL) < realTime)
+        if ((esp8266.__time + ESP8266_INTERVAL) < realTime)
         {   ESP8266_ErrorHandle(Error_Timeout);    }    //等待超时错误处理，（AT指令发送数据后，长时间没回复）
         break;
 
@@ -170,7 +168,7 @@ bool ESP8266_HttpTransmit(uint8_t *message, uint16_t length)
     static uint32_t time = 0;
     char *cmdPacket;
 
-    switch (esp8266.tcpProcess)
+    switch (esp8266._tcpProcess)
     {
     /* 发送TCP连接，AT+CIPSTART="TCP","域名",80，等待模块回复CONNECT 或者 ALREADY CONNECTED */ 
     case TcpStatus_Init:                        
@@ -186,7 +184,7 @@ bool ESP8266_HttpTransmit(uint8_t *message, uint16_t length)
         ESP8266_SendString(cmdPacket); 
         Free(cmdPacket);
         
-        esp8266.tcpProcess = TcpStatus_WaitAck;
+        esp8266._tcpProcess = TcpStatus_WaitAck;
         time = realTime;
         break;
 
@@ -202,7 +200,7 @@ bool ESP8266_HttpTransmit(uint8_t *message, uint16_t length)
         ESP8266_SendString(cmdPacket);          // 发送数据
         Free(cmdPacket);
 
-        esp8266.tcpProcess = TcpStatus_WaitAck;  // 切换为等待模式
+        esp8266._tcpProcess = TcpStatus_WaitAck;  // 切换为等待模式
         time = realTime;
         break;
 
@@ -212,7 +210,7 @@ bool ESP8266_HttpTransmit(uint8_t *message, uint16_t length)
         ESP8266_SendData((uint8_t *)cmdPacket, strlen(cmdPacket));          // 交给底层缓冲进行发送，标记为isMalloc，在发送缓冲中释放内存
         
         time = realTime;
-        esp8266.tcpProcess = TcpStatus_WaitAck;  // 切换为等待模式
+        esp8266._tcpProcess = TcpStatus_WaitAck;  // 切换为等待模式
         break;
 
     /* 等待回复，超时次数过多则弹出错误 */
@@ -224,7 +222,7 @@ bool ESP8266_HttpTransmit(uint8_t *message, uint16_t length)
 
         /* 当模块接收到回复数据时，会回复Recv xx bytes，切换为发送成功 */
     case TcpStatus_SendOk:
-        esp8266.tcpProcess = TcpStatus_WaitAck;
+        esp8266._tcpProcess = TcpStatus_WaitAck;
         ESP8266_SendString("AT+CIPCLOSE\r\n");
         break;
     }
@@ -247,18 +245,18 @@ void ESP8266_RxMsgHandle(uint8_t *packet, uint16_t length, void *param)
     /***********airkiss部分****************/
     if (strstr(message, "AT+CWSTARTSMART=3") != NULL)
     {
-        esp8266.flag &= ~ESP8266_AIRKISSING;
+        esp8266._flag &= ~ESP8266_AIRKISSING;
         if (strstr(message, "ERROR") != NULL)
         {   ESP8266_ErrorHandle(Error_AirKissError);    }
         else
-        {   esp8266.conProcess = ConnectStatus_AirKissWait;  }
+        {   esp8266._conProcess = ConnectStatus_AirKissWait;  }
     }
 
     if (strstr(message, "smartconfig connected") != NULL)           // smartconfig connected，则需要释放 AT+CWSTOPSMART
     {
-        esp8266.flag &= ~ESP8266_AIRKISSING;
+        esp8266._flag &= ~ESP8266_AIRKISSING;
         ESP8266_SendString("AT+CWSTOPSMART\r\n");
-        esp8266.conProcess = ConnectStatus_Idle;                    // Airkiss连接成功，返回
+        esp8266._conProcess = ConnectStatus_Idle;                    // Airkiss连接成功，返回
         return;
     }
 
@@ -268,14 +266,14 @@ void ESP8266_RxMsgHandle(uint8_t *packet, uint16_t length, void *param)
     {
         if (strstr(message, "No AP") != NULL)
         {   
-            esp8266.conProcess = ConnectStatus_Idle;     
-            esp8266.flag &= ~ESP8266_WIFI_CONNECTED;
+            esp8266._conProcess = ConnectStatus_Idle;     
+            esp8266._flag &= ~ESP8266_WIFI_CONNECTED;
             ESP8266_ErrorHandle(Error_NoAP);
         }
         else
         {   
-            esp8266.conProcess = ConnectStatus_Connected;
-            esp8266.flag |= ESP8266_WIFI_CONNECTED;
+            esp8266._conProcess = ConnectStatus_Connected;
+            esp8266._flag |= ESP8266_WIFI_CONNECTED;
         }
         return;
     }
@@ -293,30 +291,30 @@ void ESP8266_RxMsgHandle(uint8_t *packet, uint16_t length, void *param)
     if (strstr(message, "CONNECT\r\n\r\nOK") != NULL ||
         strstr(message, "ALREADY CONNECTED") != NULL)
     {
-        esp8266.tcpProcess = TcpStatus_Connected;
+        esp8266._tcpProcess = TcpStatus_Connected;
         return;
     }
 
     // > 开始接收发送数据
     if (strstr(message, "CIPSEND") != NULL && strstr(message, ">") != NULL)
     {
-        esp8266.tcpProcess = TcpStatus_StartTrans;
+        esp8266._tcpProcess = TcpStatus_StartTrans;
         return;
     }
 
     //SEND OK 发送成功，清零发送错误标志
     if(strstr(message, "SEND OK") != NULL)                   
-    {   esp8266.tcpFailCounter = 0; }
+    {   esp8266._tcpFailCounter = 0; }
     
     // 每次发送成功后都要关闭TCP连接
     if(strstr(message, "CIPCLOSE") != NULL && strstr(message, "CLOSED") != NULL)                   
-    {   esp8266.tcpProcess = TcpStatus_Init;    }
+    {   esp8266._tcpProcess = TcpStatus_Init;    }
 
     /**************数据提取处理部分****************/
     /* 根据IPD的头部，将HTTP的内容部分提取出来填充到接收缓冲 */
     if (strstr(message, "+IPD") != NULL || strstr(message, "+ID") != NULL)
     {
-        esp8266.tcpProcess = TcpStatus_SendOk;
+        esp8266._tcpProcess = TcpStatus_SendOk;
         if (strstr(message, "HTTP") != NULL)                                            //找到HTTP字符串
         {
             char *index = strstr(message, "68");                                        //通过两次换行找到回复体
@@ -325,7 +323,7 @@ void ESP8266_RxMsgHandle(uint8_t *packet, uint16_t length, void *param)
             /* 回复body提取可用字符串 */
             if (index != NULL)
             {   
-                esp8266.tcpFailCounter = 0; 
+                esp8266._tcpFailCounter = 0; 
                 /* 找到换行符，将换行符改为结束符，再对报文进行转换 */
                 temp = strstr(index, "\r\n");
                 if(temp != NULL)
@@ -356,24 +354,24 @@ void ESP8266_ErrorHandle(ESP8266_Error errorType)
     {
     /* 接收超时 */
     case Error_Timeout:
-        esp8266.conProcess = ConnectStatus_Reset;
-        esp8266.tcpProcess = TcpStatus_Init;
+        esp8266._conProcess = ConnectStatus_Reset;
+        esp8266._tcpProcess = TcpStatus_Init;
         break;
 
     /* AIRKISS超时 */
     case Error_AirKissError:
-        esp8266.conProcess = ConnectStatus_Reset;       //初始化连接流程
+        esp8266._conProcess = ConnectStatus_Reset;       //初始化连接流程
         break;
     
     /* 启动发送时 */
     case Error_CipSendError:
-        esp8266.tcpFailCounter++;
-        esp8266.tcpProcess = TcpStatus_Init;
-        if (esp8266.tcpFailCounter > ESP8266_TCP_MAX_RETRY)
+        esp8266._tcpFailCounter++;
+        esp8266._tcpProcess = TcpStatus_Init;
+        if (esp8266._tcpFailCounter > ESP8266_TCP_MAX_RETRY)
         {
-            esp8266.conProcess = ConnectStatus_Reset;
-            esp8266.tcpProcess = TcpStatus_Init;
-            esp8266.tcpFailCounter = 0;
+            esp8266._conProcess = ConnectStatus_Reset;
+            esp8266._tcpProcess = TcpStatus_Init;
+            esp8266._tcpFailCounter = 0;
         }
         else
         {   goto errorEnd;    }                         // 重发失败次数不到上限不执行回调

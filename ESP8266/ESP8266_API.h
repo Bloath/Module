@@ -50,12 +50,13 @@ typedef struct
 
 typedef struct
 {
-    ESP8266_ConnectProcessEnum conProcess;              // 连接流程，包括airkiss、查询是否连接等
-    ESP8266_TcpProcessEnum  tcpProcess;                 // TCP连接流程，建立TCP连接，发送数据
-    Esp8266HttpStruct http;                             // Http相关
+    uint32_t __time;                                    // 流程时间，单位为s
+    ESP8266_ConnectProcessEnum _conProcess;             // 连接流程，包括airkiss、查询是否连接等
+    ESP8266_TcpProcessEnum  _tcpProcess;                // TCP连接流程，建立TCP连接，发送数据
+    uint8_t _tcpFailCounter;                            // 发送错误计数器，有可能网络不稳或延迟导致的
+    uint8_t _flag;                                      // 标志位，表示当前模块状态
     
-    uint8_t tcpFailCounter;                             // 发送错误计数器，有可能网络不稳或延迟导致的
-    uint8_t flag;                                       // 标志位，表示当前模块状态
+    Esp8266HttpStruct http;                             // Http相关
     
     TxQueueStruct *txQueueHal;                          // 硬件层 发送队列
     TxQueueStruct *txQueueService;                      // 业务层 发送队列

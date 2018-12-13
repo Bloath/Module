@@ -16,10 +16,9 @@ typedef enum
 
 typedef struct
 {
-    uint32_t mallocPool[MALLOC_POOL_SIZE];                  // 采用32位，其目的是为了对齐
-    MALLOC_BLOCK_COUNT_SIZE blocks[MALLOC_BLOCK_COUNT];     // 32位为一块，每一块
-    MALLOC_BLOCK_COUNT_SIZE usedBlockQuantity;
-
+    uint32_t __mallocPool[MALLOC_POOL_SIZE];                    // 采用32位，其目的是为了对齐
+    MALLOC_BLOCK_COUNT_SIZE __blocks[MALLOC_BLOCK_COUNT];       // 32位为一块，每一块
+    MALLOC_BLOCK_COUNT_SIZE _usedBlockQuantity;
 } MemoryManageUnitcStruct;
 
 /* Public define -------------------------------------------------------------*/

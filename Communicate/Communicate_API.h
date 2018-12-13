@@ -17,8 +17,8 @@ typedef enum
 typedef struct __communicate
 {
     /* 默认项参数 */
-    uint32_t time;                  // 记录时间
-    ProcessEnum process;            // 流程
+    uint32_t __time;                  // 记录时间
+    ProcessEnum __process;            // 流程
 
     /* 手动设置项 */
     CommunicateMediumEnum medium; // 通讯介质

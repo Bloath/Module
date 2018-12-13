@@ -6,6 +6,7 @@
 /* private macro --------------------------------------------------------------*/
 /* private variables ----------------------------------------------------------*/
 ZcProtocol zcPrtc; // 拙诚协议实例
+uint8_t queryId = 0, eventId = 0;
 
 /* private function prototypes ------------------------------------------------*/
 uint8_t ZcProtocol_GetCrc(uint8_t *message, uint16_t length);
@@ -93,29 +94,41 @@ uint8_t ZcProtocol_GetCrc(uint8_t *message, uint16_t length)
   * @remark 在程序初始化时，需要将协议实例进行初始化
 
   ********************************************************************************************/
-void ZcProtocol_InstanceInit(uint8_t DeviceType, uint8_t *address, uint8_t startId)
+void ZcProtocol_InstanceInit(uint8_t DeviceType, uint8_t *address)
 {
     zcPrtc.head.head = 0x68;
     zcPrtc.head.control = DeviceType;
-    zcPrtc.head.id = startId; // 0是预留给无线设备请求
     zcPrtc.head.timestamp = 0;
 
+    queryId = 1;
+    eventId = 127;
+    
     memcpy(zcPrtc.head.address, address, 7); //复制7字节地址，在产品实际运用后，地址是不会改变的（跟微信挂钩）
 }
 /*********************************************************************************************
 
   * @brief  拙诚协议=》协议实例ID自增
-  * @param  
+  * @param  isQueryId：是否为请求id
   * @retval 
   * @remark 0预留给其他设备
 
   ********************************************************************************************/
-void ZcProtocol_HeadIdIncrease()
+void ZcProtocol_IdIncrement(bool isQueryId)
 {
-    zcPrtc.head.id++;
-    if (zcPrtc.head.id == 0)
-    {   zcPrtc.head.id = 1; }
+    if (isQueryId == true)
+    {
+        queryId ++;
+        if(queryId == 128)
+        {   queryId = 1;    }
+    }
+    else
+    {
+        eventId ++;
+        if(eventId == 0)
+        {   eventId = 128;  }
+    }
 }
+
 /*********************************************************************************************
 
   * @brief  拙诚协议 发送请求
@@ -123,33 +136,32 @@ void ZcProtocol_HeadIdIncrease()
             cmd: 命令字
             data:  报文指针
             dataLen：报文长度
-            isUpdateId：是否需要更新ID
             txMode：发送模式
   * @retval 该请求命令的id
   * @remark 通过输入命令以及数据，并填写到发送缓冲当中
 
   ********************************************************************************************/
-uint8_t ZcProtocol_Request(CommunicateStruct *communicate, uint8_t cmd, uint8_t *data, uint16_t dataLen, bool isUpdateId, uint8_t txMode)
+uint8_t ZcProtocol_Request(CommunicateStruct *communicate, uint8_t cmd, uint8_t *data, uint16_t dataLen, uint8_t txMode)
 {
     uint8_t *msg;
-    uint8_t temp8u;
-
-    /* 取一个新ID */
-    if (isUpdateId == true)
-    {   ZcProtocol_HeadIdIncrease();    }
-    temp8u = zcPrtc.head.id;
-
-    zcPrtc.head.timestamp = timeStamp; //更新时间戳
+    
+    zcPrtc.head.timestamp = timeStamp;  
     zcPrtc.head.cmd = cmd;
+    
+    /* 暂存命令-> Id使用queryId，（1-127）不自增，在接收到当前Id的确认报文后自增 
+       其他命令-> Id使用eventId，（128-255）发送后自增*/
+    if (cmd == 0x00)
+    {   zcPrtc.head.id = queryId;   }
+    else
+    {
+        zcPrtc.head.id = eventId;
+        ZcProtocol_IdIncrement(false);      // 事件Id自增
+    }
 
     msg = ZcProtocol_ConvertMsg(&zcPrtc, data, dataLen);
     TxQueue_AddWithId(communicate->txQueue, msg, msg[3], txMode | TX_FLAG_IS_MALLOC, zcPrtc.head.id);
 
-    /* 取一个新ID */
-    if (isUpdateId == true)
-    {   ZcProtocol_HeadIdIncrease();    }
-
-    return temp8u;
+    return zcPrtc.head.id;
 }
 /*********************************************************************************************
 

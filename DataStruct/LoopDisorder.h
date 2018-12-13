@@ -6,23 +6,23 @@
 
 /* define -------------------------------------------------------------*/
 /* macro --------------------------------------------------------------*/
-#define CACHE_GET(cache, i) ((void *)((uint32_t)cache->data + cache->size * i))
+#define CACHE_GET(cache, i) ((void *)((uint32_t)cache->__data + cache->__size * i))
 
 /* typedef ------------------------------------------------------------*/
 typedef struct
 {
-    void *data;
-    uint8_t counter; // 与useFlag互斥使用，一个用于填空，一个用于循环
-    uint8_t size;
-    uint8_t maxLen;
+    void *__data;
+    uint8_t __counter;    
+    uint8_t __size;
+    uint8_t _maxLen;
 } LoopCacheStruct;
 
 typedef struct
 {
-    void *data;
-    uint8_t size;
-    uint8_t maxLen;
-    uint32_t usedFlag; // usedFlag作为是否被占用的标准位，说明该cache最多只能指向32个成员的对象数组
+    void *__data;
+    uint8_t __size;
+    uint8_t _maxLen;
+    uint32_t _usedFlag;    // usedFlag作为是否被占用的标准位，说明该cache最多只能指向32个成员的对象数组
 } DisorderCacheStruct;
 
 /* variables ----------------------------------------------------------*/

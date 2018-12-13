@@ -37,8 +37,8 @@ typedef enum
 
 typedef struct
 {
-    uint8_t buffer[BUFFER_LENGTH];
-    uint16_t count;
+    uint8_t _buffer[BUFFER_LENGTH];
+    uint16_t _count;
 } RxBufferStruct; //接收缓冲，包含N字节的缓冲池以及计数器
 
 //*************************基础块单位*******************
@@ -70,34 +70,36 @@ typedef struct
 //***********************高级块缓冲单位************************
 typedef struct
 {
-    uint32_t __time;           // 对不同的发送函数来说，有着不同的发送间隔，需要进行单独设置
-    uint8_t __indexCache;      // 索引缓存，配合无序发送使用
-    uint8_t usedBlockQuantity; // 已使用的块数量
-    uint8_t lastIndex;         // 上一次发送的索引
-    bool isTxUnordered;        // 是否无序发送
-    uint16_t maxTxCount;       // 最大重发次数
-    uint16_t interval;         // 发送间隔
-    TxBaseBlockStruct txBlocks[BLOCK_COUNT];
+    TxBaseBlockStruct __txBlocks[BLOCK_COUNT];      // 数据块
+    uint32_t __time;                                // 对不同的发送函数来说，有着不同的发送间隔，需要进行单独设置
+    uint8_t __indexCache;                           // 索引缓存，配合无序发送使用
+    
+    uint8_t _usedBlockQuantity;                     // 已使用的块数量
+    uint8_t _lastIndex;                             // 上一次发送的索引
+    bool isTxUnordered;                             // 是否无序发送
+    uint16_t maxTxCount;                            // 最大重发次数
+    uint16_t interval;                              // 发送间隔
+    
     void (*CallBack_AutoClearBlock)(TxBaseBlockStruct *, BlockFreeMethodEnum );             // 自动清除回调
     int (*CallBack_PackagBeforeTransmit)(TxBaseBlockStruct *, void *, PacketStruct *);      // 在发送前的组包处理，返回组完的包，需要通过Free释放
-} TxQueueStruct;                                                                                         // 发送块缓冲队列
+} TxQueueStruct;                                                                            // 发送块缓冲队列
 
 typedef struct
 {
+    RxBaseBlockStruct __rxBlocks[BLOCK_COUNT];
     uint32_t __time;
-    uint16_t usedBlockQuantity;
-    RxBaseBlockStruct rxBlocks[BLOCK_COUNT];
+    uint16_t _usedBlockQuantity;        
     
     bool (*CallBack_BeforeFree)(uint8_t*, uint16_t);           // 在清除之前的回调，防止某些debug应用多次申请空间复制。
 } RxQueueStruct; //接收块缓冲队列
 
 typedef struct
 {
-    RxQueueStruct rxQueue;
-    uint8_t buffer[BUFFER_LENGTH];
-    uint16_t bufferLength;
-    uint16_t start;
-    uint16_t end;
+    RxQueueStruct _rxQueue;
+    uint8_t _buffer[BUFFER_LENGTH];
+    uint16_t __bufferLength;
+    uint16_t __start;
+    uint16_t __end;
 } DmaBufferStruct;
 
 /* Public macro --------------------------------------------------------------*/
@@ -117,5 +119,6 @@ void TxQueue_Handle(TxQueueStruct *txQueue, bool (*Transmit)(uint8_t *, uint16_t
 void TxQueue_FreeByFunc(TxQueueStruct *txQueue, bool (*func)(TxBaseBlockStruct*, void *), void *para);  // 通过指定函数，释放指定发送块
 void TxQueue_FreeById(TxQueueStruct *txQueue, TX_ID_SIZE id);                                           // 通过ID，释放指定发送块
 void TxQueue_FreeByIndex(TxQueueStruct *txQueue, uint8_t index);                                        // 通过Index，释放制定发送快
+
 void DmaBuffer_IdleHandle(DmaBufferStruct *dmaBuffer, uint16_t remainCount);
 #endif

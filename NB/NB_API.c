@@ -27,8 +27,8 @@ void NB_StringTrans(const char *string);
 
 #define NB_JUMP_ORDERAT(x)            \
     {                                 \
-        nb.process = Process_OrderAt; \
-        nb.orderAt.index = x;         \
+        nb._process = Process_OrderAt;\
+        nb.__orderAt.index = x;       \
     }
 
 #define NB_INIT() NB_JUMP_ORDERAT(0)
@@ -43,8 +43,8 @@ void NB_StringTrans(const char *string);
         {                                \
             nb.CallBack_TxError();       \
         }                                \
-        nb.startConnectTime = realTime;  \
-        nb.process = Process_LongWait;   \
+        nb.__startConnectTime = realTime;  \
+        nb._process = Process_LongWait;   \
     }
 /*********************************************************************************************
 
@@ -58,7 +58,7 @@ void NB_Handle()
 {
     TxQueue_Handle(nb.txQueueHal, nb.CallBack_HalTxFunc, nb.halTxParam);        // 硬件层 发送队列处理
 
-    switch (nb.process)
+    switch (nb._process)
     {
     /* 初始化时设置参数
      参数设置只要模块没问题基本都会成功，直接跳转即可 */
@@ -75,31 +75,31 @@ void NB_Handle()
     /* 按顺序发送AT指令，当发送完成后切换到等待状态
      根据接收到的AT中包含的OK或者ERROR进行下一步的判断*/
     case Process_OrderAt:
-        NB_StringTrans(nbCmd[nb.orderAt.index]);
-        nb.orderAt.isGetOk = false;
-        nb.orderAt.isGetError = false;
-        nb.time = realTime;
-        nb.process = Process_OrderAtWait;
+        NB_StringTrans(nbCmd[nb.__orderAt.index]);
+        nb.__orderAt.isGetOk = false;
+        nb.__orderAt.isGetError = false;
+        nb.__time = realTime;
+        nb._process = Process_OrderAtWait;
         break;
 
     /* 等待3s如果没有回复则重发命令 
      收到OK，则根据当前的索引进行下一步的操作，默认为继续发下一个AT指令
      收到错误，则编写对应的错误处理 */
     case Process_OrderAtWait:
-        if ((nb.time + 3) < realTime)
-        {   nb.process = Process_OrderAt;   }
+        if ((nb.__time + 3) < realTime)
+        {   nb._process = Process_OrderAt;   }
         else
         {
-            if (nb.orderAt.isGetOk == true)
+            if (nb.__orderAt.isGetOk == true)
             {
-                switch (nb.orderAt.index)
+                switch (nb.__orderAt.index)
                 {
                 case 1: // 完成NCDP设置
-                    nb.process = Process_Reset;
+                    nb._process = Process_Reset;
                     break;
                 case 6: // 完成复位后的启动射频以及启动附着设置
-                    nb.startConnectTime = realTime;
-                    nb.process = Process_Wait;
+                    nb.__startConnectTime = realTime;
+                    nb._process = Process_Wait;
                     break;
                 case 8: // 完成清除连接信息后跳转到重新连接
                     NB_START_CONNECT();
@@ -109,18 +109,18 @@ void NB_Handle()
                     if (timeStamp < 1500000000)
                     {   NB_GET_SS_TIME();   }
                     else
-                    {   nb.process = Process_Run;   }
+                    {   nb._process = Process_Run;   }
                     break;
 
                 default: // 其他的则顺序向下执行
-                    nb.orderAt.index++;
-                    nb.process = Process_OrderAt;
+                    nb.__orderAt.index++;
+                    nb._process = Process_OrderAt;
                     break;
                 }
             }
-            if (nb.orderAt.isGetError == true)
+            if (nb.__orderAt.isGetError == true)
             {
-                switch (nb.orderAt.index)
+                switch (nb.__orderAt.index)
                 {
                 case 5:                  // "AT+CFUN=1 ERROR"
                     NB_RETRY_CON_NEXT(); // 直接等待下次连接
@@ -133,46 +133,46 @@ void NB_Handle()
     // 等待连接
     case Process_Wait:
         // 每5s发送一次查询连接
-        if ((nb.time + 5) < realTime)
+        if ((nb.__time + 5) < realTime)
         {
-            nb.time = realTime;
+            nb.__time = realTime;
             NB_StringTrans("AT+CGATT?\r\n");
         }
 
         // 60s之后未连接，则等待一天后再次重连
-        if ((nb.startConnectTime + 60) < realTime)
+        if ((nb.__startConnectTime + 60) < realTime)
         {   NB_RETRY_CON_NEXT();    }
         break;
 
     // 长时间等待，等待下次重连，24小时后重连
     case Process_LongWait:
-        if ((nb.startConnectTime + 86400L) < realTime)
+        if ((nb.__startConnectTime + 86400L) < realTime)
         {   NB_ClEAR_CONNECT(); }
         break;
 
     // 开始工作部分，对于NB来说，有数据直接发送即可，等待回复
     case Process_Run:
         TxQueue_Handle(nb.txQueueService, nb.CallBack_HalTxFunc, NULL);
-        if (nb.txQueueService->usedBlockQuantity != 0)
+        if (nb.txQueueService->_usedBlockQuantity != 0)
         {
-            nb.time = realTime;
-            nb.isTransmitting = true;
+            nb.__time = realTime;
+            nb._isTransmitting = true;
         }
 
-        if (nb.isTransmitting == true && nb.txQueueService->usedBlockQuantity == 0 && nb.rxQueueService->usedBlockQuantity == 0)
+        if (nb._isTransmitting == true && nb.txQueueService->_usedBlockQuantity == 0 && nb.rxQueueService->_usedBlockQuantity == 0)
         {
             // 延迟4s再进入休眠
-            if ((nb.time + 4) < realTime)
+            if ((nb.__time + 4) < realTime)
             {
                 NB_StringTrans("AT+MLWULDATAEX=1,FE,0x0101\r\n");
-                nb.isTransmitting = false;
+                nb._isTransmitting = false;
             }
         }
         break;
 
     case Process_Reset:
         NB_StringTrans("AT+NRB\r\n");
-        nb.process = Process_ResetWait;
+        nb._process = Process_ResetWait;
         break;
 
     case Process_ResetWait:
@@ -202,13 +202,13 @@ void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
     char *location = NULL;
 
     // 在顺序发送AT出现OK或者ERROR的情况
-    if (nb.process == Process_OrderAtWait)
+    if (nb._process == Process_OrderAtWait)
     {
         if (strstr(message, "OK") != NULL)
-        {   nb.orderAt.isGetOk = true;  }
+        {   nb.__orderAt.isGetOk = true;  }
 
         if (strstr(message, "ERROR") != NULL)
-        {   nb.orderAt.isGetError = true;   }
+        {   nb.__orderAt.isGetError = true;   }
     }
 
     // 是否附着正常判断 CGATT
@@ -245,11 +245,11 @@ void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
 
         // 0-2 微弱信号 2-10一般 11-31较强 99收不到
         if (temp32u < 2)
-        {   nb.signal = NbSignal_Weak;  }
+        {   nb._signal = NbSignal_Weak;  }
         else if (temp32u == 99)
-        {   nb.signal = NbSignal_Undetected;    }
+        {   nb._signal = NbSignal_Undetected;    }
         else
-        {   nb.signal = NbSignal_Normal;    }
+        {   nb._signal = NbSignal_Normal;    }
 
         Free(data);
         return;
@@ -258,7 +258,7 @@ void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
     // 接收到数据
     if (strstr(message, "+NNMI") != NULL)
     {
-        nb.errorCounter = 0;
+        nb._errorCounter = 0;
 
         char *tempPointer = (char *)message;
         bool isNeedCheck = false;
@@ -296,7 +296,7 @@ void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
     }
 
     // 重启完成
-    if (strstr(message, "REBOOT_") != NULL && nb.process == Process_ResetWait)
+    if (strstr(message, "REBOOT_") != NULL && nb._process == Process_ResetWait)
     {
         NB_FINISH_RST();
         return;
@@ -304,21 +304,21 @@ void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
 
     /* 处于发送状态
      出现Error时，有可能并未入网，ERROR出现10次重启模块 */
-    if (nb.process == Process_Run)
+    if (nb._process == Process_Run)
     {
         if (strstr(message, "OK") != NULL)
-        {   TxQueue_FreeByIndex(nb.txQueueService, nb.txQueueService->lastIndex); }
+        {   TxQueue_FreeByIndex(nb.txQueueService, nb.txQueueService->_lastIndex); }
 
         // 在数据发送处理部分接收到error，需要复位
         if (strstr(message, "ERROR") != NULL)
         {
-            nb.errorCounter++;
+            nb._errorCounter++;
 
             // 发现错误次数超过缓冲的重发次数
-            if (nb.errorCounter >= nb.txQueueService->maxTxCount * 2)
+            if (nb._errorCounter >= nb.txQueueService->maxTxCount * 2)
             {
-                nb.process = Process_Init;
-                nb.errorCounter = 0;
+                nb._process = Process_Init;
+                nb._errorCounter = 0;
             }
         }
     }
