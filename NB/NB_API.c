@@ -192,11 +192,6 @@ void NB_Handle()
   ********************************************************************************************/
 void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
 {
-#ifdef DEBUG
-    if (nb.CallBack_HalRxGetMsg != NULL)
-    {   nb.CallBack_HalRxGetMsg(packet, len, param);    }
-#endif
-
     char *message = (char *)packet;
     char *data = NULL;
     char *location = NULL;

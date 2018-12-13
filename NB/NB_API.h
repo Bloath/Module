@@ -46,7 +46,6 @@ typedef struct
     void (*CallBack_TxError)();                         // 错误处理
     bool (*CallBack_HalTxFunc)(uint8_t *, uint16_t);    // 硬件层 发送处理函数
     void *halTxParam;                                   // 硬件层 发送处理函数参数 
-    void (*CallBack_HalRxGetMsg)(uint8_t *, uint16_t, void *param);     // 硬件层 接收到底层发来的数据，在解包处理之前的回调
 } NBStruct;
 
 /* Public variables ----------------------------------------------------------*/
