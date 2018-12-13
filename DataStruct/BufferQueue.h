@@ -38,7 +38,7 @@ typedef enum
 typedef struct
 {
     uint8_t _buffer[BUFFER_LENGTH];
-    uint16_t _count;
+    uint16_t count;
 } RxBufferStruct; //接收缓冲，包含N字节的缓冲池以及计数器
 
 //*************************基础块单位*******************
@@ -95,11 +95,11 @@ typedef struct
 
 typedef struct
 {
-    RxQueueStruct _rxQueue;
-    uint8_t _buffer[BUFFER_LENGTH];
-    uint16_t __bufferLength;
-    uint16_t __start;
-    uint16_t __end;
+    RxQueueStruct _rxQueue;                     // 发送缓冲队列
+    uint8_t _buffer[BUFFER_LENGTH];             // DMA环形缓冲池
+    uint16_t __bufferLength;                    // 缓冲池大小
+    uint16_t __start;                           // 头位置标记
+    uint16_t __end;                             // 尾位置标记
 } DmaBufferStruct;
 
 /* Public macro --------------------------------------------------------------*/

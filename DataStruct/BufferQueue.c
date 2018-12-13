@@ -12,7 +12,7 @@ void TxQueue_FreeBlock(TxQueueStruct *txQueue, TxBaseBlockStruct *txBlock);   //
 /* Private functions ---------------------------------------------------------*/
 /*********************************************************************************************
 
-  * @brief  接收单个字节
+  * @brief  接收单个字节 
   * @param  data:       接收的单字节
             rxBuffer   接收缓冲结构体
   * @retval 计数器当前位置
@@ -22,12 +22,12 @@ void TxQueue_FreeBlock(TxQueueStruct *txQueue, TxBaseBlockStruct *txBlock);   //
   ********************************************************************************************/
 int ReceiveSingleByte(uint8_t data, RxBufferStruct *rxBuffer)
 {
-    rxBuffer->_buffer[rxBuffer->_count] = data; //填入缓冲
-    rxBuffer->_count++;                        //计数器递增
-    if (rxBuffer->_count >= BUFFER_LENGTH)
+    rxBuffer->_buffer[rxBuffer->count] = data; //填入缓冲
+    rxBuffer->count++;                        //计数器递增
+    if (rxBuffer->count >= BUFFER_LENGTH)
     {   return -1;  }
 
-    return rxBuffer->_count;
+    return rxBuffer->count;
 }
 
 /*********************************************************************************************

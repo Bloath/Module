@@ -16,6 +16,7 @@ typedef enum
     Error_TcpTimeout,
     Error_AirKissError,
     Error_NoAP,
+    Error_Rst3Times,
 } ESP8266_Error;
 
 typedef enum
@@ -54,6 +55,7 @@ typedef struct
     ESP8266_ConnectProcessEnum _conProcess;             // 连接流程，包括airkiss、查询是否连接等
     ESP8266_TcpProcessEnum  _tcpProcess;                // TCP连接流程，建立TCP连接，发送数据
     uint8_t _tcpFailCounter;                            // 发送错误计数器，有可能网络不稳或延迟导致的
+    uint8_t _timeOutCounter;                            // 复位次数计数器
     uint8_t _flag;                                      // 标志位，表示当前模块状态
     
     Esp8266HttpStruct http;                             // Http相关

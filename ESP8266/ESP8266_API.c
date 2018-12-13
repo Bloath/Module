@@ -356,6 +356,9 @@ void ESP8266_ErrorHandle(ESP8266_Error errorType)
     case Error_Timeout:
         esp8266._conProcess = ConnectStatus_Reset;
         esp8266._tcpProcess = TcpStatus_Init;
+        esp8266._timeOutCounter ++;
+        if (esp8266._timeOutCounter >= ESP8266_RST_MAX_RETRY)
+        {   ESP8266_ErrorHandle(Error_Rst3Times);   }
         break;
 
     /* AIRKISS超时 */
@@ -372,17 +375,34 @@ void ESP8266_ErrorHandle(ESP8266_Error errorType)
             esp8266._conProcess = ConnectStatus_Reset;
             esp8266._tcpProcess = TcpStatus_Init;
             esp8266._tcpFailCounter = 0;
+            
+            esp8266._timeOutCounter ++;
+            if (esp8266._timeOutCounter >= ESP8266_RST_MAX_RETRY)
+            {   ESP8266_ErrorHandle(Error_Rst3Times);   }
         }
         else
         {   goto errorEnd;    }                         // 重发失败次数不到上限不执行回调
         break;
+        
     /* TCP发送超时 */
     case Error_TcpTimeout:
         ESP8266_SendString("AT+CIPCLOSE\r\n");
+        esp8266._timeOutCounter ++;
+        if (esp8266._timeOutCounter >= ESP8266_RST_MAX_RETRY)
+        {   ESP8266_ErrorHandle(Error_Rst3Times);   }
         break;
+        
+    /* 未连接wifi */
     case Error_NoAP:
         break;
+    
+    /* HTTP回复体中没数据 */
     case Error_ResponseError:
+        break;
+        
+    /* 因超时/连接错误复位3次依然还有问题 */
+    case Error_Rst3Times:
+        esp8266._timeOutCounter = 0;
         break;
     default:
         break;

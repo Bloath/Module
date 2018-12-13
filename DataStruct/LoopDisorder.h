@@ -27,16 +27,18 @@ typedef struct
 
 /* variables ----------------------------------------------------------*/
 /* function prototypes ------------------------------------------------*/
-void LoopCache_Init(LoopCacheStruct *loopCache, void *data, uint8_t size, uint8_t maxLen);
-void DisorderCache_Init(DisorderCacheStruct *disorderCache, void *data, uint8_t size, uint8_t maxLen);
 
-int LoopCache_Append(LoopCacheStruct *loopCache, void *newData);
-void LoopCache_ClearNull(LoopCacheStruct *loopCache, bool (*nullCondition)(void *, void *), void *param);
-void LoopCache_Clear(LoopCacheStruct *loopCache);
+/*****************************循环缓存*****************************/
+void LoopCache_Init(LoopCacheStruct *loopCache, void *data, uint8_t size, uint8_t maxLen);                      // 初始化
+int LoopCache_Append(LoopCacheStruct *loopCache, void *newData);                                                // 添加新成员
+void LoopCache_ClearNull(LoopCacheStruct *loopCache, bool (*nullCondition)(void *, void *), void *param);       // 通过函数指针清除空成员，并将非空成员前推
+void LoopCache_Clear(LoopCacheStruct *loopCache);                                                               // 清空
 
-int DisorderCache_Append(DisorderCacheStruct *disorderCache, void *newData);
-int DisorderCache_Get(DisorderCacheStruct *disorderCache);
-void DisorderCache_Remove(DisorderCacheStruct *disorderCache, uint8_t index);
-void DisorderCache_Clear(DisorderCacheStruct *disorderCache);
+/*****************************无序缓存*****************************/
+void DisorderCache_Init(DisorderCacheStruct *disorderCache, void *data, uint8_t size, uint8_t maxLen);          // 初始化
+int DisorderCache_Append(DisorderCacheStruct *disorderCache, void *newData);                                    // 添加新成员
+int DisorderCache_Get(DisorderCacheStruct *disorderCache);                                                      // 获取第一个已占用的
+void DisorderCache_Remove(DisorderCacheStruct *disorderCache, uint8_t index);                                   // 根据索引将成员从缓存中删除
+void DisorderCache_Clear(DisorderCacheStruct *disorderCache);                                                   // 清空
 
 #endif
