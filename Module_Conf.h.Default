@@ -7,6 +7,7 @@
 #include "string.h"
 #include "stdlib.h"
 #include "stdbool.h"
+#include "stdio.h"
 #include "Time.h"
 
 /* Public typedef ------------------------------------------------------------*/
@@ -23,7 +24,21 @@ typedef enum
     Process_ResetWait,
     Process_OrderAt,
     Process_OrderAtWait,
+    Process_ErrorTrigged,
+    Process_ErrorHandle,
+    Process_Lock,
 } ProcessEnum;
+
+
+typedef enum
+{
+    HighLevelTrigged,
+    HighLevelHandle,
+    MediumLevelTrigged,
+    MediumLevelHandle,
+    LowLevelTrigged,
+    LowLevelHandle,
+} HandleLevelEnum;
 /* Public variables ----------------------------------------------------------*/
 extern uint32_t realTimeCounter, sysTimeCounter, timeStampCounter;
 
@@ -34,6 +49,10 @@ extern uint32_t realTimeCounter, sysTimeCounter, timeStampCounter;
 #define timeStamp timeStampCounter
 
 #define DEBUG 1
+#define SECONDS_YEAR   31536000L
+#define SECONDS_DAY    86400L
+#define SECONDS_HOUR   3600L
+#define SECONDS_MIN    60L
 
 /* Public macro --------------------------------------------------------------*/
 /* Public function prototypes ------------------------------------------------*/

@@ -4,11 +4,17 @@
 /* Includes ------------------------------------------------------------------*/
 /* Public typedef ------------------------------------------------------------*/
 /* Public define -------------------------------------------------------------*/
-#define ESP8266_INTERVAL 10                 // 等待时长
-#define ESP8266_HAL_TX_INTERVAL 500         // 底层发送间隔时间
-#define ESP8266_SERVICE_TX_INTERVAL 2000    // 业务层 发送间隔时间
+#define ESP8266_INTERVAL 5                  // 等待时长
+#define ESP8266_HAL_TX_INTERVAL 50         // 底层发送间隔时间
+#define ESP8266_SERVICE_TX_INTERVAL 100    // 业务层 发送间隔时间
 
-#define ESP8266_TCP_MAX_RETRY       3
+#define ESP8266_TCP_MAX_RETRY       2
+#define ESP8266_RST_MAX_RETRY       2
+
+//#define ESP8266_UDP     1
+#define ESP8266_TCP     1
+
+#define ESP8266_DEFAULT_WIFI    "AT+CWJAP_DEF=\"zcTest123\",\"zhuocheng>\"\r\n"
 
 /* Public macro --------------------------------------------------------------*/
 /* Public variables ----------------------------------------------------------*/

@@ -16,7 +16,7 @@
 *******************************************************************************/
 void Malloc_ErrorHandle(MallocErrorEnum mallocError)
 {
-    while(1);
+    ENABLE_ALL_INTERRPUTS();
     switch(mallocError)
     {
     case Malloc_OutOfMemory:
