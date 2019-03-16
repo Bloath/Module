@@ -52,13 +52,16 @@ uint32_t Math_10nthPower(uint8_t nth)
   * @param  string：字符串
             specifyLen：指定长度
             packet：转换完成的数组
-  * @remark 转换完成的报文数组指针，需要通过Free释放
+  * @remark 转换完成的报文数组指针，需要通过Free释放，错误返回-1
 
   ********************************************************************************************/
 int String2Msg(uint8_t **dst, char *srcStr, uint16_t specifyLen)
 {
     int length = (specifyLen == 0) ? strlen(srcStr) : specifyLen;
     uint8_t *msg = (uint8_t *)Malloc(length / 2);
+    
+    if(msg == NULL)
+    {   return -1;  }
 
     for (uint16_t i = 0; i < (length / 2); i++)
     {
@@ -132,6 +135,32 @@ int Uint2String(char *dst, uint32_t number)
 }
 /*********************************************************************************************
 
+  * @brief  将内存转换为16进制
+  * @param  dst：目的地址
+            src：源地址
+            length：长度
+            isBigEndian：是否为大端
+  * @retval 返回幅值之后的指针
+  * @remark 
+
+  ********************************************************************************************/
+void* Memory2HexString(void *dst, void *src, uint16_t length, bool isBigEndian)
+{
+    uint8_t value = 0;
+    uint8_t *d = (uint8_t *)dst, *s = (uint8_t *)src;
+  
+    for(int i=0; i<length; i++)
+    {
+        value = (isBigEndian == true)? s[length - 1 + i] : s[i];
+        d[i * 2] = Hex2Char(value >> 4);
+        d[i * 2 + 1] = Hex2Char(value);
+    }
+    
+    return (void *)((uint32_t)dst + 2 * length);
+}
+
+/*********************************************************************************************
+
   * @brief  字符串数字转换为无符号整数
   * @param  numString：数字字符串
   * @retval 计算完成的无符号数
@@ -157,7 +186,7 @@ uint32_t NumberString2Uint(const char *numString)
   * @param  dst：存放该数字的数组指针
             number：需要转换的数字
             isPositiveSequence：是否为正序，4321 => {4,3,2,1} 倒序 {1,2,3,4}
-  * @retval 数组长度
+  * @retval 数组长度，-1则为申请失败
   * @remark 
 
   ********************************************************************************************/
@@ -169,6 +198,9 @@ int Number2Array(uint8_t **dst, uint32_t number, bool isPositiveSequence)
 
     /* 申请内存并填充 */
     uint8_t *numArray = (uint8_t *)Malloc(powIndex + 1); // 申请对应内存
+    
+    if(numArray == NULL)
+    {   return -1;  }
 
     for (int8_t i = powIndex; i >= 0; i--)
     {
@@ -194,12 +226,14 @@ int Number2Array(uint8_t **dst, uint32_t number, bool isPositiveSequence)
   * @remark 
 
   ********************************************************************************************/
-void EndianExchange(uint8_t *dst, uint8_t *src, uint8_t len)
+void* EndianExchange(void *dst, void *src, uint16_t len)
 {
     for (uint8_t i = 0; i < len; i++)
     {
-        dst[i] = src[len - i - 1];
+        *((uint8_t *)dst + i) = *((uint8_t *)src + len - i - 1);
     }
+    
+    return (void *)((uint32_t)dst + len);
 }
 /*********************************************************************************************
 
@@ -213,8 +247,8 @@ void EndianExchange(uint8_t *dst, uint8_t *src, uint8_t len)
   ********************************************************************************************/
 void TimeStamp2Calendar(uint32_t timeStamp, CalendarStruct *calendar, uint8_t timeZone)
 {
-    timeStamp += timeZone * 3600L;
-    uint32_t daySec = 3600L * 24L;
+    timeStamp += timeZone * SECONDS_HOUR;
+    uint32_t daySec = SECONDS_DAY;
     calendar->numOfDay = timeStamp / daySec;
     uint32_t secs = timeStamp % daySec;
     uint16_t years4List[4] = {365, 365, 366, 365};
@@ -232,9 +266,9 @@ void TimeStamp2Calendar(uint32_t timeStamp, CalendarStruct *calendar, uint8_t ti
         {
             calendar->year += i; // 年增加
             if (i == 2)
-            {
-                monthList[1] += 1;
-            } // 闰月二月加一天
+            {   monthList[1] = 29;  } // 闰月二月加一天
+            else
+            {   monthList[1] = 28;  }
             break;
         }
         remainDays -= years4List[i];
@@ -243,7 +277,7 @@ void TimeStamp2Calendar(uint32_t timeStamp, CalendarStruct *calendar, uint8_t ti
     /************** 月日计算 **************/
     for (i = 0; i < 12; i++)
     {
-        if (remainDays <= monthList[i])
+        if ((remainDays + 1) <= monthList[i])
         {
             calendar->month = i + 1;
             calendar->day = remainDays + 1;
@@ -252,9 +286,9 @@ void TimeStamp2Calendar(uint32_t timeStamp, CalendarStruct *calendar, uint8_t ti
         remainDays -= monthList[i];
     }
 
-    calendar->hour = secs / 3600;
-    calendar->min = (secs % 3600) / 60;
-    calendar->sec = secs % 60;
+    calendar->hour = secs / SECONDS_HOUR;
+    calendar->min = (secs % SECONDS_HOUR) / SECONDS_MIN;
+    calendar->sec = secs % SECONDS_MIN;
 }
 /*********************************************************************************************
 
@@ -273,32 +307,27 @@ uint32_t Calendar2TimeStamp(CalendarStruct *calendar, uint8_t timeZone)
     uint8_t monthList[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 
     uint8_t temp8u = (calendar->year - 1970L) / 4;
-    temp32u += temp8u * 1461L;
-    temp8u = (calendar->year - 1970L) % 4;
+    temp32u += temp8u * 1461L;                  // 先计算出经历过多少个4年
+    temp8u = (calendar->year - 1970L) % 4;      // 再单独加上年份
+    
     for (i = 0; i < temp8u; i++)
-    {
-        temp32u += years4List[i];
-    }
+    {   temp32u += years4List[i];   }
 
     if (temp8u == 2)
-    {
-        monthList[1] += 1;
-    }
+    {   monthList[1] = 29;  }                   // 如果为闰年，则2月为29
 
-    for (i = 0; i < (calendar->month - 1); i++)
-    {
-        temp32u += monthList[i];
-    }
+    for (i = 0; i < (calendar->month - 1); i++) // 累加月份天数
+    {   temp32u += monthList[i];    }
 
-    temp32u += (calendar->day - 1);
+    temp32u += (calendar->day - 1);             
 
-    temp32u *= 24L * 3600L;
+    temp32u *= SECONDS_DAY;
 
-    temp32u += calendar->hour * 3600L;
-    temp32u += calendar->min * 60L;
+    temp32u += calendar->hour * SECONDS_HOUR;
+    temp32u += calendar->min * SECONDS_MIN;
     temp32u += calendar->sec;
 
-    temp32u -= timeZone * 3600L;
+    temp32u -= timeZone * SECONDS_HOUR;
 
     return temp32u;
 }

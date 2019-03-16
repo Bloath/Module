@@ -19,9 +19,9 @@
   ********************************************************************************************/
 void LoopCache_Init(LoopCacheStruct *loopCache, void *data, uint8_t size, uint8_t maxLen)
 {
-    loopCache->__data = data;
-    loopCache->__size = size;
-    loopCache->_maxLen = maxLen;
+    loopCache->data = data;
+    loopCache->size = size;
+    loopCache->maxLen = maxLen;
     loopCache->__counter = 0;
 }
 /*********************************************************************************************
@@ -37,10 +37,10 @@ void LoopCache_Init(LoopCacheStruct *loopCache, void *data, uint8_t size, uint8_
   ********************************************************************************************/
 void DisorderCache_Init(DisorderCacheStruct *disorderCache, void *data, uint8_t size, uint8_t maxLen)
 {
-    disorderCache->__data = data;
-    disorderCache->__size = size;
-    disorderCache->_maxLen = maxLen;
-    disorderCache->_usedFlag = 0;
+    disorderCache->data = data;
+    disorderCache->size = size;
+    disorderCache->maxLen = maxLen;
+    disorderCache->__usedFlag = 0;
 }
 /*********************************************************************************************
 
@@ -55,11 +55,11 @@ int LoopCache_Append(LoopCacheStruct *loopCache, void *newData)
 {
     uint8_t index = loopCache->__counter;
 
-    memcpy(CACHE_GET(loopCache, loopCache->__counter), newData, loopCache->__size);
+    memcpy(CACHE_GET(loopCache, loopCache->__counter), newData, loopCache->size);
 
     loopCache->__counter++;
 
-    if (loopCache->__counter == loopCache->_maxLen)
+    if (loopCache->__counter == loopCache->maxLen)
     {   loopCache->__counter = 0;}
 
     return index;
@@ -76,17 +76,17 @@ int LoopCache_Append(LoopCacheStruct *loopCache, void *newData)
 int DisorderCache_Append(DisorderCacheStruct *disorderCache, void *newData)
 {
     uint8_t i;
-    for (i = 0; i < disorderCache->_maxLen; i++)
+    for (i = 0; i < disorderCache->maxLen; i++)
     {
-        if ((disorderCache->_usedFlag & ((uint32_t)1 << i)) == 0)
+        if ((disorderCache->__usedFlag & ((uint32_t)1 << i)) == 0)
         {   break;  }
     }
 
-    if (i == disorderCache->_maxLen)
+    if (i == disorderCache->maxLen)
     {   return -1;  }
 
-    memcpy(CACHE_GET(disorderCache, i), newData, disorderCache->__size);
-    disorderCache->_usedFlag |= ((uint32_t)1 << i);
+    memcpy(CACHE_GET(disorderCache, i), newData, disorderCache->size);
+    disorderCache->__usedFlag |= ((uint32_t)1 << i);
     return i;
 }
 /*********************************************************************************************
@@ -100,8 +100,8 @@ int DisorderCache_Append(DisorderCacheStruct *disorderCache, void *newData)
   ********************************************************************************************/
 void DisorderCache_Remove(DisorderCacheStruct *disorderCache, uint8_t index)
 {
-    memset(CACHE_GET(disorderCache, index), 0, disorderCache->__size);
-    disorderCache->_usedFlag &= ~((uint32_t)1 << index);
+    memset(CACHE_GET(disorderCache, index), 0, disorderCache->size);
+    disorderCache->__usedFlag &= ~((uint32_t)1 << index);
 }
 /*********************************************************************************************
 
@@ -116,12 +116,12 @@ int DisorderCache_Get(DisorderCacheStruct *disorderCache)
 {
     uint8_t i;
 
-    if (disorderCache->_usedFlag == 0)
+    if (disorderCache->__usedFlag == 0)
     {   return -1;  }
 
-    for (i = 0; i < disorderCache->_maxLen; i++)
+    for (i = 0; i < disorderCache->maxLen; i++)
     {
-        if ((disorderCache->_usedFlag & ((uint32_t)1 << i)) != 0)
+        if ((disorderCache->__usedFlag & ((uint32_t)1 << i)) != 0)
         {   return i;   }
     }
 
@@ -137,7 +137,7 @@ int DisorderCache_Get(DisorderCacheStruct *disorderCache)
   ********************************************************************************************/
 void LoopCache_Clear(LoopCacheStruct *loopCache)
 {
-    memset(loopCache->__data, 0, loopCache->__size * loopCache->_maxLen);
+    memset(loopCache->data, 0, loopCache->size * loopCache->maxLen);
     loopCache->__counter = 0;
 }
 /*********************************************************************************************
@@ -150,8 +150,8 @@ void LoopCache_Clear(LoopCacheStruct *loopCache)
   ********************************************************************************************/
 void DisorderCache_Clear(DisorderCacheStruct *disorderCache)
 {
-    memset(disorderCache->__data, 0, disorderCache->__size * disorderCache->_maxLen);
-    disorderCache->_usedFlag = 0;
+    memset(disorderCache->data, 0, disorderCache->size * disorderCache->maxLen);
+    disorderCache->__usedFlag = 0;
 }
 /*********************************************************************************************
 
@@ -166,19 +166,19 @@ void LoopCache_ClearNull(LoopCacheStruct *loopCache, bool (*nullCondition)(void 
     uint8_t i, j;
 
     /* 查找第一个空块 */
-    for (i = 0; i < loopCache->_maxLen; i++)
+    for (i = 0; i < loopCache->maxLen; i++)
     {
         if (nullCondition(CACHE_GET(loopCache, i), param) == true)
         {   break;  }
     }
 
     /* 从上一次找到的空块往后查找，当找到非空块，则写到空块中，计数器往后推1 */
-    for (j = i + 1; j < loopCache->_maxLen; j++)
+    for (j = i + 1; j < loopCache->maxLen; j++)
     {
         if (nullCondition(CACHE_GET(loopCache, j), param) == false)
         {
-            memcpy(CACHE_GET(loopCache, i), CACHE_GET(loopCache, j), loopCache->__size);
-            memset(CACHE_GET(loopCache, j), 0, loopCache->__size);
+            memcpy(CACHE_GET(loopCache, i), CACHE_GET(loopCache, j), loopCache->size);
+            memset(CACHE_GET(loopCache, j), 0, loopCache->size);
             i++;
         }
     }

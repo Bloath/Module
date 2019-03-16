@@ -6,23 +6,27 @@
 
 /* define -------------------------------------------------------------*/
 /* macro --------------------------------------------------------------*/
-#define CACHE_GET(cache, i) ((void *)((uint32_t)cache->__data + cache->__size * i))
+#define CACHE_INIT_STATIC(record)   {.data=record, .size=sizeof(record[0]), .maxLen=sizeof(record) / sizeof(record[0])}
+#define CACHE_INIT_DYNAMIC(loopPtr, record)    {loop->data=record; loop->size=sizeof(record[0]); loop->maxLen=sizeof(record); }
+#define CACHE_GET(cache, i) ((void *)((uint32_t)((cache)->data) + (cache)->size * i))
+#define CACHE_FOREACH(cache, cacheBlock)    for(cacheBlock=(cache)->data; (uint32_t)cacheBlock < (uint32_t)((cache)->data) + (cache)->size * (cache)->maxLen; cacheBlock += (cache)->size)
 
+#define DisorderCache_IsIndexAvaliable(cache, i)    (((cache)->__usedFlag & ((uint32_t)1L << i)) != 0)
 /* typedef ------------------------------------------------------------*/
 typedef struct
 {
-    void *__data;
+    void *data;
     uint8_t __counter;    
-    uint8_t __size;
-    uint8_t _maxLen;
+    uint8_t size;
+    uint8_t maxLen;
 } LoopCacheStruct;
 
 typedef struct
 {
-    void *__data;
-    uint8_t __size;
-    uint8_t _maxLen;
-    uint32_t _usedFlag;    // usedFlag作为是否被占用的标准位，说明该cache最多只能指向32个成员的对象数组
+    void *data;
+    uint8_t size;
+    uint8_t maxLen;
+    uint32_t __usedFlag;    // usedFlag作为是否被占用的标准位，说明该cache最多只能指向32个成员的对象数组
 } DisorderCacheStruct;
 
 /* variables ----------------------------------------------------------*/

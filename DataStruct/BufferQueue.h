@@ -13,6 +13,7 @@
 #define TX_FLAG_SENDED      (1 << 1)        // 已发送
 #define TX_FLAG_RT          (1 << 2)        // 需要进行重新发送
 #define TX_FLAG_TIMEOUT     (1 << 3)        // 是否超时标志位
+#define TX_FLAG_PACKAGE     (1 << 4)        // 需要打包
 #define TX_FLAG_MC          (1 << 6)        // 手动清除
 #define TX_FLAG_IS_MALLOC   (1 << 7)        // 已经为MALLOC，不需要复制，使用该位时，如果为字符串，则长度要包含结束位
 

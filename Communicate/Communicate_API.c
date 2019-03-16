@@ -73,3 +73,15 @@ void Communicate_Handle(CommunicateStruct *communicate)
     {   RxQueue_Handle(communicate->rxQueue, communicate->CallBack_RxHandleFunc, (void *)communicate);  }
 }
 
+/*********************************************************************************************
+
+  * @brief  通讯锁定
+  * @param  communicate：通讯对象指针
+  * @retval 无
+  * @remark 
+
+  ********************************************************************************************/
+ void Communicate_Lock(CommunicateStruct *communicate)
+ {
+    communicate->flag |= COM_FLAG_IS_LOCK;
+ }

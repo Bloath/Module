@@ -40,7 +40,7 @@ void ESP8266_PowerOn()
     /* 有数据时且WIFI电源为切断时，开启WIFI电源，重置运行流程 */
     ESP8266_UART_DISABLE();
     ESP8266_POWER_ON();      
-    esp8266._tcpProcess = TcpStatus_Init;
+    esp8266.UTProcess = UTStatus_Init;
     esp8266._conProcess = ConnectStatus_ResetWait;
 }
 
@@ -111,7 +111,7 @@ void ESP8266_Handle()
         {   
             ESP8266_UART_ENABLE();
             esp8266._conProcess = ConnectStatus_Init; 
-            esp8266._tcpProcess = TcpStatus_Init;
+            esp8266.UTProcess = UTStatus_Init;
         }
         break;
 
@@ -166,64 +166,84 @@ void ESP8266_Handle()
 bool ESP8266_HttpTransmit(uint8_t *message, uint16_t length)
 {
     static uint32_t time = 0;
-    char *cmdPacket;
+    char cmdPacket[40];
+    memset(cmdPacket, 0, 40);
+    char *packet;
 
-    switch (esp8266._tcpProcess)
+    switch (esp8266.UTProcess)
     {
     /* 发送TCP连接，AT+CIPSTART="TCP","域名",80，等待模块回复CONNECT 或者 ALREADY CONNECTED */ 
-    case TcpStatus_Init:                        
-        cmdPacket = (char *)Malloc(64);
-        memset(cmdPacket, 0, 64);
-        
+    case UTStatus_Init: 
+#if defined(ESP8266_TCP)
         strcat(cmdPacket, "AT+CIPSTART=\"TCP\",\"");
+#elif defined(ESP8266_UDP)
+        strcat(cmdPacket, "AT+CIPSTART=\"UDP\",\"");
+#endif
         strcat(cmdPacket, esp8266.http.host);
         strcat(cmdPacket, "\",");
         strcat(cmdPacket, esp8266.http.port);
+#if defined(ESP8266_UDP)
+        strcat(cmdPacket, ",,0");
+#endif
         strcat(cmdPacket, "\r\n");
         
         ESP8266_SendString(cmdPacket); 
-        Free(cmdPacket);
         
-        esp8266._tcpProcess = TcpStatus_WaitAck;
+        esp8266.UTProcess = UTStatus_WaitAck;
         time = realTime;
         break;
 
     /* 发送数据数量，先发送数据数量, AT+CIPSEND=数量，等待模块回复 > */
-    case TcpStatus_Connected:
-        cmdPacket = (char *)Malloc(64);
-        memset(cmdPacket, 0, 64);               // 清零
-        
+    case UTStatus_Connected:
         strcat(cmdPacket, "AT+CIPSEND=");
+#if defined(ESP8266_TCP)
         Uint2String(cmdPacket, esp8266.http.CallBack_PacketLength(length, esp8266.http.host, esp8266.http.port));       // 填充长度
+#elif defined(ESP8266_UDP)
+        Uint2String(cmdPacket, length * 2);
+#endif
         strcat(cmdPacket, "\r\n");
         
         ESP8266_SendString(cmdPacket);          // 发送数据
-        Free(cmdPacket);
 
-        esp8266._tcpProcess = TcpStatus_WaitAck;  // 切换为等待模式
+        esp8266.UTProcess = UTStatus_WaitAck;  // 切换为等待模式
         time = realTime;
         break;
 
     /* 将数据写入模块，等待回复SEND OK */
-    case TcpStatus_StartTrans:                  
-        cmdPacket = esp8266.http.CallBack_HttpPackage(message, length, esp8266.http.host, esp8266.http.port);           // 将数据重新打包
-        ESP8266_SendData((uint8_t *)cmdPacket, strlen(cmdPacket));          // 交给底层缓冲进行发送，标记为isMalloc，在发送缓冲中释放内存
+    case UTStatus_StartTrans:                  
+#if defined(ESP8266_TCP)
+        packet = esp8266.http.CallBack_HttpPackage(message, length, esp8266.http.host, esp8266.http.port);           // 将数据重新打包
+#elif defined(ESP8266_UDP)
+        packet = (char*)Malloc(length * 2);
+        if(packet != NULL)
+        {   Msg2String(packet, message, length);    }
+#endif
         
-        time = realTime;
-        esp8266._tcpProcess = TcpStatus_WaitAck;  // 切换为等待模式
+        if(packet == NULL)
+        {   esp8266.UTProcess = UTStatus_SendOk;    }
+        else
+        {
+            ESP8266_SendData((uint8_t *)packet, strlen(packet));            // 交给底层缓冲进行发送，标记为isMalloc，在发送缓冲中释放内存
+            time = realTime;
+            esp8266.UTProcess = UTStatus_WaitAck;                        // 切换为等待模式
+        }
         break;
 
     /* 等待回复，超时次数过多则弹出错误 */
-    case TcpStatus_WaitAck:
+    case UTStatus_WaitAck:
         if ((time + ESP8266_INTERVAL) < realTime)
         {   ESP8266_ErrorHandle(Error_TcpTimeout);  } 
 
         break;
 
-        /* 当模块接收到回复数据时，会回复Recv xx bytes，切换为发送成功 */
-    case TcpStatus_SendOk:
-        esp8266._tcpProcess = TcpStatus_WaitAck;
-        ESP8266_SendString("AT+CIPCLOSE\r\n");
+    /* 当模块接收到回复数据时，会回复Recv xx bytes，切换为发送成功 */
+    case UTStatus_SendOk:
+#if defined(ESP8266_TCP)
+        esp8266.UTProcess = UTStatus_Init;
+#elif defined(ESP8266_UDP)
+        esp8266.UTProcess = UTStatus_Connected;
+#endif
+        time = realTime;
         break;
     }
 
@@ -242,6 +262,17 @@ void ESP8266_RxMsgHandle(uint8_t *packet, uint16_t length, void *param)
 {
     char *message = (char *)packet;
     
+    if (strstr(message, "SPI Mode") != NULL)
+    {
+        esp8266.illegalResetCounter++;
+        if(esp8266.illegalResetCounter > 3)
+        {   
+            ESP8266_ErrorHandle(Error_GetResetInfo);    
+            esp8266.illegalResetCounter = 0;
+        }
+        return;
+    }
+    
     /***********airkiss部分****************/
     if (strstr(message, "AT+CWSTARTSMART=3") != NULL)
     {
@@ -255,6 +286,8 @@ void ESP8266_RxMsgHandle(uint8_t *packet, uint16_t length, void *param)
     if (strstr(message, "smartconfig connected") != NULL)           // smartconfig connected，则需要释放 AT+CWSTOPSMART
     {
         esp8266._flag &= ~ESP8266_AIRKISSING;
+        esp8266._flag |= ESP8266_AIRKISSED;
+        
         ESP8266_SendString("AT+CWSTOPSMART\r\n");
         esp8266._conProcess = ConnectStatus_Idle;                    // Airkiss连接成功，返回
         return;
@@ -262,13 +295,21 @@ void ESP8266_RxMsgHandle(uint8_t *packet, uint16_t length, void *param)
 
     /***********连接wifi部分****************/
     /* 在模块上电时，接收到WIFI CONNECT时，不一定真正连接，必须通过CWJAP判断 */
-    if (strstr(message, "CWJAP") != NULL)
+    if (strstr(message, "CWJAP?") != NULL)
     {
         if (strstr(message, "No AP") != NULL)
         {   
             esp8266._conProcess = ConnectStatus_Idle;     
             esp8266._flag &= ~ESP8266_WIFI_CONNECTED;
-            ESP8266_ErrorHandle(Error_NoAP);
+            
+            // 没配过wifi，则直接写入默认wifi，
+            if((esp8266._flag & (ESP8266_AIRKISSED | ESP8266_WRITE_DEFAULT_WIFI)) != 0)
+            {   ESP8266_ErrorHandle(Error_NoAP);    }
+            else
+            {   
+                ESP8266_SendString(ESP8266_DEFAULT_WIFI);  
+                esp8266._flag |= ESP8266_WRITE_DEFAULT_WIFI;
+            }
         }
         else
         {   
@@ -288,42 +329,59 @@ void ESP8266_RxMsgHandle(uint8_t *packet, uint16_t length, void *param)
     /**************TCP部分****************/
 
     // TCP CONNECT 连接成功
-    if (strstr(message, "CONNECT\r\n\r\nOK") != NULL ||
-        strstr(message, "ALREADY CONNECTED") != NULL)
+    if (strstr(message, "CONNECT\r\n\r\nOK") != NULL)
     {
-        esp8266._tcpProcess = TcpStatus_Connected;
+        esp8266.UTProcess = UTStatus_Connected;
+        return;
+    }
+    
+    // 发现ALREADY，则重复发送
+    if (strstr(message, "ALREADY CONNECTED") != NULL)
+    {
+        esp8266.UTProcess = UTStatus_SendOk;
+        ESP8266_SendString("AT+CIPCLOSE\r\n");
+//        ESP8266_ErrorHandle(Error_CipSendError);
         return;
     }
 
     // > 开始接收发送数据
     if (strstr(message, "CIPSEND") != NULL && strstr(message, ">") != NULL)
     {
-        esp8266._tcpProcess = TcpStatus_StartTrans;
+        esp8266.UTProcess = UTStatus_StartTrans;
         return;
     }
 
     //SEND OK 发送成功，清零发送错误标志
     if(strstr(message, "SEND OK") != NULL)                   
-    {   esp8266._tcpFailCounter = 0; }
+    {   
+      esp8266._tcpFailCounter = 0; 
+      //esp8266.UTProcess = UTStatus_SendOk;
+      esp8266.illegalResetCounter = 0;              // 清空非法复位计数器
+    }
     
     // 每次发送成功后都要关闭TCP连接
-    if(strstr(message, "CIPCLOSE") != NULL && strstr(message, "CLOSED") != NULL)                   
-    {   esp8266._tcpProcess = TcpStatus_Init;    }
+//    if(strstr(message, "CIPCLOSE") != NULL && strstr(message, "CLOSED") != NULL)
+    if(strstr(message, "CLOSED") != NULL)
+    {   esp8266.UTProcess = UTStatus_Init;    }
 
     /**************数据提取处理部分****************/
     /* 根据IPD的头部，将HTTP的内容部分提取出来填充到接收缓冲 */
     if (strstr(message, "+IPD") != NULL || strstr(message, "+ID") != NULL)
     {
-        esp8266._tcpProcess = TcpStatus_SendOk;
+        esp8266.UTProcess = UTStatus_SendOk;
+#ifdef ESP8266_TCP
         if (strstr(message, "HTTP") != NULL)                                            //找到HTTP字符串
+#endif
         {
-            char *index = strstr(message, "68");                                        //通过两次换行找到回复体
+            char *index = strstr(message, "\n68");                                        //通过两次换行找到回复体
             char *temp = NULL;
             
             /* 回复body提取可用字符串 */
             if (index != NULL)
             {   
-                esp8266._tcpFailCounter = 0; 
+                index += 1;                 
+                esp8266._tcpFailCounter = 0;
+                
                 /* 找到换行符，将换行符改为结束符，再对报文进行转换 */
                 temp = strstr(index, "\r\n");
                 if(temp != NULL)
@@ -355,10 +413,14 @@ void ESP8266_ErrorHandle(ESP8266_Error errorType)
     /* 接收超时 */
     case Error_Timeout:
         esp8266._conProcess = ConnectStatus_Reset;
-        esp8266._tcpProcess = TcpStatus_Init;
+        esp8266.UTProcess = UTStatus_Init;
         esp8266._timeOutCounter ++;
         if (esp8266._timeOutCounter >= ESP8266_RST_MAX_RETRY)
-        {   ESP8266_ErrorHandle(Error_Rst3Times);   }
+        {   
+            esp8266._timeOutCounter = 0;
+            if(esp8266.CallBack_ErrorHandle != NULL)
+            {   esp8266.CallBack_ErrorHandle(Error_Rst3Times); }    
+        }
         break;
 
     /* AIRKISS超时 */
@@ -369,16 +431,20 @@ void ESP8266_ErrorHandle(ESP8266_Error errorType)
     /* 启动发送时 */
     case Error_CipSendError:
         esp8266._tcpFailCounter++;
-        esp8266._tcpProcess = TcpStatus_Init;
+        esp8266.UTProcess = UTStatus_Init;
         if (esp8266._tcpFailCounter > ESP8266_TCP_MAX_RETRY)
         {
             esp8266._conProcess = ConnectStatus_Reset;
-            esp8266._tcpProcess = TcpStatus_Init;
+            esp8266.UTProcess = UTStatus_Init;
             esp8266._tcpFailCounter = 0;
             
             esp8266._timeOutCounter ++;
             if (esp8266._timeOutCounter >= ESP8266_RST_MAX_RETRY)
-            {   ESP8266_ErrorHandle(Error_Rst3Times);   }
+            {
+                esp8266._timeOutCounter = 0;
+                if(esp8266.CallBack_ErrorHandle != NULL)
+                {   esp8266.CallBack_ErrorHandle(Error_Rst3Times); } 
+            }
         }
         else
         {   goto errorEnd;    }                         // 重发失败次数不到上限不执行回调
@@ -389,25 +455,28 @@ void ESP8266_ErrorHandle(ESP8266_Error errorType)
         ESP8266_SendString("AT+CIPCLOSE\r\n");
         esp8266._timeOutCounter ++;
         if (esp8266._timeOutCounter >= ESP8266_RST_MAX_RETRY)
-        {   ESP8266_ErrorHandle(Error_Rst3Times);   }
+        {
+            esp8266._timeOutCounter = 0;
+            if(esp8266.CallBack_ErrorHandle != NULL)
+            {   esp8266.CallBack_ErrorHandle(Error_Rst3Times); } 
+        }
         break;
         
     /* 未连接wifi */
     case Error_NoAP:
+        esp8266._flag &= ~ESP8266_WIFI_CONNECTED;
         break;
     
     /* HTTP回复体中没数据 */
     case Error_ResponseError:
         break;
         
-    /* 因超时/连接错误复位3次依然还有问题 */
-    case Error_Rst3Times:
-        esp8266._timeOutCounter = 0;
-        break;
     default:
         break;
     }
     
+    // ESP8266_ErrorHandle相当于过滤器，将需要esp8266内部处理的先处理好后调用该回调
+    // 虽然使用同样的参数，但是要区分两层错误处理，内部处理以及外部处理
     if(esp8266.CallBack_ErrorHandle != NULL)
     {   esp8266.CallBack_ErrorHandle(errorType); }
 errorEnd:

@@ -35,8 +35,10 @@ typedef struct
     OrderAtCmdStruct __orderAt;                         // AT指令索引
 
     ProcessEnum _process;                               // 运行流程
+    ProcessEnum _lastProcess;                           // 上次流程
     uint8_t _errorCounter;                              // 在发送状态下产生的错误次数
     bool _isTransmitting;                               // 正在发送
+    uint8_t socketId;                                   // 套接字编号
     NbSignalStrengthEnum _signal;                       // 信号强度
 
     TxQueueStruct *txQueueHal;                          // 硬件层 发送队列
@@ -45,6 +47,7 @@ typedef struct
     
     void (*CallBack_TxError)();                         // 错误处理
     bool (*CallBack_HalTxFunc)(uint8_t *, uint16_t);    // 硬件层 发送处理函数
+    void (*CallBack_TimeUpdate)();                      // 硬件层 获取新时间
     void *halTxParam;                                   // 硬件层 发送处理函数参数 
 } NBStruct;
 
@@ -54,6 +57,6 @@ extern NBStruct nb;
 /* Public function prototypes ------------------------------------------------*/
 void NB_Handle();
 void NB_RxHandle(uint8_t *packet, uint16_t len, void *param);
-
+int NB_DataPackage(TxBaseBlockStruct *block, void *param, PacketStruct *packet);       //需要处理Malloc
 void NB_StringTrans(const char *string);
 #endif

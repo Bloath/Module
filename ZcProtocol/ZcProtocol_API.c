@@ -25,10 +25,15 @@ uint8_t *ZcProtocol_ConvertMsg(ZcProtocol *zcProtocol, uint8_t *data, uint16_t d
     /* 确定数据长度，并申请相应内存 */
     zcProtocol->head.length = ZC_UNDATA_LEN + dataLen;
     uint8_t *msg = (uint8_t *)Malloc(zcProtocol->head.length);
+    
+    if(msg == NULL)
+    {   return NULL;    }
 
     /* 按照 头 、数据、结尾的顺序开始对报文进行赋值 */
     memcpy(msg, &zcProtocol->head, sizeof(zcProtocol->head));
 
+    EndianExchange(&( ((ZcProtocol *)msg)->head.timestamp ), &(zcProtocol->head.timestamp), 4);
+    
     memcpy(msg + ZC_HEAD_LEN, data, dataLen);   // 复制数据域
 
     msg[zcProtocol->head.length - 2] = ZcProtocol_GetCrc(msg, zcProtocol->head.length); // 填充CRC
@@ -141,7 +146,7 @@ void ZcProtocol_IdIncrement(bool isQueryId)
   * @remark 通过输入命令以及数据，并填写到发送缓冲当中
 
   ********************************************************************************************/
-uint8_t ZcProtocol_Request(CommunicateStruct *communicate, uint8_t cmd, uint8_t *data, uint16_t dataLen, uint8_t txMode)
+int ZcProtocol_Request(CommunicateStruct *communicate, uint8_t cmd, uint8_t *data, uint16_t dataLen, uint8_t txMode)
 {
     uint8_t *msg;
     
@@ -159,6 +164,10 @@ uint8_t ZcProtocol_Request(CommunicateStruct *communicate, uint8_t cmd, uint8_t 
     }
 
     msg = ZcProtocol_ConvertMsg(&zcPrtc, data, dataLen);
+    
+    if(msg == NULL)
+    {   return -1;  }
+    
     TxQueue_AddWithId(communicate->txQueue, msg, msg[3], txMode | TX_FLAG_IS_MALLOC, zcPrtc.head.id);
 
     return zcPrtc.head.id;
@@ -180,5 +189,9 @@ void ZcProtocol_Response(CommunicateStruct *communicate, ZcProtocol *zcProtocol,
 
     /* 根据不同的源，进行不同的发送处理 */
     msg = ZcProtocol_ConvertMsg(zcProtocol, data, dataLen);
+    
+    if(msg == NULL)
+    {   return; }
+    
     TxQueue_AddWithId(communicate->txQueue, msg, msg[3], txMode | TX_FLAG_IS_MALLOC, zcProtocol->head.id);
 }

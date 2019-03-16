@@ -7,6 +7,7 @@
 #include "Convert.h"
 #include "StringPlus.h"
 #include "ArrayMacro.h"
+#include "DataMacro.h"
 
 /* Public define -------------------------------------------------------------*/
 /* Public macro --------------------------------------------------------------*/

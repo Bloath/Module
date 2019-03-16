@@ -1,6 +1,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "../Common/Common.h"
-#include "NB.h"
+#include "NB_API.h"
 
 /* Private define -------------------------------------------------------------*/
 /* Private macro --------------------------------------------------------------*/
@@ -10,8 +10,8 @@ NBStruct nb;
 
 const char *nbCmd[] = {
     "AT+CFUN=0\r\n",                        // 0. 关闭射频
-    "AT+CMEE=1\r\n",                        // 1. 开启错误序号提示
-    "AT+NPSMR=1\r\n",                       // 2. 提示是否进入休眠
+    "AT+NCDP=117.78.42.93,5683\r\n",        // 1. 设置地址
+    "AT+NNMI=1\r\n",                        // 2. 设置下发数据前缀
     "AT+NCONFIG=CELL_RESELECTION,true\r\n", // 3. 开启小区重选
     "AT+CEREG=1\r\n",                       // 4. 开启信息提示
     "AT+CFUN=1\r\n",                        // 5. 启动射频     ----> 启动连接
@@ -22,14 +22,12 @@ const char *nbCmd[] = {
     "AT+CCLK?\r\n"                          // 10. 时间
 };
 
-char *nbUdpConfig = "AT+NSOCFG=1,0,0\r\n";
-
 /* Private function prototypes ------------------------------------------------*/
 void NB_StringTrans(const char *string);
 
 #define NB_JUMP_ORDERAT(x)            \
     {                                 \
-        NB_SetProcess(Process_OrderAt);\
+        nb._process = Process_OrderAt;\
         nb.__orderAt.index = x;       \
     }
 
@@ -46,12 +44,7 @@ void NB_StringTrans(const char *string);
             nb.CallBack_TxError();       \
         }                                \
         nb.__startConnectTime = realTime;  \
-        NB_SetProcess(Process_LongWait);   \
-    }
-#define NB_SetProcess(process)  \
-    {                                       \
-        nb._lastProcess = nb._process;      \
-        nb._process = process;              \
+        nb._process = Process_LongWait;   \
     }
 /*********************************************************************************************
 
@@ -86,7 +79,7 @@ void NB_Handle()
         nb.__orderAt.isGetOk = false;
         nb.__orderAt.isGetError = false;
         nb.__time = realTime;
-        NB_SetProcess(Process_OrderAtWait);
+        nb._process = Process_OrderAtWait;
         break;
 
     /* 等待3s如果没有回复则重发命令 
@@ -94,7 +87,7 @@ void NB_Handle()
      收到错误，则编写对应的错误处理 */
     case Process_OrderAtWait:
         if ((nb.__time + 3) < realTime)
-        {   NB_SetProcess(Process_OrderAt);   }
+        {   nb._process = Process_OrderAt;   }
         else
         {
             if (nb.__orderAt.isGetOk == true)
@@ -102,11 +95,11 @@ void NB_Handle()
                 switch (nb.__orderAt.index)
                 {
                 case 1: // 完成NCDP设置
-                    NB_SetProcess(Process_Reset);
+                    nb._process = Process_Reset;
                     break;
                 case 6: // 完成复位后的启动射频以及启动附着设置
                     nb.__startConnectTime = realTime;
-                    NB_SetProcess(Process_Wait);
+                    nb._process = Process_Wait;
                     break;
                 case 8: // 完成清除连接信息后跳转到重新连接
                     NB_START_CONNECT();
@@ -116,12 +109,12 @@ void NB_Handle()
                     if (timeStamp < 1500000000)
                     {   NB_GET_SS_TIME();   }
                     else
-                    {   NB_SetProcess(Process_Start);   }
+                    {   nb._process = Process_Run;   }
                     break;
 
                 default: // 其他的则顺序向下执行
                     nb.__orderAt.index++;
-                    NB_SetProcess(Process_OrderAt);
+                    nb._process = Process_OrderAt;
                     break;
                 }
             }
@@ -137,7 +130,7 @@ void NB_Handle()
         }
         break;
 
-    /* 等待连接 */
+    // 等待连接
     case Process_Wait:
         // 每5s发送一次查询连接
         if ((nb.__time + 5) < realTime)
@@ -151,20 +144,13 @@ void NB_Handle()
         {   NB_RETRY_CON_NEXT();    }
         break;
 
-    /* 长时间等待，等待下次重连，24小时后重连 */
+    // 长时间等待，等待下次重连，24小时后重连
     case Process_LongWait:
         if ((nb.__startConnectTime + SECONDS_DAY) < realTime)
         {   NB_ClEAR_CONNECT(); }
         break;
 
-    /* 启动UDP */
-    case Process_Start:
-        NB_StringTrans("AT+NSOCR=\"DGRAM\",17,6666,1\r\n");
-        nb.__time = realTime;
-        NB_SetProcess(Process_Wait);
-        break;
-        
-    /* 开始工作部分，对于NB来说，有数据直接发送即可，等待回复 */
+    // 开始工作部分，对于NB来说，有数据直接发送即可，等待回复
     case Process_Run:
         TxQueue_Handle(nb.txQueueService, nb.CallBack_HalTxFunc, NULL);
         if (nb.txQueueService->_usedBlockQuantity != 0)
@@ -188,13 +174,11 @@ void NB_Handle()
 
     case Process_Reset:
         NB_StringTrans("AT+NRB\r\n");
-        NB_SetProcess(Process_ResetWait);
-        nb.__time = realTime;
+        nb._process = Process_ResetWait;
         break;
 
     case Process_ResetWait:
-        if((nb.__time + 10) < realTime)
-        {   NB_SetProcess(Process_Reset);   }
+
         break;
     }
 }
@@ -211,10 +195,8 @@ void NB_Handle()
 void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
 {
     char *message = (char *)packet;
-    char *location = NULL, *temp = NULL;
-    char nsorf[15] = "AT+NSORF=";
-    int count = 0;
-    uint8_t *data = NULL;
+    char *data = NULL;
+    char *location = NULL;
 
     // 在顺序发送AT出现OK或者ERROR的情况
     if (nb._process == Process_OrderAtWait)
@@ -233,28 +215,6 @@ void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
         if (location[7] == '1')
         {   NB_GET_SS_TIME();   }
 
-        return;
-    }
-    
-    // 是否正常打开UDP
-    if (nb._lastProcess == Process_Start)
-    {
-        if(strstr(message, "ERROR"))
-        {   NB_INIT();  }
-        else
-        {
-            location = strstr(message, "\r\n\r\nOK\r\n");
-            location -= 1;
-            if( *location >= 30 && *location <= 0x39)
-            {
-                nb.socketId = *location - 0x30;
-                NB_SetProcess(Process_Run);
-                nbUdpConfig[10] = nb.socketId + 0x30;
-                NB_StringTrans(nbUdpConfig);
-            }
-            else
-            {   NB_INIT();  }
-        }
         return;
     }
 
@@ -277,8 +237,8 @@ void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
     location = strstr(message, "+CSQ");
     if (location != NULL)
     {
-        temp = String_CutByChr(location, ':', ','); // 将信号强度部分裁剪出来
-        uint32_t temp32u = NumberString2Uint(temp); // 转换为数字
+        data = String_CutByChr(location, ':', ','); // 将信号强度部分裁剪出来
+        uint32_t temp32u = NumberString2Uint(data); // 转换为数字
 
         // 0-2 微弱信号 2-10一般 11-31较强 99收不到
         if (temp32u < 2)
@@ -291,16 +251,45 @@ void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
         Free(data);
         return;
     }
-    
-    // 接收到数据，还他妈得主动读取，艹
-    location = strstr(message, "+NSONMI:");
-    if (location != NULL)
+
+    // 接收到数据
+    if (strstr(message, "+NNMI") != NULL)
     {
-        location += 8;
-        temp = strstr(location, "\r\n");
-        memcpy(nsorf + 9, location, strlen(location));
-        NB_StringTrans(nsorf);
-        return;
+        nb._errorCounter = 0;
+
+        char *tempPointer = (char *)message;
+        bool isNeedCheck = false;
+        for (uint8_t i = 0; i < 10; i++)
+        {
+            tempPointer = strstr(tempPointer, "+NNMI"); // 找到NMI
+            if (tempPointer == NULL)
+            {   break;  } // 没找到则直接退出
+
+            /* 有可能发生字符串黏连的情况，则通过不同方式进行切割
+               有换行符，则使用String_CutByChr，没有，则直接找到,后面字符作为指针 */
+            char *msgStr = NULL;
+            if (strstr(tempPointer, "\r") == NULL)
+            {
+                msgStr = (char *)((uint32_t)strstr(tempPointer, ",") + 1);
+                isNeedCheck = false;
+            }
+            else
+            {
+                msgStr = String_CutByChr(tempPointer, ',', '\r');
+                tempPointer = strstr(tempPointer, "\r");
+                isNeedCheck = true;
+            }
+
+            uint8_t *msg = NULL;
+            int count = String2Msg(&msg, msgStr, 0);                    // 转换为字节数组格式
+            if(count > 0)
+            {   RxQueue_Add(nb.rxQueueService, msg, count, true);     }   // 填充到接收缓冲当中
+            
+            Free(msgStr);
+
+            if (isNeedCheck == false)
+            {   break;  }
+        }
     }
 
     // 重启完成
@@ -309,35 +298,13 @@ void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
         NB_FINISH_RST();
         return;
     }
-    
-    // 获取数据
-    location = strstr(message, "+NSORF:");
-    if (location != NULL)
-    {
-        location = strstr(location, "\n68");
-        if(location != NULL)
-        {
-            location += 1;
-            temp = strstr(location, "16\r");
-            if(temp != NULL)
-            {
-                data = NULL;
-                temp[2] = '\0';
-                count = String2Msg(&data, location, 0);
-                if (count > 0)
-                {   RxQueue_Add(nb.rxQueueService, data, count, true);     }
-            }
-        }
-        NB_SetProcess(Process_Run);
-        return;
-    }
 
     /* 处于发送状态
      出现Error时，有可能并未入网，ERROR出现10次重启模块 */
     if (nb._process == Process_Run)
     {
-//        if (strstr(message, "OK") != NULL)
-//        {   TxQueue_FreeByIndex(nb.txQueueService, nb.txQueueService->_lastIndex); }
+        if (strstr(message, "OK") != NULL)
+        {   TxQueue_FreeByIndex(nb.txQueueService, nb.txQueueService->_lastIndex); }
 
         // 在数据发送处理部分接收到error，需要复位
         if (strstr(message, "ERROR") != NULL)
@@ -347,7 +314,7 @@ void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
             // 发现错误次数超过缓冲的重发次数
             if (nb._errorCounter >= nb.txQueueService->maxTxCount * 2)
             {
-                NB_SetProcess(Process_Init);
+                nb._process = Process_Init;
                 nb._errorCounter = 0;
             }
         }
@@ -367,18 +334,14 @@ int NB_DataPackage(TxBaseBlockStruct *block, void *param, PacketStruct *packet)/
        AT+NMGS= 8位
        长度+逗号 4位
        \r\n 2位      */
-    uint16_t totalLen = 40 + block->length * 2;
+    uint16_t totalLen = 16 + block->length * 2;
     char *msg = (char *)Malloc(totalLen);
     memset(msg, 0, totalLen);
 
     /* 拼接指令协议 */
-    strcat(msg, "AT+NSOST=");                            // AT头
-    Uint2String(msg, nb.socketId);                    // 填充数字
+    strcat(msg, "AT+NMGS=");                            // AT头
+    Uint2String(msg, block->length);                    // 填充数字
     strcat(msg, ",");                                   // 填充，
-    strcat(msg, HOST);
-    strcat(msg, ",");
-    strcat(msg, PORT);
-    strcat(msg, ",,");
     Msg2String(msg, block->message, block->length);     // 填充报文
     strcat(msg, "\r\n");                                  // 填充换行
 

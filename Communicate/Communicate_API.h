@@ -23,6 +23,7 @@ typedef struct __communicate
     /* 手动设置项 */
     CommunicateMediumEnum medium; // 通讯介质
     uint8_t attribute;            // 属性，默认为全双工
+    uint8_t flag;                 // 状态
     TxQueueStruct *txQueue;       // 发送缓冲，业务层 在进行业务处理后，将需要处理的业务直接填充到该缓冲中(不断循环)
     RxQueueStruct *rxQueue;       // 接收缓冲，业务层 RxQueue_Handle(communicate->rxQueue, Communicate_RxHandle, (void*)communicate);
     uint16_t loopInterval;        // 轮询时间（半双工客户端有效，COM_ATTR_POLL_MC无效）
@@ -36,13 +37,18 @@ typedef struct __communicate
 } CommunicateStruct;
 
 /* Public define ------------------------------------------------------------*/
-#define COM_ATTR_FD (1<<0)          // 全双工
-#define COM_ATTR_HD_CLINET (1<<1)   // 半双工客户端，默认为半双工服务器
-#define COM_ATTR_POLL_MNL (1<<2)    // 手动处理轮询（only for 半双工客户端）
+#define COM_ATTR_FD         (1<<0)      // 全双工
+#define COM_ATTR_HD_CLINET  (1<<1)      // 半双工客户端，默认为半双工服务器
+#define COM_ATTR_POLL_MNL   (1<<2)      // 手动处理轮询（only for 半双工客户端）
+
+#define COM_FLAG_IS_LOCK    (1<<3)      // 已锁定
+
+#define Communicate_IsLock(com)     (((com)->flag & COM_FLAG_IS_LOCK) != 0)
 
 /* Public macro --------------------------------------------------------------*/
 /* Public variables ----------------------------------------------------------*/
 /* Public function prototypes ------------------------------------------------*/
 void Communicate_Handle(CommunicateStruct *communicate);
+void Communicate_Lock(CommunicateStruct *communicate);
 
 #endif

@@ -40,6 +40,7 @@ int ReceiveSingleByte(uint8_t data, RxBufferStruct *rxBuffer)
   * @retval 返回填充队列号，
             -1：队列已满
             -2：填充数据长度为0
+            -3：内存池已满
   * @remark 
 
   ********************************************************************************************/
@@ -55,17 +56,18 @@ int RxQueue_Add(RxQueueStruct *rxQueue, uint8_t *packet, uint16_t Len, bool isMa
     {
         if (!(rxQueue->__rxBlocks[i].flag & RX_FLAG_USED)) //查找空闲报文队列
         {
-            rxQueue->__rxBlocks[i].flag |= RX_FLAG_USED; //报文块使用标志位置位
-
             /* 申请内存并填写 */
             if (isMalloc == false)
             {
                 rxQueue->__rxBlocks[i].message = (uint8_t *)Malloc((Len + 1) * sizeof(uint8_t)); //根据缓冲长度申请内存，多一个字节，用于填写字符串停止符
+                if(rxQueue->__rxBlocks[i].message == NULL)
+                {   return -3;   }
                 memcpy(rxQueue->__rxBlocks[i].message, packet, Len);
             }
             else
             {   rxQueue->__rxBlocks[i].message = packet;  }
             
+            rxQueue->__rxBlocks[i].flag |= RX_FLAG_USED; //报文块使用标志位置位
             rxQueue->__rxBlocks[i].message[Len] = 0; // 添加结束符，该缓冲块可以用作字符串处理
             rxQueue->__rxBlocks[i].length = Len;
 
@@ -168,9 +170,9 @@ txLoopStart:
                    不为空的，则将原始报文进行二次打包之后，发送
                    1. 减少缓冲块中占用内存
                    2. 再进行分析时不用再重新拆包解析 */
-                if(txQueue->CallBack_PackagBeforeTransmit == NULL)
+                if(txQueue->CallBack_PackagBeforeTransmit == NULL || (txQueue->__txBlocks[i].flag & TX_FLAG_PACKAGE) == 0)
                 {   isNeedFree = Transmit(txQueue->__txBlocks[i].message, txQueue->__txBlocks[i].length);   }           // 发送原始报文
-                else
+                else if(txQueue->CallBack_PackagBeforeTransmit != NULL && (txQueue->__txBlocks[i].flag & TX_FLAG_PACKAGE) != 0)
                 {
                     if(txQueue->CallBack_PackagBeforeTransmit(&(txQueue->__txBlocks[i]), packageParam, &packet) == 0) // 二次封包
                     {
@@ -178,6 +180,9 @@ txLoopStart:
                         Free(packet.data);                                                                          // 释放内存空间
                     }
                 }
+                else if((txQueue->__txBlocks[i].flag & TX_FLAG_PACKAGE) != 0)
+                {   while(1);   }                               // 在此类情况中，会导致无限循环
+                
                 txQueue->_lastIndex = i;
                 txQueue->__txBlocks[i].flag |= TX_FLAG_SENDED; // 标记为已发送
                 txQueue->__txBlocks[i].retransCounter++;       // 重发次数递增
@@ -238,6 +243,7 @@ txLoopStart:
             length：报文长度
             custom：自定义标志位，参考SimpleBuffer.h中的TX_FLAG
   * @return -1 失败：队列已满
+            -3 失败：内存池已满
   * @remark 
 
   ********************************************************************************************/
@@ -253,6 +259,8 @@ int TxQueue_Add(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, uint8
             if((mode & TX_FLAG_IS_MALLOC) == 0)
             {
                 txQueue->__txBlocks[i].message = (uint8_t *)Malloc(length * sizeof(uint8_t));
+                if(txQueue->__txBlocks[i].message == NULL)
+                {   return -3 ;  }
                 memcpy(txQueue->__txBlocks[i].message, message, length);
             }
             else
@@ -417,7 +425,7 @@ void DmaBuffer_IdleHandle(DmaBufferStruct *dmaBuffer, uint16_t remainCount)
     if (dmaBuffer->__bufferLength == 0)
     {   DmaBuffer_Init(dmaBuffer);  }
 
-    dmaBuffer->__end = dmaBuffer->__bufferLength - remainCount;
+    dmaBuffer->__end = dmaBuffer->__bufferLength - remainCount;             // 结束位置计算
 
     /* 通过判断end与start的位置，进行不同的处理 */
     if (dmaBuffer->__end > dmaBuffer->__start)
@@ -425,20 +433,22 @@ void DmaBuffer_IdleHandle(DmaBufferStruct *dmaBuffer, uint16_t remainCount)
     else if (dmaBuffer->__end < dmaBuffer->__start)
     {
         uint8_t *message = (uint8_t *)Malloc(dmaBuffer->__bufferLength - dmaBuffer->__start + dmaBuffer->__end);
+        
+        if(message != NULL)
+        {
+            memcpy(message,
+                   dmaBuffer->_buffer + dmaBuffer->__start,
+                   dmaBuffer->__bufferLength - dmaBuffer->__start);
 
-        memcpy(message,
-               dmaBuffer->_buffer + dmaBuffer->__start,
-               dmaBuffer->__bufferLength - dmaBuffer->__start);
+            memcpy(message + dmaBuffer->__bufferLength - dmaBuffer->__start,
+                   dmaBuffer->_buffer,
+                   dmaBuffer->__end + 1);
 
-        memcpy(message + dmaBuffer->__bufferLength - dmaBuffer->__start - 1,
-               dmaBuffer->_buffer,
-               dmaBuffer->__end + 1);
-
-        RxQueue_Add(&dmaBuffer->_rxQueue,
-                    message,
-                    dmaBuffer->__bufferLength - dmaBuffer->__start + dmaBuffer->__end, 
-                    false);
-        Free(message);
+            RxQueue_Add(&dmaBuffer->_rxQueue,
+                        message,
+                        dmaBuffer->__bufferLength - dmaBuffer->__start + dmaBuffer->__end, 
+                        true);
+        }
     }
 
     dmaBuffer->__start = dmaBuffer->__end;

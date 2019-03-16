@@ -16,7 +16,10 @@ typedef enum
     Error_TcpTimeout,
     Error_AirKissError,
     Error_NoAP,
+    Error_ActiveClose,
     Error_Rst3Times,
+    Error_GetResetInfo,
+    Error_Lock,
 } ESP8266_Error;
 
 typedef enum
@@ -34,12 +37,12 @@ typedef enum
 
 typedef enum
 {
-    TcpStatus_Init,
-    TcpStatus_Connected,
-    TcpStatus_StartTrans,
-    TcpStatus_WaitAck,
-    TcpStatus_SendOk
-} ESP8266_TcpProcessEnum;
+    UTStatus_Init,
+    UTStatus_Connected,
+    UTStatus_StartTrans,
+    UTStatus_WaitAck,
+    UTStatus_SendOk
+} ESP8266_UTProcessEnum;
 
 typedef struct
 {
@@ -53,10 +56,11 @@ typedef struct
 {
     uint32_t __time;                                    // 流程时间，单位为s
     ESP8266_ConnectProcessEnum _conProcess;             // 连接流程，包括airkiss、查询是否连接等
-    ESP8266_TcpProcessEnum  _tcpProcess;                // TCP连接流程，建立TCP连接，发送数据
+    ESP8266_UTProcessEnum  UTProcess;                   // TCP UDP连接流程，建立TCP连接，发送数据
     uint8_t _tcpFailCounter;                            // 发送错误计数器，有可能网络不稳或延迟导致的
     uint8_t _timeOutCounter;                            // 复位次数计数器
     uint8_t _flag;                                      // 标志位，表示当前模块状态
+    uint8_t illegalResetCounter;                        // 非正常复位计数器（在正常复位中，串口是关闭的，是无法收到复位信息的）
     
     Esp8266HttpStruct http;                             // Http相关
     
@@ -75,7 +79,8 @@ typedef struct
 #define ESP8266_TCP_CONNECTED (1 << 1)
 #define ESP8266_AIRKISS (1 << 2)            // 有airkiss的操作
 #define ESP8266_AIRKISSING (1 << 3)         // 正在airkiss的期间
-
+#define ESP8266_AIRKISSED (1 << 4)          // airkiss完成
+#define ESP8266_WRITE_DEFAULT_WIFI (1 << 5)
 /* Public macro --------------------------------------------------------------*/
 /* Public variables ----------------------------------------------------------*/
 extern Esp8266Struct esp8266;
@@ -87,5 +92,6 @@ void ESP8266_PowerOn();
 void ESP8266_EnableAirkiss();
 void ESP8266_RxMsgHandle(uint8_t *message, uint16_t length, void *param);
 void ESP8266_SendAtString(const char *cmd);
+void ESP8266_ErrorHandle(ESP8266_Error errorType);
 
 #endif

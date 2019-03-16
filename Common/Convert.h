@@ -22,10 +22,11 @@ typedef struct
 int String2Msg(uint8_t **dst, char *srcStr, uint16_t specifyLen);
 int Msg2String(char *dst, uint8_t *message, uint16_t length);
 int Uint2String(char *dst, uint32_t number);
+void* Memory2HexString(void *dst, void *src, uint16_t length, bool isBigEndian);
 
 uint32_t NumberString2Uint(const char *numString);
 int Number2Array(uint8_t **dst, uint32_t number, bool isPositiveSequence);
-void EndianExchange(uint8_t *dst, uint8_t *src, uint8_t len);
+void* EndianExchange(void *dst, void *src, uint16_t len);
 
 void TimeStamp2Calendar(uint32_t timeStamp, CalendarStruct *calendar, uint8_t timeZone);
 uint32_t Calendar2TimeStamp(CalendarStruct *calendar, uint8_t timeZone);
