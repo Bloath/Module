@@ -24,7 +24,7 @@ int ReceiveSingleByte(uint8_t data, RxBufferStruct *rxBuffer)
 {
     rxBuffer->_buffer[rxBuffer->count] = data; //填入缓冲
     rxBuffer->count++;                        //计数器递增
-    if (rxBuffer->count >= BUFFER_LENGTH)
+    if (rxBuffer->count >= rxBuffer->length)
     {   return -1;  }
 
     return rxBuffer->count;
@@ -400,13 +400,16 @@ void TxQueue_FreeByIndex(TxQueueStruct *txQueue, uint8_t index)
 
   * @brief  基于DMA的接收缓冲处理
   * @param  dmaBuffer：dmaStruct结构体
+            buffer：缓冲指针
+            bufferSize：缓冲大小
   * @return 
   * @remark 有平台在变量初始化时有可能不会将START END 清零
 
   ********************************************************************************************/
-void DmaBuffer_Init(DmaBufferStruct *dmaBuffer)
+void DmaBuffer_Init(DmaBufferStruct *dmaBuffer, uint8_t *buffer, uint16_t bufferSize)
 {
-    dmaBuffer->__bufferLength = BUFFER_LENGTH;
+    dmaBuffer->_buffer = buffer;
+    dmaBuffer->__bufferLength = bufferSize;
     dmaBuffer->__start = 0;
     dmaBuffer->__end = 0;
 }
@@ -422,9 +425,6 @@ void DmaBuffer_Init(DmaBufferStruct *dmaBuffer)
   ********************************************************************************************/
 void DmaBuffer_IdleHandle(DmaBufferStruct *dmaBuffer, uint16_t remainCount)
 {
-    if (dmaBuffer->__bufferLength == 0)
-    {   DmaBuffer_Init(dmaBuffer);  }
-
     dmaBuffer->__end = dmaBuffer->__bufferLength - remainCount;             // 结束位置计算
 
     /* 通过判断end与start的位置，进行不同的处理 */

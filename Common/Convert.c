@@ -262,7 +262,7 @@ void TimeStamp2Calendar(uint32_t timeStamp, CalendarStruct *calendar, uint8_t ti
     /************** 年份计算 **************/
     for (i = 0; i < 4; i++)
     {
-        if (remainDays <= years4List[i])
+        if (remainDays < years4List[i])
         {
             calendar->year += i; // 年增加
             if (i == 2)
