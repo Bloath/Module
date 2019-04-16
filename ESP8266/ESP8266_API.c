@@ -299,19 +299,25 @@ void ESP8266_RxMsgHandle(uint8_t *packet, uint16_t length, void *param)
     {
         if (strstr(message, "No AP") != NULL)
         {   
-            esp8266._conProcess = ConnectStatus_Idle;     
+            esp8266._conProcess = ConnectStatus_Idle; 
+            esp8266.__time = realTime;
             esp8266._flag &= ~ESP8266_WIFI_CONNECTED;
+            
             
             // 没配过wifi，则直接写入默认wifi，
             if((esp8266._flag & (ESP8266_AIRKISSED | ESP8266_WRITE_DEFAULT_WIFI)) != 0)
             {   ESP8266_ErrorHandle(Error_NoAP);    }
             else
             {   
-                ESP8266_SendString(ESP8266_DEFAULT_WIFI);  
+                ESP8266_SendString(ESP8266_DEFAULT_WIFI); 
                 esp8266._flag |= ESP8266_WRITE_DEFAULT_WIFI;
             }
         }
-        else
+        else if (strstr(message, "busy") != NULL)
+        {   
+            ESP8266_ErrorHandle(Error_NoAP);
+        }
+        else 
         {   
             esp8266._conProcess = ConnectStatus_Connected;
             esp8266._flag |= ESP8266_WIFI_CONNECTED;

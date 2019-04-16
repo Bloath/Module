@@ -19,6 +19,9 @@ typedef enum
 {
     NbError_WeakSignal = 0,
     NbError_Undetected,
+    NbError_TxFail,
+    NbError_NeedReset,
+    NbError_AtError,
 } NbErrorEnum;
 
 typedef struct
@@ -26,6 +29,7 @@ typedef struct
     uint8_t index;
     bool isGetOk;
     bool isGetError;
+    uint8_t errorCounter;
 } OrderAtCmdStruct;
 
 typedef struct
@@ -40,12 +44,14 @@ typedef struct
     bool _isTransmitting;                               // 正在发送
     uint8_t socketId;                                   // 套接字编号
     NbSignalStrengthEnum _signal;                       // 信号强度
+    char *host;
+    char *port;
 
     TxQueueStruct *txQueueHal;                          // 硬件层 发送队列
     TxQueueStruct *txQueueService;                      // 业务层 发送队列
     RxQueueStruct *rxQueueService;                      // 业务层 接收队列，拆包后填充至该队列
     
-    void (*CallBack_TxError)();                         // 错误处理
+    void (*CallBack_TxError)(NbErrorEnum);              // 错误处理
     bool (*CallBack_HalTxFunc)(uint8_t *, uint16_t);    // 硬件层 发送处理函数
     void (*CallBack_TimeUpdate)();                      // 硬件层 获取新时间
     void *halTxParam;                                   // 硬件层 发送处理函数参数 

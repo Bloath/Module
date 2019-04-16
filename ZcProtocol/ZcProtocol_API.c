@@ -62,11 +62,9 @@ ZcProtocol *ZcProtocol_Check(uint8_t *message, uint16_t length)
     if (protocol->head.head != ZC_HEAD || tail->end != ZC_END)
     {   return NULL;    }
 
-#ifndef DEBUG
     /* CRC判断 */
     if (tail->crc != ZcProtocol_GetCrc(message, protocol->head.length))
     {   return NULL;    }
-#endif
 
     return protocol;
 }

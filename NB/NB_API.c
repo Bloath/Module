@@ -3,29 +3,45 @@
 #include "NB.h"
 
 /* Private define -------------------------------------------------------------*/
+#define NB_HTTP_HEADER  ""
 /* Private macro --------------------------------------------------------------*/
 /* Private typedef ------------------------------------------------------------*/
 /* Private variables ----------------------------------------------------------*/
 NBStruct nb;
 
-const char *nbCmd[] = {
+__persistent const char *nbCmd[] = {
     "AT+CFUN=0\r\n",                        // 0. 关闭射频
     "AT+CMEE=1\r\n",                        // 1. 开启错误序号提示
     "AT+NPSMR=1\r\n",                       // 2. 提示是否进入休眠
     "AT+NCONFIG=CELL_RESELECTION,true\r\n", // 3. 开启小区重选
-    "AT+CEREG=1\r\n",                       // 4. 开启信息提示
+    "AT+CEREG=4\r\n",                       // 4. 开启信息提示
     "AT+CFUN=1\r\n",                        // 5. 启动射频     ----> 启动连接
     "AT+CGATT=1\r\n",                       // 6. 开始附着
-    "AT+CFUN=0\r\n",                        // 7. 关闭射频     ----> 重新连接
-    "AT+NCSEARFCN\r\n",                     // 8. 清除先验频点
-    "AT+CSQ\r\n",                           // 9. 信号强度
-    "AT+CCLK?\r\n"                          // 10. 时间
+    "AT+CGDCONT?\r\n",                      // 7. 开启PSM
+    "AT+CGMR\r\n",
+    "AT+CPSMS=1,,,00111001,00000001\r\n",
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    "AT+CFUN=0\r\n",                        // 21. 关闭射频     ----> 重新连接
+    "AT+NCSEARFCN\r\n",                     // 22. 清除先验频点
+    "AT+CSQ\r\n",                           // 23. 信号强度
+    "AT+CCLK?\r\n"                          // 24. 时间
 };
 
-char *nbUdpConfig = "AT+NSOCFG=1,0,0\r\n";
+char *nbSocketConfig = "AT+HTTPHEADER=1,\"Connection: close\"\r\n";
 
 /* Private function prototypes ------------------------------------------------*/
 void NB_StringTrans(const char *string);
+void NB_ErrorHandle(NbErrorEnum error);
 
 #define NB_JUMP_ORDERAT(x)            \
     {                                 \
@@ -33,18 +49,16 @@ void NB_StringTrans(const char *string);
         nb.__orderAt.index = x;       \
     }
 
+#define NB_AT_CONNECTED   9
+
 #define NB_INIT() NB_JUMP_ORDERAT(0)
 #define NB_FINISH_RST() NB_JUMP_ORDERAT(2)
-#define NB_ClEAR_CONNECT() NB_JUMP_ORDERAT(7)
+#define NB_ClEAR_CONNECT() NB_JUMP_ORDERAT(21)
 #define NB_START_CONNECT() NB_JUMP_ORDERAT(5)
-#define NB_GET_SS_TIME() NB_JUMP_ORDERAT(9)
+#define NB_GET_SS_TIME() NB_JUMP_ORDERAT(23)
 
 #define NB_RETRY_CON_NEXT()              \
-    {                                    \
-        if (nb.CallBack_TxError != NULL) \
-        {                                \
-            nb.CallBack_TxError();       \
-        }                                \
+    {                                      \
         nb.__startConnectTime = realTime;  \
         NB_SetProcess(Process_LongWait);   \
     }
@@ -64,6 +78,7 @@ void NB_StringTrans(const char *string);
 void NB_Handle()
 {
     TxQueue_Handle(nb.txQueueHal, nb.CallBack_HalTxFunc, nb.halTxParam);        // 硬件层 发送队列处理
+    char *httpCreate = NULL;
 
     switch (nb._process)
     {
@@ -101,18 +116,18 @@ void NB_Handle()
             {
                 switch (nb.__orderAt.index)
                 {
-                case 1: // 完成NCDP设置
+                case 1:                         // 完成NCDP设置
                     NB_SetProcess(Process_Reset);
                     break;
-                case 6: // 完成复位后的启动射频以及启动附着设置
+                case NB_AT_CONNECTED:           // 完成复位后的启动射频以及启动附着设置
                     nb.__startConnectTime = realTime;
                     NB_SetProcess(Process_Wait);
                     break;
-                case 8: // 完成清除连接信息后跳转到重新连接
+                case 22:                        // 完成清除连接信息后跳转到重新连接
                     NB_START_CONNECT();
                     break;
 
-                case 10: //
+                case 24: //
                     if (timeStamp < 1500000000)
                     {   NB_GET_SS_TIME();   }
                     else
@@ -130,7 +145,7 @@ void NB_Handle()
                 switch (nb.__orderAt.index)
                 {
                 case 5:                  // "AT+CFUN=1 ERROR"
-                    NB_RETRY_CON_NEXT(); // 直接等待下次连接
+                    NB_ErrorHandle(NbError_Undetected);     // 直接等待下次连接
                     break;
                 }
             }
@@ -148,18 +163,26 @@ void NB_Handle()
 
         // 60s之后未连接，则等待一天后再次重连
         if ((nb.__startConnectTime + 60) < realTime)
-        {   NB_RETRY_CON_NEXT();    }
+        {   NB_ErrorHandle(NbError_Undetected); }
         break;
 
     /* 长时间等待，等待下次重连，24小时后重连 */
     case Process_LongWait:
         if ((nb.__startConnectTime + SECONDS_DAY) < realTime)
-        {   NB_ClEAR_CONNECT(); }
+        //{   NB_ClEAR_CONNECT(); }
+        {   NB_SetProcess(Process_Reset);   }
         break;
 
     /* 启动UDP */
     case Process_Start:
-        NB_StringTrans("AT+NSOCR=\"DGRAM\",17,6666,1\r\n");
+        httpCreate = (char *)Malloc(64);
+        strcat(httpCreate, "AT+HTTPCREATE=\"http://");
+        strcat(httpCreate, nb.host);
+        strcat(httpCreate, ":");
+        strcat(httpCreate, nb.port);
+        strcat(httpCreate, "\"\r\n");
+        NB_StringTrans(httpCreate);
+        Free(httpCreate);
         nb.__time = realTime;
         NB_SetProcess(Process_Wait);
         break;
@@ -180,7 +203,8 @@ void NB_Handle()
             // 延迟4s再进入休眠
             if ((nb.__time + 4) < realTime)
             {
-                NB_StringTrans("AT+MLWULDATAEX=1,FE,0x0101\r\n");
+                //NB_StringTrans("AT+MLWULDATAEX=1,FE,0x0101\r\n");
+                NB_StringTrans("AT+HTTPCLOSE=0\r\n");
                 nb._isTransmitting = false;
             }
         }
@@ -212,18 +236,23 @@ void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
 {
     char *message = (char *)packet;
     char *location = NULL, *temp = NULL;
-    char nsorf[15] = "AT+NSORF=";
-    int count = 0;
-    uint8_t *data = NULL;
 
     // 在顺序发送AT出现OK或者ERROR的情况
     if (nb._process == Process_OrderAtWait)
     {
         if (strstr(message, "OK") != NULL)
-        {   nb.__orderAt.isGetOk = true;  }
+        {   
+            nb.__orderAt.isGetOk = true;  
+            nb.__orderAt.errorCounter = 0;
+        }
 
         if (strstr(message, "ERROR") != NULL)
-        {   nb.__orderAt.isGetError = true;   }
+        {   
+            nb.__orderAt.isGetError = true;   
+            nb.__orderAt.errorCounter ++;
+            if(nb.__orderAt.errorCounter > 3)
+            {   NB_ErrorHandle(NbError_AtError);    }
+        }
     }
 
     // 是否附着正常判断 CGATT
@@ -236,7 +265,7 @@ void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
         return;
     }
     
-    // 是否正常打开UDP
+    // 是否正常打开SOCKET
     if (nb._lastProcess == Process_Start)
     {
         if(strstr(message, "ERROR"))
@@ -249,8 +278,8 @@ void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
             {
                 nb.socketId = *location - 0x30;
                 NB_SetProcess(Process_Run);
-                nbUdpConfig[10] = nb.socketId + 0x30;
-                NB_StringTrans(nbUdpConfig);
+                nbSocketConfig[14] = nb.socketId + 0x30;
+                NB_StringTrans(nbSocketConfig);
             }
             else
             {   NB_INIT();  }
@@ -287,19 +316,34 @@ void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
         {   nb._signal = NbSignal_Undetected;    }
         else
         {   nb._signal = NbSignal_Normal;    }
-
-        Free(data);
+        Free(temp);
         return;
     }
     
-    // 接收到数据，还他妈得主动读取，艹
-    location = strstr(message, "+NSONMI:");
+    // 获取到内容则为+HTTPNMIC，获取到头则为+HTTPNMIH
+    location = strstr(message, "+HTTPNMIC");
     if (location != NULL)
     {
-        location += 8;
-        temp = strstr(location, "\r\n");
-        memcpy(nsorf + 9, location, strlen(location));
-        NB_StringTrans(nsorf);
+        nb._errorCounter = 0;
+        location = strstr(message, "\n68");
+            
+        /* 回复body提取可用字符串 */
+        if (location != NULL)
+        {   
+            location += 1;                 
+            
+            /* 找到换行符，将换行符改为结束符，再对报文进行转换 */
+            temp = strstr(location, "16\r\n");
+            if(temp != NULL)
+            {   temp[2] = '\0';   }
+            
+            uint8_t *packet = NULL;
+            int count = String2Msg(&packet, location, 0);
+            if (count > 0)
+            {   RxQueue_Add(nb.rxQueueService, packet, count, true);     }
+        }     
+        else
+        {   ESP8266_ErrorHandle(Error_ResponseError);   }
         return;
     }
 
@@ -310,28 +354,6 @@ void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
         return;
     }
     
-    // 获取数据
-    location = strstr(message, "+NSORF:");
-    if (location != NULL)
-    {
-        location = strstr(location, "\n68");
-        if(location != NULL)
-        {
-            location += 1;
-            temp = strstr(location, "16\r");
-            if(temp != NULL)
-            {
-                data = NULL;
-                temp[2] = '\0';
-                count = String2Msg(&data, location, 0);
-                if (count > 0)
-                {   RxQueue_Add(nb.rxQueueService, data, count, true);     }
-            }
-        }
-        NB_SetProcess(Process_Run);
-        return;
-    }
-
     /* 处于发送状态
      出现Error时，有可能并未入网，ERROR出现10次重启模块 */
     if (nb._process == Process_Run)
@@ -340,16 +362,15 @@ void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
 //        {   TxQueue_FreeByIndex(nb.txQueueService, nb.txQueueService->_lastIndex); }
 
         // 在数据发送处理部分接收到error，需要复位
-        if (strstr(message, "ERROR") != NULL)
+        if (strstr(message, "ERROR") != NULL || strstr(message, "HTTPERR") != NULL)
         {
             nb._errorCounter++;
 
-            // 发现错误次数超过缓冲的重发次数
-            if (nb._errorCounter >= nb.txQueueService->maxTxCount * 2)
-            {
-                NB_SetProcess(Process_Init);
-                nb._errorCounter = 0;
-            }
+            // 发现错误次数比较多，（HTTP CREATE是可以打开的，发送才会出现ERROR）
+            if ((nb._errorCounter / 4) >= 2)
+            {   NB_ErrorHandle(NbError_NeedReset); }
+            else if ((nb._errorCounter % 4) == 3)
+            {   NB_ErrorHandle(NbError_TxFail); }
         }
     }
 }
@@ -369,18 +390,14 @@ int NB_DataPackage(TxBaseBlockStruct *block, void *param, PacketStruct *packet)/
        \r\n 2位      */
     uint16_t totalLen = 40 + block->length * 2;
     char *msg = (char *)Malloc(totalLen);
-    memset(msg, 0, totalLen);
 
     /* 拼接指令协议 */
-    strcat(msg, "AT+NSOST=");                            // AT头
-    Uint2String(msg, nb.socketId);                    // 填充数字
-    strcat(msg, ",");                                   // 填充，
-    strcat(msg, HOST);
-    strcat(msg, ",");
-    strcat(msg, PORT);
-    strcat(msg, ",,");
+    strcat(msg, "AT+HTTPSEND=");                        // AT头
+    Uint2String(msg, nb.socketId);                      // 填充数字
+    strcat(msg, ",0,");                                 // 填充，
+    strcat(msg, "/communication?message=");             // 填充path
     Msg2String(msg, block->message, block->length);     // 填充报文
-    strcat(msg, "\r\n");                                  // 填充换行
+    strcat(msg, "\r\n");                                // 填充换行
 
     packet->data = (uint8_t *)msg;
     packet->length = strlen(msg);                       // 将打包好的数据指向packet，后面会自己free
@@ -399,4 +416,33 @@ void NB_StringTrans(const char *string)
 {
     TxQueue_Add(nb.txQueueHal, (uint8_t *)string, strlen(string), TX_ONCE_AC);
 }
+/*********************************************************************************************
 
+  * @brief  NB_ErrorHandle
+  * @param  
+  * @retval 
+  * @remark NB错误处理
+
+  ********************************************************************************************/
+void NB_ErrorHandle(NbErrorEnum error)
+{
+    switch(error)
+    {
+    // 未发现网络
+    case NbError_Undetected:
+    case NbError_AtError:
+        NB_RETRY_CON_NEXT();        // 
+        break;
+        
+    case NbError_NeedReset:
+        NB_SetProcess(Process_Init);
+        nb._errorCounter = 0;
+    case NbError_TxFail:
+    default:
+        if(nb.CallBack_TxError != NULL)
+        {   nb.CallBack_TxError(error); }
+        break;
+    }
+  
+    
+}
