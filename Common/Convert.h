@@ -28,6 +28,6 @@ uint32_t NumberString2Uint(const char *numString);
 int Number2Array(uint8_t **dst, uint32_t number, bool isPositiveSequence);
 void* EndianExchange(void *dst, void *src, uint16_t len);
 
-void TimeStamp2Calendar(uint32_t timeStamp, CalendarStruct *calendar, uint8_t timeZone);
+void TimeStamp2Calendar(uint32_t time, CalendarStruct *calendar, uint8_t timeZone);
 uint32_t Calendar2TimeStamp(CalendarStruct *calendar, uint8_t timeZone);
 #endif

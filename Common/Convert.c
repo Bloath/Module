@@ -245,12 +245,12 @@ void* EndianExchange(void *dst, void *src, uint16_t len)
   * @remark 
 
   ********************************************************************************************/
-void TimeStamp2Calendar(uint32_t timeStamp, CalendarStruct *calendar, uint8_t timeZone)
+void TimeStamp2Calendar(uint32_t time, CalendarStruct *calendar, uint8_t timeZone)
 {
-    timeStamp += timeZone * SECONDS_HOUR;
+    time += timeZone * SECONDS_HOUR;
     uint32_t daySec = SECONDS_DAY;
-    calendar->numOfDay = timeStamp / daySec;
-    uint32_t secs = timeStamp % daySec;
+    calendar->numOfDay = time / daySec;
+    uint32_t secs = time % daySec;
     uint16_t years4List[4] = {365, 365, 366, 365};
     uint8_t monthList[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
     uint8_t i = 0;

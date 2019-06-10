@@ -11,6 +11,7 @@
 #include "I2C_Chip/SoftI2C.h"
 #include "ZcProtocol/ZcProtocol.h"
 #include "NB/NB.h"
+#include "HalFrame/HalFrame.h"
 
 /* typedef ------------------------------------------------------------*/
 /* variables ----------------------------------------------------------*/
