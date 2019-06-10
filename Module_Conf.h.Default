@@ -2,7 +2,7 @@
 #define _MODULE_CONF_H_
 
 /* Includes ------------------------------------------------------------------*/
-#include "driverlib.h"
+#include "stm32f0xx_hal.h"
 #include "stdint.h"
 #include "string.h"
 #include "stdlib.h"
@@ -17,6 +17,7 @@ typedef enum
     Process_Idle,
     Process_Start,
     Process_Run,
+    Process_BeforeFinish,
     Process_Finish,
     Process_LongWait,
     Process_Wait,
@@ -29,6 +30,11 @@ typedef enum
     Process_Lock,
 } ProcessEnum;
 
+typedef struct
+{
+    ProcessEnum current;
+    ProcessEnum last;
+}ProcessStruct;
 
 typedef enum
 {
@@ -40,19 +46,27 @@ typedef enum
     LowLevelHandle,
 } HandleLevelEnum;
 /* Public variables ----------------------------------------------------------*/
-extern uint32_t realTimeCounter, sysTimeCounter, timeStampCounter;
+extern uint32_t realTimeCounter, timeStampCounter;
+extern uint32_t uwTick;
+extern RTC_HandleTypeDef hrtc;
 
 /* Public define -------------------------------------------------------------*/
-#define sysTime sysTimeCounter
+#define sysTime uwTick
 //#define realTime (*(uint32_t *)(0x4B0))
-#define realTime realTimeCounter
-#define timeStamp timeStampCounter
+#define realTime (realTimeCounter)
+#define timeStamp (timeStampCounter)
 
 #define DEBUG 1
-#define SECONDS_YEAR   31536000L
-#define SECONDS_DAY    86400L
-#define SECONDS_HOUR   3600L
-#define SECONDS_MIN    60L
+#define SECONDS_YEAR   31536000
+#define SECONDS_DAY    86400
+#define SECONDS_HOUR   3600
+#define SECONDS_MIN    60
+
+#define PROCESS_CHANGE(processObj, process)     \
+    {                                           \
+        processObj.last = processObj.current;   \
+        processObj.current = process;           \
+    }
 
 /* Public macro --------------------------------------------------------------*/
 /* Public function prototypes ------------------------------------------------*/
