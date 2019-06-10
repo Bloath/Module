@@ -8,4 +8,10 @@
 
 #define NB_UART_ENABLE()   EUSCI_A_UART_enable(COM_UART_BASE_ADDR)
 #define NB_UART_DISABLE()  EUSCI_A_UART_disable(COM_UART_BASE_ADDR)
+
+
+#define NB_POWER_ON()           GPIO_setOutputLowOnPin(COM_POWER_PORT, COM_POWER_PIN)
+#define NB_POWER_OFF()          GPIO_setOutputHighOnPin(COM_POWER_PORT, COM_POWER_PIN)
+#define NB_POWER_IS_ON()        ((GPIO_getOutputPinValue(COM_POWER_PORT, COM_POWER_PIN) == 0)? true : false)
+  
 #endif
