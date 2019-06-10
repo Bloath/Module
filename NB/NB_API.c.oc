@@ -10,7 +10,7 @@ NBStruct nb;
 
 const char *nbCmd[] = {
     "AT+CFUN=0\r\n",                        // 0. 关闭射频
-    "AT+NCDP=117.78.42.93,5683\r\n",        // 1. 设置地址
+    "AT+NCDP=180.101.147.115,5683\r\n",        // 1. 设置地址
     "AT+NNMI=1\r\n",                        // 2. 设置下发数据前缀
     "AT+NCONFIG=CELL_RESELECTION,true\r\n", // 3. 开启小区重选
     "AT+CEREG=1\r\n",                       // 4. 开启信息提示
@@ -123,7 +123,7 @@ void NB_Handle()
                 switch (nb.__orderAt.index)
                 {
                 case 5:                  // "AT+CFUN=1 ERROR"
-                    NB_RETRY_CON_NEXT(); // 直接等待下次连接
+                    //NB_RETRY_CON_NEXT(); // 直接等待下次连接
                     break;
                 }
             }
@@ -140,8 +140,8 @@ void NB_Handle()
         }
 
         // 60s之后未连接，则等待一天后再次重连
-        if ((nb.__startConnectTime + 60) < realTime)
-        {   NB_RETRY_CON_NEXT();    }
+        //if ((nb.__startConnectTime + 60) < realTime)
+        //{   NB_RETRY_CON_NEXT();    }
         break;
 
     // 长时间等待，等待下次重连，24小时后重连
@@ -336,17 +336,23 @@ int NB_DataPackage(TxBaseBlockStruct *block, void *param, PacketStruct *packet)/
        \r\n 2位      */
     uint16_t totalLen = 16 + block->length * 2;
     char *msg = (char *)Malloc(totalLen);
-    memset(msg, 0, totalLen);
-
-    /* 拼接指令协议 */
-    strcat(msg, "AT+NMGS=");                            // AT头
-    Uint2String(msg, block->length);                    // 填充数字
-    strcat(msg, ",");                                   // 填充，
-    Msg2String(msg, block->message, block->length);     // 填充报文
-    strcat(msg, "\r\n");                                  // 填充换行
-
-    packet->data = (uint8_t *)msg;
-    packet->length = strlen(msg);                       // 将打包好的数据指向packet，后面会自己free
+   
+//    memset(msg, 0, totalLen);
+//
+//    /* 拼接指令协议 */
+//    strcat(msg, "AT+NMGS=");                            // AT头
+//    Uint2String(msg, block->length);                    // 填充数字
+//    strcat(msg, ",");                                   // 填充，
+//    Msg2String(msg, block->message, block->length);     // 填充报文
+//    strcat(msg, "\r\n");                                  // 填充换行
+//
+//    packet->data = (uint8_t *)msg;
+//    packet->length = strlen(msg);                       // 将打包好的数据指向packet，后面会自己free
+    
+    char *message = "AT+NMGS=32,{message:\"68253134564313435435\"}";
+    packet->data = (char *)Malloc(strlen(message));
+    memcpy(packet->data, message, strlen(message));
+    packet->length = strlen(message);
     
     return 0;
 }

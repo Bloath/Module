@@ -449,6 +449,11 @@ void DmaBuffer_IdleHandle(DmaBufferStruct *dmaBuffer, uint16_t remainCount)
                         dmaBuffer->__bufferLength - dmaBuffer->__start + dmaBuffer->__end, 
                         true);
         }
+        else
+        {
+            if(dmaBuffer->CallBack_MallocFail != NULL)
+            {   dmaBuffer->CallBack_MallocFail();   }
+        }
     }
 
     dmaBuffer->__start = dmaBuffer->__end;

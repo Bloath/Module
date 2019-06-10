@@ -5,7 +5,7 @@
 #include "NB_HAL.h"
 #include "NB_Conf.h"
 #include "NB_API.h"
-
+#include "NB_Handle.h"
 
 /* Public define -------------------------------------------------------------*/
 /* Public macro --------------------------------------------------------------*/

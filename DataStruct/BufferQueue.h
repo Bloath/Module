@@ -102,6 +102,8 @@ typedef struct
     uint16_t __bufferLength;                    // 缓冲池大小
     uint16_t __start;                           // 头位置标记
     uint16_t __end;                             // 尾位置标记
+    
+    void (*CallBack_MallocFail)();              // 接收数据过长，缓冲没地方
 } DmaBufferStruct;
 
 /* Public macro --------------------------------------------------------------*/
