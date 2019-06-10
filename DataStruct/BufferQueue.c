@@ -303,7 +303,7 @@ int TxQueue_Add(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, uint8
   ********************************************************************************************/
 int TxQueue_AddWithId(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, uint8_t mode, TX_ID_SIZE id)
 {
-    uint16_t blockId = TxQueue_Add(txQueue, message, length, mode);
+    int16_t blockId = TxQueue_Add(txQueue, message, length, mode);
 
     if (blockId != -1)
     {   txQueue->__txBlocks[blockId].id = id; }

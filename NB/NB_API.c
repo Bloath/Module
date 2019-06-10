@@ -11,7 +11,7 @@
 /* Private variables ----------------------------------------------------------*/
 NBStruct nb;
 
-__persistent char *nbConfiguration[] = {
+DATA_PREFIX char *nbConfiguration[] = {
     "AT+CGMR\r\n",
     "AT+CMEE=1\r\n",                        // 1. 开启错误序号提示
     "AT+NPSMR=1\r\n",                       // 2. 提示是否进入休眠
@@ -23,26 +23,26 @@ __persistent char *nbConfiguration[] = {
     NULL,                          
 };
 
-__persistent char *nbSetBand[] = {
+DATA_PREFIX char *nbSetBand[] = {
     "AT+CFUN=0\r\n",
     "AT+CFUN?\r\n",
     "AT+NBAND=8\r\n",
     NULL,
 };
 
-__persistent char *nbQuery[] = {
+DATA_PREFIX char *nbQuery[] = {
     "AT+CSQ\r\n",
     "AT+CCLK?\r\n",
     NULL,                          
 };
 
-__persistent char *nbOcSet[] = {
+DATA_PREFIX char *nbOcSet[] = {
     "AT+CFUN=0\r\n",
     "AT+NCDP=180.101.147.115,5683\r\n",
     NULL,                          
 };
 
-__persistent char *nbReadSim[] = {
+DATA_PREFIX char *nbReadSim[] = {
     "AT+CIMI\r\n",
     NULL,                          
 };

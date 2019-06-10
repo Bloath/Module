@@ -1,7 +1,7 @@
 #ifndef _NB_HAL_H_
 #define _NB_HAL_H_
 
-#include "HAL/HAL.h"
+#include "Module/Module.h"
 
 #define NB_RST_ENABLE()     GPIO_setOutputHighOnPin(COM_RESET_PORT, COM_RESET_PIN)
 #define NB_RST_DISABLE()    GPIO_setOutputLowOnPin(COM_RESET_PORT, COM_RESET_PIN)

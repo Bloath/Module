@@ -6,7 +6,7 @@
 #define MALLOC_POOL_SIZE (MALLOC_BLOCK_SIZE / 4) * MALLOC_BLOCK_COUNT // 缓冲池大小
 #define MALLOC_BLOCK_COUNT_SIZE uint8_t                               //块数量的宽度
 
-#define DISABLE_ALL_INTERRPUTS() __bic_SR_register(GIE)
-#define ENABLE_ALL_INTERRPUTS() __bis_SR_register(GIE)
+#define DISABLE_ALL_INTERRPUTS() __disable_irq()
+#define ENABLE_ALL_INTERRPUTS() __enable_irq()
 
 #endif

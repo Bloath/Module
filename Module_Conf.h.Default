@@ -2,7 +2,7 @@
 #define _MODULE_CONF_H_
 
 /* Includes ------------------------------------------------------------------*/
-#include "stm32f0xx_hal.h"
+#include "main.h"
 #include "stdint.h"
 #include "string.h"
 #include "stdlib.h"
@@ -47,8 +47,6 @@ typedef enum
 } HandleLevelEnum;
 /* Public variables ----------------------------------------------------------*/
 extern uint32_t realTimeCounter, timeStampCounter;
-extern uint32_t uwTick;
-extern RTC_HandleTypeDef hrtc;
 
 /* Public define -------------------------------------------------------------*/
 #define sysTime uwTick
@@ -61,6 +59,8 @@ extern RTC_HandleTypeDef hrtc;
 #define SECONDS_DAY    86400
 #define SECONDS_HOUR   3600
 #define SECONDS_MIN    60
+
+#define DATA_PREFIX 
 
 #define PROCESS_CHANGE(processObj, process)     \
     {                                           \

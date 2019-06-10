@@ -2,8 +2,8 @@
 #define _ZCPROTOCOL_API_H_
 
 /* Includes ------------------------------------------------------------------*/
-#include "../Module_Conf.h"
-#include "ZcProtocol_Conf.h"
+#include "../Module.h"
+#include "../Communicate/Communicate.h"
 
 /* typedef ------------------------------------------------------------*/
 typedef struct

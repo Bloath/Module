@@ -3,7 +3,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "../Module_Conf.h"
-#include "../DataStruct/DataStruct.h"
+#include "../DataStruct/BufferQueue.h"
 
 /* Public typedef -----------------------------------------------------------*/
 typedef enum
