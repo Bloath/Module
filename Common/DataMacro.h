@@ -18,4 +18,8 @@
             (temp < range)? true, false; })
 
          
+#define FLAG_IS_SET(flag, bits)     ((flag & bits) != 0)
+#define FLAG_SET(flag, bits)        {flag |= bits;}
+#define FLAG_CLR(flag, bits)        {flag &= ~(bits);}
+
 #endif
