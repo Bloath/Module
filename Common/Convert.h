@@ -20,7 +20,9 @@ typedef struct
 /* Public variables ----------------------------------------------------------*/
 /* Public function prototypes ------------------------------------------------*/
 int String2Msg(uint8_t **dst, char *srcStr, uint16_t specifyLen);
+int HexString2Msg(uint8_t **dst, char *srcStr, uint16_t specifyLen);
 int Msg2String(char *dst, uint8_t *message, uint16_t length);
+int Msg2HexString(char *dst, uint8_t *message, uint16_t length);
 int Uint2String(char *dst, uint32_t number);
 void* Memory2HexString(void *dst, void *src, uint16_t length, bool isBigEndian);
 

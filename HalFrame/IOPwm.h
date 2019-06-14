@@ -1,7 +1,7 @@
 #ifndef _IO_PWM_H_
 #define _IO_PWM_H_
 /* Includes ------------------------------------------------------------------*/
-#include "../Module.h"
+#include "../Module_Conf.h"
 
 /* Public typedef ------------------------------------------------------------*/
 typedef struct

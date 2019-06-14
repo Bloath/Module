@@ -16,6 +16,7 @@ DATA_PREFIX char *nbConfiguration[] = {
     "AT+CMEE=1\r\n",                        // 1. 开启错误序号提示
     "AT+NPSMR=1\r\n",                       // 2. 提示是否进入休眠
     "AT+NCONFIG=CELL_RESELECTION,true\r\n", // 3. 开启小区重选
+    "AT+CGSN=1\r\n",
     "AT+CEREG=4\r\n",                       // 4. 开启信息提示
     "AT+CSCON=1\r\n",                       // 5. 打开信号提示自动上报
     "AT+CFUN=1\r\n",                        // 6. 启动射频     ----> 启动连接
@@ -39,6 +40,8 @@ DATA_PREFIX char *nbQuery[] = {
 DATA_PREFIX char *nbOcSet[] = {
     "AT+CFUN=0\r\n",
     "AT+NCDP=180.101.147.115,5683\r\n",
+    "AT+NNMI=1\r\n",
+    "AT+MLWM2MENABLE=1\r\n",
     NULL,                          
 };
 

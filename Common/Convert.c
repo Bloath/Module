@@ -75,6 +75,35 @@ int String2Msg(uint8_t **dst, char *srcStr, uint16_t specifyLen)
 }
 /*********************************************************************************************
 
+  * @brief  十六进制字符串转报文
+  * @param  string：字符串
+            specifyLen：指定长度
+            packet：转换完成的数组
+  * @remark 转换完成的报文数组指针，需要通过Free释放，错误返回-1
+
+  ********************************************************************************************/
+int HexString2Msg(uint8_t **dst, char *srcStr, uint16_t specifyLen)
+{
+    int length = (specifyLen == 0) ? strlen(srcStr) : specifyLen;
+    uint8_t *msg = (uint8_t *)Malloc(length / 4);
+    uint8_t temp8u = 0;
+    if(msg == NULL)
+    {   return -1;  }
+
+    for (uint16_t i = 0; i < (length / 4); i++)
+    {
+        msg[i] = 0;
+        temp8u = (Char2Hex(srcStr[i * 4]) << 4) | (Char2Hex(srcStr[i * 4 + 1]));
+        msg[i] |= Char2Hex(temp8u) << 4;
+        temp8u = (Char2Hex(srcStr[i * 4 + 2]) << 4) | (Char2Hex(srcStr[i * 4 + 3]));
+        msg[i] |= Char2Hex(temp8u);
+    }
+
+    *dst = msg;
+    return (length / 4);
+}
+/*********************************************************************************************
+
   * @brief  报文转字符串
   * @param  dst：目的字符串
             message：报文指针
@@ -101,6 +130,40 @@ int Msg2String(char *dst, uint8_t *message, uint16_t length)
     dst[index + i * 2] = '\0'; //结束符
 
     return (index + i * 2 - 1);
+}
+/*********************************************************************************************
+
+  * @brief  报文转十六进制字符串
+  * @param  dst：目的字符串
+            message：报文指针
+            length：长度
+  * @retval 字符串长度
+  * @remark 
+
+  ********************************************************************************************/
+int Msg2HexString(char *dst, uint8_t *message, uint16_t length)
+{
+    int index = 0, i = 0;
+    uint8_t h,l;
+    
+    /* 找到字符串末尾 */
+    while(dst[index] != '\0')
+    {   index++;    }
+    
+    /* 开始填充 */
+    for (i = 0; i < length; i++)
+    {
+        h = Hex2Char(message[i] >> 4);
+        l = Hex2Char(message[i] & 0x0F);
+        dst[i * 4 + index] = Hex2Char(h >> 4);
+        dst[i * 4 + 1 + index] = Hex2Char(h & 0x0F);
+        dst[i * 4 + 2 + index] = Hex2Char(l >> 4);
+        dst[i * 4 + 3 + index] = Hex2Char(l & 0x0F);
+    }
+
+    dst[index + i * 4] = '\0'; //结束符
+
+    return (index + i * 4 - 1);
 }
 /*********************************************************************************************
 

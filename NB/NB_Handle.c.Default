@@ -1,6 +1,6 @@
 /* Includes ------------------------------------------------------------------*/
 #include "NB.h"
-
+#include "Handle/Communication.h"
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
@@ -62,14 +62,35 @@ extern char *nbOcSet[];
                 tempPointer = strstr(tempPointer, "\r");
                 isNeedCheck = true;
             }
-
-            uint8_t *msg = NULL;
-            int count = String2Msg(&msg, msgStr, 0);                    // 转换为字节数组格式
-            if(count > 0)
-            {   RxQueue_Add(nb.rxQueueService, msg, count, true);     }   // 填充到接收缓冲当中
-            
+    
+            // 收到AAA000,则清除最后一条回复
+            if(strstr(msgStr, "AAA000") != NULL)
+            {   TxQueue_FreeByFunc(nb.txQueueService, Communicate_NbOCClearTxBlockFunction, &(nb.txQueueService->_lastIndex)); }
+            else
+            {
+                uint8_t *msg = NULL;
+                int count = HexString2Msg(&msg, msgStr + 10, 0);                    // 转换为字节数组格式
+                if(count > 0)
+                {   
+                    RxQueue_Add(nb.rxQueueService, msg, count, true);        // 填充到接收缓冲当中
+                    
+                    // 只有在抓换成功后，才回复确认
+                    msgStr[1] = 0x33;
+                    memset(msgStr + 6, 0x30, 4);
+                    msgStr[10] = 0;
+                    char *response = (char*)Malloc(32);
+                    if(response != NULL)
+                    {
+                        strcat(response, "AT+NMGS=5,");
+                        strcat(response, msgStr);
+                        strcat(response, "\r\n");
+                        NB_StringTrans(response);
+                        Free(response);
+                    }
+                }
+            }
             Free(msgStr);
-
+            
             if (isNeedCheck == false)
             {   break;  }
         }
@@ -80,7 +101,7 @@ extern char *nbOcSet[];
   * @brief  NB_DataPackage
   * @param  block
   * @retval 无
-  * @remark 
+  * @remark -1 Malloc失败
 
   ********************************************************************************************/
 int NB_OC_PacketPackage(TxBaseBlockStruct *block, void *param, PacketStruct *packet)//需要处理Malloc
@@ -89,16 +110,22 @@ int NB_OC_PacketPackage(TxBaseBlockStruct *block, void *param, PacketStruct *pac
        AT+NMGS= 8位
        长度+逗号 4位
        \r\n 2位      */
-    uint16_t totalLen = 40 + block->length * 2;
+    uint16_t totalLen = 40 + block->length * 4;
     char *msg = (char *)Malloc(totalLen);
-    uint8_t prefix[2] = {01, block->length};
+    if(msg == NULL)
+    {   return -1;  }
+    
+    if(block->length == 69)
+    {   totalLen = 1;   }
+    
+    uint8_t prefix[3] = {1, (uint8_t)((block->length * 2) >> 8), (uint8_t)(block->length * 2)};
     
     /* 拼接指令协议 */
     strcat(msg, "AT+NMGS=");                            // AT头
-    Uint2String(msg, block->length + 2);                // 填充数字
+    Uint2String(msg, block->length * 2 + 3);            // 填充数字
     strcat(msg, ",");                                   // 填充，
-    Msg2String(msg, prefix, 2);                                
-    Msg2String(msg, block->message, block->length);     // 填充报文
+    Msg2String(msg, prefix, 3);                                
+    Msg2HexString(msg, block->message, block->length);  // 填充报文
     strcat(msg, "\r\n");                                // 填充换行
 
     packet->data = (uint8_t *)msg;

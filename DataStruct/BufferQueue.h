@@ -47,7 +47,7 @@ typedef struct
 typedef struct
 {
     uint8_t *data;
-    uint8_t length;
+    uint16_t length;
 } PacketStruct;
 
 typedef struct
