@@ -26,6 +26,7 @@ void Priority_AddTask(PriorityStruct *priorityObj, TaskUnitStruct *taskObj, uint
             priorityObj->_usedTaskCount++;
             priorityObj->__taskList[i] = taskObj;
             taskObj->level = level;
+            break;
         }
     }
 }
@@ -39,44 +40,39 @@ void Priority_AddTask(PriorityStruct *priorityObj, TaskUnitStruct *taskObj, uint
   * @remark 轮询，在优先级中，很多都需要轮询，
 
   ********************************************************************************************/
-void Priority_LoopTaskList(PriorityStruct *priorityObj, bool (*CallBack_Handle)(TaskUnitStruct*, void*), void *param)
+void Priority_LoopTaskList(PriorityStruct *priorityObj, void (*CallBack_Handle)(TaskUnitStruct*, void*), void *param)
 {
     for(int i=0; i<PRIORITY_TASK_COUNT; i++)
     {
         if(priorityObj->__taskList[i] != NULL)
-        {
-            if(CallBack_Handle(priorityObj->__taskList[i], param) == false)
-            {   break;  }
-        }
+        {   CallBack_Handle(priorityObj->__taskList[i], param); }
     }
 }
 /*********************************************************************************************
 
-  * @brief  Priority_LevelSwitch
+  * @brief  Priority_LevelHandle
   * @param  task：任务指针
             param：参数
   * @return 
   * @remark 当
 
   ********************************************************************************************/
-bool Priority_LevelSwitch(TaskUnitStruct* task, void* param)
+void Priority_LevelHandle(TaskUnitStruct* task, void* param)
 {
     int level = *(int *)param;
-    
+
+    /* 在切换时查看是否有需要 */
+    if(task->CallBack_IsNeedHandle() == false)
+    {   
+        if(FLAG_IS_SET(task->flag, TASK_FLAG_HANDLING) == true && task->CallBack_Finish != NULL)
+        {   task->CallBack_Finish();    }               // 调用完成回调
+        task->flag = 0;                                 // 清空标志位
+        
+        return;
+    }
+   
     if(task->level != level)
     {
-        /* 在切换时查看是否有需要 */
-        if(task->CallBack_IsNeedHandle() == false)
-        {   
-            if(FLAG_IS_SET(task->flag, TASK_FLAG_HANDLING))     // 如果该任务块已经处理过了
-            {       
-                if(task->CallBack_Finish != NULL)
-                {   task->CallBack_Finish();    }               // 调用完成回调
-                task->flag = 0;                                 // 清空标志位
-            }
-            return false;   
-        }
-        
         /* 等级切换时，如果低等级任务并未暂停，则调用pause回调进入暂停 */
         if(FLAG_IS_SET(task->flag, TASK_FLAG_PAUSING) == false)
         {
@@ -112,7 +108,6 @@ bool Priority_LevelSwitch(TaskUnitStruct* task, void* param)
         {   FLAG_SET(task->flag, TASK_FLAG_HANDLING);   }   // 置位处理标志位
     }
     
-    return false;
 }
 /*********************************************************************************************
 
@@ -155,6 +150,7 @@ void Priority_Handle(PriorityStruct *priorityObj)
     int level = -1;
 
     level = Priority_FindHighestTask(priorityObj);              // 先轮询找到当前需要处理的最高优先级
-    if(level != priorityObj->currentLevel)                       // 如果大于当前等级，则低于该部分的并且正在执行的，就调用pause函数
-    {   Priority_LoopTaskList(priorityObj, Priority_LevelSwitch, &level);   }
+    Priority_LoopTaskList(priorityObj, Priority_LevelHandle, &level); 
+    if(level != priorityObj->currentLevel)                       
+    {   priorityObj->currentLevel = level;  }
 }

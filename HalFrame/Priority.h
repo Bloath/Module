@@ -8,7 +8,7 @@ typedef struct
 {   
     bool (*CallBack_IsNeedHandle)();    // 判断是否需要执行
     void (*CallBack_Init)();            // 初始化
-    bool (*CallBack_Handle)();          // 执行
+    void (*CallBack_Handle)();          // 执行
     void (*CallBack_Finish)();          // 完成
     void (*CallBack_Pause)();           // 暂停
     void (*CallBack_Unpause)();         // 恢复暂停
@@ -27,7 +27,7 @@ typedef struct
 #define TASK_FLAG_INIT      (1<<0)
 #define TASK_FLAG_HANDLING  (1<<1)
 #define TASK_FLAG_PAUSING   (1<<2)
-#define TASK_FLAG_
+#define TASK_FLAG_FINISHED  ()
 
 /* macro ---------------------------------------------------------------------*/
 /* variables -----------------------------------------------------------------*/
