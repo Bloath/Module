@@ -1,5 +1,5 @@
-#ifndef _IO_PWM_H_
-#define _IO_PWM_H_
+#ifndef _IOLIB_H_
+#define _IOLIB_H_
 /* Includes ------------------------------------------------------------------*/
 #include "../Module_Conf.h"
 
@@ -25,6 +25,15 @@ typedef struct
     bool (*CallBack_IsIOActive)();
 }IOPwmStruct;
 
+typedef struct
+{
+	uint32_t __time;
+	bool _isTrigged;
+	
+	bool (*CallBack_IsKeyPressed)();					// 检查是否被按下，必填
+	void (*CallBack_KeyHandle)(uint32_t interval);	// 抬起后得处理
+}KeyDetectStruct;
+
 /* Public define -------------------------------------------------------------*/
 /* Public macro --------------------------------------------------------------*/
 /* Public variables ----------------------------------------------------------*/
@@ -34,4 +43,8 @@ void IOPwm_Handle(IOPwmStruct *ioPwm);
 void IOPwm_ChangeStatus(IOPwmStruct *ioPwm, IOPwmStatusStruct *status);
 void IOPwm_ChangeDefault(IOPwmStruct *ioPwm, IOPwmStatusStruct *status);
 void IOPwm_StatusModify(IOPwmStatusStruct *status, bool isActive, uint8_t dutyRatio, uint16_t totalInterval, uint16_t keepInterval);
+
+void KeyDetect_PressCheck(KeyDetectStruct *key);
+void KeyDetect_Handle(KeyDetectStruct *key);
+bool KeyDetect_IsKeyPressed(KeyDetectStruct *key);
 #endif

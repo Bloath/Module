@@ -1,5 +1,5 @@
 /* Includes ------------------------------------------------------------------*/
-#include "IOPwm.h"
+#include "IOLib.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -136,4 +136,50 @@ void IOPwm_StatusModify(IOPwmStatusStruct *status, bool isActive, uint8_t dutyRa
     status->dutyRatio = dutyRatio;
     status->totalInterval = totalInterval;
     status->keepInterval = keepInterval;
+}
+
+/*********************************************************************************************
+
+  * @brief  KeyDetect_PressCheck
+  * @param  
+  * @return 
+  * @remark 按键按下检测
+
+  ********************************************************************************************/
+void KeyDetect_PressCheck(KeyDetectStruct *key)
+{
+    if(key->CallBack_IsKeyPressed() == true)
+	{	
+		key->_isTrigged = true;	
+		key->__time = sysTime;
+	}
+}
+/*********************************************************************************************
+
+  * @brief  KeyDetect_Handle
+  * @param  
+  * @return 
+  * @remark 按键抬起检测
+
+  ********************************************************************************************/
+void KeyDetect_Handle(KeyDetectStruct *key)
+{
+	// 检测到按键抬起
+    if(key->CallBack_IsKeyPressed() == false && key->_isTrigged == true)
+	{	
+		key->_isTrigged = false;	
+		key->CallBack_KeyHandle(sysTime - key->__time);
+	}
+}
+/*********************************************************************************************
+
+  * @brief  KeyDetect_IsKeyPressed
+  * @param  
+  * @return 
+  * @remark 查看按键是否被按下
+
+  ********************************************************************************************/
+bool KeyDetect_IsKeyPressed(KeyDetectStruct *key)
+{
+	return key->_isTrigged;
 }
