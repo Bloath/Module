@@ -35,6 +35,21 @@ extern char *nbOcSet[];
     if (nb._lastProcess == Process_Start && strstr(message, "OK"))
     {   NB_SetProcess(Process_Run);    }
    
+    // 接收到日期 -> 正式进入发送状态
+    char *location = strstr(message, "+CCLK");
+    if (location != NULL)
+    {
+        CalendarStruct calendar;
+        calendar.year = 2000 + (location[6] - 0x30) * 10 + location[7] - 0x30;
+        calendar.month = (location[9] - 0x30) * 10 + location[10] - 0x30;
+        calendar.day = (location[12] - 0x30) * 10 + location[13] - 0x30;
+        calendar.hour = (location[15] - 0x30) * 10 + location[16] - 0x30;
+        calendar.min = (location[18] - 0x30) * 10 + location[19] - 0x30;
+        calendar.sec = (location[21] - 0x30) * 10 + location[22] - 0x30;
+        //uint8_t timeZone = (location[24] - 0x30) * 10 + location[25] - 0x30;
+        timeStampCounter = Calendar2TimeStamp(&calendar, 0);
+    }
+    
      // 接收到数据
     if (strstr(message, "+NNMI") != NULL)
     {

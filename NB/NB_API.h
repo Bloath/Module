@@ -79,6 +79,7 @@ typedef struct
 extern NBStruct nb;
 /* Public function prototypes ------------------------------------------------*/
 void NB_Handle();
+bool NB_IsIdle();
 void NB_RxHandle(uint8_t *packet, uint16_t len, void *param);
 int NB_DataPackage(TxBaseBlockStruct *block, void *param, PacketStruct *packet);       //需要处理Malloc
 void NB_StringTrans(const char *string);

@@ -29,6 +29,21 @@ void ESP8266_Reset()
 }
 /*********************************************************************************************
 
+  * @brief  ESP8266是否为空闲
+  * @param  
+  * @param  
+  * @retval 
+
+  ********************************************************************************************/
+bool ESP8266_IsIdle()
+{
+    return (esp8266.txQueueService->_usedBlockQuantity == 0 
+            && (esp8266._conProcess == ConnectStatus_Idle 
+                || esp8266._conProcess == ConnectStatus_Connected));
+}
+
+/*********************************************************************************************
+
   * @brief  ESP8266的主处理
   * @param  
   * @param  

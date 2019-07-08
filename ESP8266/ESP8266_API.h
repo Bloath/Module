@@ -87,6 +87,7 @@ extern Esp8266Struct esp8266;
 /* Public function prototypes ------------------------------------------------*/
 
 void ESP8266_Handle();
+bool ESP8266_IsIdle();
 void ESP8266_Reset();
 void ESP8266_PowerOn();
 void ESP8266_EnableAirkiss();

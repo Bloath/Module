@@ -84,7 +84,7 @@ void NB_SendATCommandList(char **list)
 }
 /*********************************************************************************************
 
-  * @brief  ESP8266的主处理
+  * @brief  NB 启动电源
   * @param  
   * @param  
   * @retval 
@@ -95,6 +95,19 @@ void NB_PowerOn()
     /* 有数据时且WIFI电源为切断时，开启WIFI电源，重置运行流程 */    
     NB_POWER_ON();
     NB_SetProcess(Process_Reset);
+}
+/*********************************************************************************************
+
+  * @brief  NB处于空闲
+  * @param  
+  * @param  
+  * @retval 
+
+  ********************************************************************************************/    
+bool NB_IsIdle()
+{
+    return (nb._process == Process_Idle 
+            || (nb._process == Process_Run && nb._isTransmitting == false));
 }
 /*********************************************************************************************
 
@@ -207,14 +220,6 @@ void NB_Handle()
         if ((nb.__startConnectTime + 30) < realTime)
         {   NB_ErrorHandle(NbError_AttTimeout); }
         break;
-        
-    /* 长时间等待，一般是发了AT指令没有正确回复 */
-    case Process_LongWait:
-        if ((nb.__time + 3) < realTime)
-        {
-            
-        }
-        break;
 
     /* 启动连接 */
     case Process_Start:
@@ -240,7 +245,7 @@ void NB_Handle()
             && nb.txQueueService->_usedBlockQuantity == 0 
             && nb.rxQueueService->_usedBlockQuantity == 0)
         {
-            // 延迟4s再进入休眠
+            // 延迟2s再进入休眠
             if ((nb.__time + 2) < realTime)
             {   nb._isTransmitting = false; }
         }
@@ -318,20 +323,7 @@ void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
         return;
     }
 
-    // 接收到日期 -> 正式进入发送状态
-    location = strstr(message, "+CCLK");
-    if (location != NULL)
-    {
-        CalendarStruct calendar;
-        calendar.year = 2000 + (location[6] - 0x30) * 10 + location[7] - 0x30;
-        calendar.month = (location[9] - 0x30) * 10 + location[10] - 0x30;
-        calendar.day = (location[12] - 0x30) * 10 + location[13] - 0x30;
-        calendar.hour = (location[15] - 0x30) * 10 + location[16] - 0x30;
-        calendar.min = (location[18] - 0x30) * 10 + location[19] - 0x30;
-        calendar.sec = (location[21] - 0x30) * 10 + location[22] - 0x30;
-        //uint8_t timeZone = (location[24] - 0x30) * 10 + location[25] - 0x30;
-        //timeStampCounter = Calendar2TimeStamp(&calendar, 0);
-    }
+
 
     // 信号强度判断
     location = strstr(message, "+CSQ");
