@@ -24,6 +24,12 @@ typedef enum
 
 typedef enum
 {
+    Esp8266Airkiss_IsWriteDefault = 0,
+    Esp8266Airkiss_WrittingDefault
+}Esp8266AirkissEnum;
+
+typedef enum
+{
     ConnectStatus_Init = 0,
     ConnectStatus_Idle,
     ConnectStatus_Reset,
@@ -65,13 +71,15 @@ typedef struct
     Esp8266HttpStruct http;                             // Http相关
     
     TxQueueStruct *txQueueHal;                          // 硬件层 发送队列
-    TxQueueStruct *txQueueService;                      // 业务层 发送队列
-    RxQueueStruct *rxQueueService;                      // 业务层 接收队列，拆包后填充至该队列
+    RxQueueStruct *rxQueueHal;                          // 硬件层 接收队列
+    TxQueueStruct *txQueueApp;                          // 业务层 发送队列
+    RxQueueStruct *rxQueueApp;                          // 业务层 接收队列，拆包后填充至该队列
     
     bool (*CallBack_HalTxFunc)(uint8_t *, uint16_t);    // 硬件层 发送处理函数
     void *halTxParam;                                   // 硬件层 发送处理函数参数  
     
     void (*CallBack_ErrorHandle)(ESP8266_Error);        // 业务层
+    bool (*CallBack_Airkiss)(Esp8266AirkissEnum operation);            // airkiss处理
 }Esp8266Struct;
 
 /* Public define -------------------------------------------------------------*/
@@ -80,7 +88,6 @@ typedef struct
 #define ESP8266_AIRKISS (1 << 2)            // 有airkiss的操作
 #define ESP8266_AIRKISSING (1 << 3)         // 正在airkiss的期间
 #define ESP8266_AIRKISSED (1 << 4)          // airkiss完成
-#define ESP8266_WRITE_DEFAULT_WIFI (1 << 5)
 /* Public macro --------------------------------------------------------------*/
 /* Public variables ----------------------------------------------------------*/
 extern Esp8266Struct esp8266;

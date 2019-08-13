@@ -36,29 +36,21 @@ typedef struct
     ProcessEnum last;
 }ProcessStruct;
 
-typedef enum
-{
-    HighLevelTrigged,
-    HighLevelHandle,
-    MediumLevelTrigged,
-    MediumLevelHandle,
-    LowLevelTrigged,
-    LowLevelHandle,
-} HandleLevelEnum;
 /* Public variables ----------------------------------------------------------*/
 extern uint32_t realTimeCounter, timeStampCounter;
 
 /* Public define -------------------------------------------------------------*/
+#define MODULE_DEBUG    1   
 #define sysTime uwTick
 //#define realTime (*(uint32_t *)(0x4B0))
 #define realTime (realTimeCounter)
 #define timeStamp (timeStampCounter)
 
-#define DEBUG 1
-#define SECONDS_YEAR   31536000
-#define SECONDS_DAY    86400
-#define SECONDS_HOUR   3600
-#define SECONDS_MIN    60
+#define SECONDS_YEAR   31536000L
+#define SECONDS_MONTH   2592000L
+#define SECONDS_DAY    86400L
+#define SECONDS_HOUR   3600L
+#define SECONDS_MIN    60L
 
 #define DATA_PREFIX 
 

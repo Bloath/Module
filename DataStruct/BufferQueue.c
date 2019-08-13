@@ -131,27 +131,45 @@ void RxQueue_Handle(RxQueueStruct *rxQueue, void (*RxPacketHandle)(uint8_t *, ui
   ********************************************************************************************/
 void TxQueue_Handle(TxQueueStruct *txQueue, bool (*Transmit)(uint8_t *, uint16_t), void *packageParam)
 {
-    uint16_t i;
+    uint8_t tempId,tempIndex=0;
     bool isNeedFree = false;
     BlockFreeMethodEnum freeMethod;
     PacketStruct packet;
-
+    uint8_t i = 0;
+    
     /* 发送间隔 txQueue->interval */
     if ((txQueue->__time + txQueue->interval) > sysTime)
     {   return; }
     else
     {   txQueue->__time = sysTime;  }
 
-txLoopStart:
+    /* 如果没有 */
     if (txQueue->_usedBlockQuantity == 0)
-    {   return; }
+    {   
+        if(txQueue->seqId != 0)
+        {   txQueue->seqId = 0; }
+        return; 
+    }
 
+    /* 如果为有序发送，则需要查找最小ID，保证按照时间顺序处理 */
+    if(txQueue->isTxUnordered == true)
+    {   
+        tempId = 255;
+        for (i = 0; i < BLOCK_COUNT; i++)
+        {
+            if (txQueue->__txBlocks[i].flag & TX_FLAG_USED && txQueue->__txBlocks[i].seqId < tempId)
+            {
+                tempIndex = i;
+                tempId = txQueue->__txBlocks[i].seqId;
+            }
+        }
+    }
+    
     /* 循环查找可用包，进行发送处理 */
-    for (i = (txQueue->isTxUnordered == true) ? txQueue->__indexCache : 0; i < BLOCK_COUNT; i++)
+    for (i = tempIndex; i < BLOCK_COUNT; i++)
     {
         if (txQueue->__txBlocks[i].flag & TX_FLAG_USED)
         {
-
 #ifdef TX_BLOCK_TIMEOUT
             /* 发送超时，进入错误处理，并释放发送缓冲块 */
             if ((txQueue->__txBlocks[i].time + TX_TIME_OUT) < sysTime && txQueue->__txBlocks[i].flag & TX_FLAG_TIMEOUT)
@@ -161,7 +179,6 @@ txLoopStart:
                 goto autoFree;
             }
 #endif
-
             /*在已发送标志位为0，或者重复发送为真时
             进行数据的发送，并置位已发送标志位*/
             if ((txQueue->__txBlocks[i].flag & TX_FLAG_SENDED) == 0 || txQueue->__txBlocks[i].flag & TX_FLAG_RT)
@@ -220,19 +237,11 @@ txLoopStart:
                 TxQueue_FreeBlock(txQueue, txQueue->__txBlocks + i);
             }
 
-            /* 如果为无序发送，则将索引缓存，下次直接从下一个缓存开始 */
-            if (txQueue->isTxUnordered == true)
-            {   txQueue->__indexCache = (i != (BLOCK_COUNT - 1)) ? (i + 1) : 0; }
-
             return;
         }
     }
 
-    if (i == BLOCK_COUNT)
-    {
-        txQueue->__indexCache = 0;
-        goto txLoopStart;
-    }
+
 }
 
 /*********************************************************************************************
@@ -266,10 +275,12 @@ int TxQueue_Add(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, uint8
             else
             {   txQueue->__txBlocks[i].message = message; }
             
-            txQueue->__txBlocks[i].length = length;               // 标记长度
-            txQueue->__txBlocks[i].flag |= TX_FLAG_USED;          // 标记为已经占用
-
-            txQueue->_usedBlockQuantity += 1;                    // 已经使用块计数器 + 1
+            txQueue->__txBlocks[i].length = length;                 // 标记长度
+            txQueue->__txBlocks[i].flag |= TX_FLAG_USED;            // 标记为已经占用
+            txQueue->__txBlocks[i].seqId = txQueue->seqId;          // 顺序ID
+            txQueue->seqId ++;                                      // 顺序ID递增
+              
+            txQueue->_usedBlockQuantity += 1;                       // 已经使用块计数器 + 1
 
 #ifdef TX_BLOCK_TIMEOUT
             txQueue->__txBlocks[i].time = sysTime;
@@ -279,7 +290,7 @@ int TxQueue_Add(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, uint8
             txQueue->__txBlocks[i].flag |= mode;
 
             return i;
-            //break;
+
         }
     }
 
@@ -394,6 +405,22 @@ void TxQueue_FreeById(TxQueueStruct *txQueue, TX_ID_SIZE id)
 void TxQueue_FreeByIndex(TxQueueStruct *txQueue, uint8_t index)
 {
     TxQueue_FreeBlock(txQueue, txQueue->__txBlocks + index);
+}
+/*********************************************************************************************
+
+  * @brief  清除所有缓冲
+  * @param  txBlock：发送结构体指针
+  * @return 
+  * @remark 
+
+  ********************************************************************************************/
+void TxQueue_FreeAll(TxQueueStruct *txQueue)
+{
+    for (uint8_t i = 0; i < BLOCK_COUNT; i++)
+    {
+        if ((txQueue->__txBlocks[i].flag & TX_FLAG_USED) != 0)
+        {   TxQueue_FreeBlock(txQueue, txQueue->__txBlocks + i);  }
+    }
 }
 
 /*********************************************************************************************

@@ -1,0 +1,25 @@
+#ifndef _ESP8266_HAL_H_
+#define _ESP8266_HAL_H_
+
+/* Includes -----------------------------------------------------------*/
+#include "Module/Module.h"
+#include "HardWare/HalDefine.h"
+
+/* typedef ------------------------------------------------------------*/
+/* define -------------------------------------------------------------*/
+/* macro --------------------------------------------------------------*/
+
+#define EPS8266_POWER_IS_ON()   IO_IS_LOW(COM_POWER_GPIO_Port, COM_POWER_Pin)
+#define ESP8266_POWER_ON()      IO_LOW(COM_POWER_GPIO_Port, COM_POWER_Pin)
+#define ESP8266_POWER_OFF()     IO_HIGH(COM_POWER_GPIO_Port, COM_POWER_Pin)
+
+#define ESP8266_RST_ENABLE()    ESP8266_POWER_OFF()
+#define ESP8266_RST_DISABLE()   ESP8266_POWER_ON()
+
+#define ESP8266_UART_ENABLE()   UART_ENABLE(&WIRELESS_UART)
+#define ESP8266_UART_DISABLE()  UART_DISABLE(&WIRELESS_UART)
+
+/* variables ----------------------------------------------------------*/
+/* function prototypes ------------------------------------------------*/
+
+#endif

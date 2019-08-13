@@ -37,7 +37,7 @@ void ESP8266_Reset()
   ********************************************************************************************/
 bool ESP8266_IsIdle()
 {
-    return (esp8266.txQueueService->_usedBlockQuantity == 0 
+    return (esp8266.txQueueApp->_usedBlockQuantity == 0 
             && (esp8266._conProcess == ConnectStatus_Idle 
                 || esp8266._conProcess == ConnectStatus_Connected));
 }
@@ -90,7 +90,7 @@ void ESP8266_Handle()
     /****** 初始化，设置发送队列时长，并发送模式设置与自动连接 ********/
     case ConnectStatus_Init: 
         esp8266.txQueueHal->interval = ESP8266_HAL_TX_INTERVAL;             // 硬件层 发送时长
-        esp8266.txQueueService->interval = ESP8266_SERVICE_TX_INTERVAL;     // 业务层 发送时长
+        esp8266.txQueueApp->interval = ESP8266_SERVICE_TX_INTERVAL;     // 业务层 发送时长
         
         ESP8266_SendString("AT+CWMODE_DEF=1\r\n");
         ESP8266_SendString("AT+CWAUTOCONN=1\r\n");
@@ -165,7 +165,7 @@ void ESP8266_Handle()
 
     /***************** 已连接 **********************/
     case ConnectStatus_Connected:
-        TxQueue_Handle(esp8266.txQueueService, ESP8266_HttpTransmit, NULL);
+        TxQueue_Handle(esp8266.txQueueApp, ESP8266_HttpTransmit, NULL);
         break;
     }
 }
@@ -181,7 +181,7 @@ void ESP8266_Handle()
 bool ESP8266_HttpTransmit(uint8_t *message, uint16_t length)
 {
     static uint32_t time = 0;
-    char cmdPacket[40];
+    char cmdPacket[50] = {0};
     memset(cmdPacket, 0, 40);
     char *packet;
 
@@ -320,12 +320,12 @@ void ESP8266_RxMsgHandle(uint8_t *packet, uint16_t length, void *param)
             
             
             // 没配过wifi，则直接写入默认wifi，
-            if((esp8266._flag & (ESP8266_AIRKISSED | ESP8266_WRITE_DEFAULT_WIFI)) != 0)
+            if(esp8266.CallBack_Airkiss(Esp8266Airkiss_IsWriteDefault) == true)
             {   ESP8266_ErrorHandle(Error_NoAP);    }
             else
             {   
                 ESP8266_SendString(ESP8266_DEFAULT_WIFI); 
-                esp8266._flag |= ESP8266_WRITE_DEFAULT_WIFI;
+                esp8266.CallBack_Airkiss(Esp8266Airkiss_WrittingDefault);
             }
         }
         else if (strstr(message, "busy") != NULL)
@@ -411,7 +411,7 @@ void ESP8266_RxMsgHandle(uint8_t *packet, uint16_t length, void *param)
                 uint8_t *packet = NULL;
                 int count = String2Msg(&packet, index, 0);
                 if (count > 0)
-                {   RxQueue_Add(esp8266.rxQueueService, packet, count, true);     }
+                {   RxQueue_Add(esp8266.rxQueueApp, packet, count, true);     }
             }     
             else
             {   ESP8266_ErrorHandle(Error_ResponseError);   }

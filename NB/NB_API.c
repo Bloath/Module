@@ -141,13 +141,13 @@ void NB_Handle()
         case ChinaMobile:
             nb.CallBack_StartConenct = NB_Http_StartConnect;
             nb.CallBack_ReceiveHandle = NB_Http_ReceiveHandle;
-            nb.txQueueService->CallBack_PackagBeforeTransmit = NB_Http_PacketPackage;
+            nb.txQueueApp->CallBack_PackagBeforeTransmit = NB_Http_PacketPackage;
 
             break;
         case ChinaTelecom:
             nb.CallBack_HandleBeforeNetting = NB_OC_HandleBeforeNetting;
             nb.CallBack_ReceiveHandle = NB_OC_ReceiveHandle;
-            nb.txQueueService->CallBack_PackagBeforeTransmit = NB_OC_PacketPackage;
+            nb.txQueueApp->CallBack_PackagBeforeTransmit = NB_OC_PacketPackage;
             break;
         }
       
@@ -234,16 +234,16 @@ void NB_Handle()
         
     /* 开始工作部分，对于NB来说，有数据直接发送即可，等待回复 */
     case Process_Run:
-        TxQueue_Handle(nb.txQueueService, nb.CallBack_HalTxFunc, NULL);
-        if (nb.txQueueService->_usedBlockQuantity != 0)
+        TxQueue_Handle(nb.txQueueApp, nb.CallBack_HalTxFunc, NULL);
+        if (nb.txQueueApp->_usedBlockQuantity != 0)
         {
             nb.__time = realTime;
             nb._isTransmitting = true;
         }
 
         if (nb._isTransmitting == true 
-            && nb.txQueueService->_usedBlockQuantity == 0 
-            && nb.rxQueueService->_usedBlockQuantity == 0)
+            && nb.txQueueApp->_usedBlockQuantity == 0 
+            && nb.rxQueueApp->_usedBlockQuantity == 0)
         {
             // 延迟2s再进入休眠
             if ((nb.__time + 2) < realTime)

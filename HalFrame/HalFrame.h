@@ -4,6 +4,9 @@
 #include "IOLib.h"
 #include "Priority.h"
 #include "Sensor.h"
+#include "DCMotor.h"
+#include "DataStore.h"
+#include "Priority.h"
 /* Public typedef ------------------------------------------------------------*/
 /* Public define -------------------------------------------------------------*/
 /* Public macro --------------------------------------------------------------*/

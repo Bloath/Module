@@ -23,7 +23,7 @@ int String2Msg(uint8_t **dst, char *srcStr, uint16_t specifyLen);
 int HexString2Msg(uint8_t **dst, char *srcStr, uint16_t specifyLen);
 int Msg2String(char *dst, uint8_t *message, uint16_t length);
 int Msg2HexString(char *dst, uint8_t *message, uint16_t length);
-int Uint2String(char *dst, uint32_t number);
+void StringCat(char *dst, char *src);
 void* Memory2HexString(void *dst, void *src, uint16_t length, bool isBigEndian);
 
 uint32_t NumberString2Uint(const char *numString);

@@ -64,6 +64,7 @@ typedef struct
     uint16_t flag;
     uint16_t retransCounter;
     TX_ID_SIZE id;
+    uint8_t seqId;
 #ifdef TX_BLOCK_TIMEOUT
     uint32_t time;
 #endif
@@ -74,7 +75,7 @@ typedef struct
 {
     TxBaseBlockStruct __txBlocks[BLOCK_COUNT];      // 数据块
     uint32_t __time;                                // 对不同的发送函数来说，有着不同的发送间隔，需要进行单独设置
-    uint8_t __indexCache;                           // 索引缓存，配合无序发送使用
+    uint8_t seqId;                                  // 序列ID，为有序发送准备
     
     uint8_t _usedBlockQuantity;                     // 已使用的块数量
     uint8_t _lastIndex;                             // 上一次发送的索引
@@ -107,6 +108,18 @@ typedef struct
 } DmaBufferStruct;
 
 /* Public macro --------------------------------------------------------------*/
+#define  STM32_DMA_INIT(uart, buffer)                               \
+        {                                                           \
+            HAL_UART_Receive_DMA(&uart, buffer, sizeof(buffer));    \
+            SET_BIT(uart.Instance->CR1, USART_CR1_IDLEIE);          \
+        }
+        
+#define STM32_RX_HANDLE(uart, dma)                                      \
+        {                                                               \
+            DmaBuffer_IdleHandle(&dma, uart.hdmarx->Instance->CNDTR);   \
+            __HAL_UART_CLEAR_IT(&uart, UART_CLEAR_IDLEF);               \
+            return;                                                     \
+        }
 /* Public variables ----------------------------------------------------------*/
 /* Public function prototypes ------------------------------------------------*/
 
@@ -123,6 +136,7 @@ void TxQueue_Handle(TxQueueStruct *txQueue, bool (*Transmit)(uint8_t *, uint16_t
 void TxQueue_FreeByFunc(TxQueueStruct *txQueue, bool (*func)(TxBaseBlockStruct*, void *), void *para);  // 通过指定函数，释放指定发送块
 void TxQueue_FreeById(TxQueueStruct *txQueue, TX_ID_SIZE id);                                           // 通过ID，释放指定发送块
 void TxQueue_FreeByIndex(TxQueueStruct *txQueue, uint8_t index);                                        // 通过Index，释放制定发送快
+void TxQueue_FreeAll(TxQueueStruct *txQueue);
 
 void DmaBuffer_Init(DmaBufferStruct *dmaBuffer, uint8_t *buffer, uint16_t bufferSize);                  // 
 void DmaBuffer_IdleHandle(DmaBufferStruct *dmaBuffer, uint16_t remainCount);

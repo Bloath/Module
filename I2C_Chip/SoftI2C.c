@@ -13,10 +13,10 @@
 * Description     : I2C总线起始信号
 * Parameter       : 
 * Return          : 0：总线正常，产生起始信号
-                    1：经过9个时钟后总线依然有问题
-                    2：总线在主机发出起始信号之后无应答
+                    -1：经过9个时钟后总线依然有问题
+                    -2：总线在主机发出起始信号之后无应答
 *******************************************************************************/
-uint8_t SoftI2C_Start()
+int SoftI2C_Start()
 {
     uint8_t i = 0;
     //拉高SCL,SDA准备
@@ -37,7 +37,7 @@ uint8_t SoftI2C_Start()
         }
         //9个时钟后依然低，则说明总线有问题
         if (!SDA_Status)
-        {   return 1;   }
+        {   return -1;   }
     }
 
     SDA_Clr(); //先拉低SDA
@@ -47,7 +47,7 @@ uint8_t SoftI2C_Start()
 
     //SDA未被拉底，说明总线错误
     if (SDA_Status)
-    {   return 2;   }
+    {   return -2;   }
 
     return 0;
 }
@@ -103,9 +103,9 @@ void SoftI2C_Ack(uint8_t Status)
 * Description     : I2C总线读取时等待从设备应答
 * Parameter       : 
 * Return          : 0：成功接收应答信号
-                    1：接收应答信号失败
+                    -1：接收应答信号失败
 *******************************************************************************/
-uint8_t SoftI2C_WaitAck()
+int SoftI2C_WaitAck()
 {
     int Status;
     SDA_Set(); //拉高SDA，等待输入
@@ -116,7 +116,7 @@ uint8_t SoftI2C_WaitAck()
     if (!SDA_Status)
     {   Status = 0; }
     else
-    {   Status = 1; }
+    {   Status = -1; }
 
     SCL_Clr();
     I2C_Delay();
@@ -185,10 +185,9 @@ uint8_t SoftI2C_ReceiveByte()
 * Parameter       : data：   要发送的字节数据
                     isOnlyLSB：只传送低8字节
 * Return          : 0：操作成功
-                    1：总线死锁无法解决
-                    2：总线硬件连接问题
+                    -1：总线死锁无法解决
 *******************************************************************************/
-uint8_t SoftI2C_Send(DATA_TYPE data, bool isOnlyLSB)
+int SoftI2C_Send(DATA_TYPE data, bool isOnlyLSB)
 {
     uint8_t status = 0;
 
@@ -217,9 +216,7 @@ uint8_t SoftI2C_Send(DATA_TYPE data, bool isOnlyLSB)
 * Function Name   : SoftI2C_Revice
 * Description     : I2C总线接收数据
 * Parameter       : isLast：是否为最后一个数据（最后一个字节不需要发ack）
-* Return          : 0：操作成功
-                    1：总线死锁无法解决
-                    2：总线硬件连接问题
+* Return          : 
 *******************************************************************************/
 DATA_TYPE SoftI2C_Receive(bool isLast)
 {
@@ -248,23 +245,23 @@ DATA_TYPE SoftI2C_Receive(bool isLast)
 * Return          : 0：操作成功
                     1：失败
 *******************************************************************************/
-uint8_t SoftI2C_SingleWrite(uint8_t deviceAddr, DATA_TYPE registerAddr, DATA_TYPE data)
+int SoftI2C_SingleWrite(uint8_t deviceAddr, DATA_TYPE registerAddr, DATA_TYPE data)
 {
     // 1：起始信号
     if (SoftI2C_Start() != 0)
-    {   return 1;   }
+    {   return -1;   }
 
     // 2：写入设备地址
     if (SoftI2C_Send((DATA_TYPE)deviceAddr, true) != 0)
-    {   return 1;   }
+    {   return -2;   }
 
     // 3：写入寄存器地址
     if (SoftI2C_Send(registerAddr, false) != 0)
-    {   return 1;   }
+    {   return -3;   }
 
     // 4：写入数据
     if (SoftI2C_Send(data, false) != 0)
-    {   return 1;   }
+    {   return -4;   }
 
     // 5：结束信号
     SoftI2C_Stop();
@@ -280,29 +277,29 @@ uint8_t SoftI2C_SingleWrite(uint8_t deviceAddr, DATA_TYPE registerAddr, DATA_TYP
                     *data：  要发送的数据指针
                     len：    要发送的数据个数
 * Return          : 0：操作成功
-                    1：失败
+                    -1：失败
 *******************************************************************************/
-uint8_t SoftI2C_MultiWrite(uint8_t deviceAddr, DATA_TYPE registerAddr, DATA_TYPE *data, uint8_t Len)
+int SoftI2C_MultiWrite(uint8_t deviceAddr, DATA_TYPE registerAddr, DATA_TYPE *data, uint8_t Len)
 {
     uint8_t i = 0;
 
     // 1：起始信号
     if (SoftI2C_Start() != 0)
-    {   return 1;   }
+    {   return -1;   }
 
     // 2：写入设备地址
     if (SoftI2C_Send((DATA_TYPE)deviceAddr, true) != 0)
-    {   return 1;   }
+    {   return -1;   }
 
     // 3：写入寄存器地址
     if (SoftI2C_Send(registerAddr, false) != 0)
-    {   return 1;   }
+    {   return -1;   }
 
     // 4：写入数据
     for (i = 0; i < Len; i++)
     {
         if (SoftI2C_Send(data[i], false) != 0)
-        {   return 1;   }
+        {   return -1;   }
     }
 
     // 5：结束信号
@@ -321,27 +318,27 @@ uint8_t SoftI2C_MultiWrite(uint8_t deviceAddr, DATA_TYPE registerAddr, DATA_TYPE
                     1：总线死锁无法解决
                     2：总线硬件连接问题
 *******************************************************************************/
-uint8_t SoftI2C_Read(uint8_t deviceAddr, DATA_TYPE registerAddr, DATA_TYPE *data, uint8_t len)
+int SoftI2C_Read(uint8_t deviceAddr, DATA_TYPE registerAddr, DATA_TYPE *data, uint8_t len)
 {
     // 1：起始信号
     if (SoftI2C_Start() != 0)
-    {   return 1;   }
+    {   return -1;   }
 
     // 2：写入设备地址
     if (SoftI2C_Send((DATA_TYPE)deviceAddr, true) != 0)
-    {   return 1;   }
+    {   return -1;   }
 
     // 3：写入寄存器地址
     if (SoftI2C_Send(registerAddr, false) != 0)
-    {   return 1;   }
+    {   return -1;   }
 
     // 4：起始信号
     if (SoftI2C_Start() != 0)
-    {   return 1;   }
+    {   return -1;   }
 
     // 5：写入设备地址，加入读标志位
     if (SoftI2C_Send((DATA_TYPE)(deviceAddr | (1 << 0)), true) != 0)
-    {   return 1;   }
+    {   return -1;   }
 
     // 6：读取数据
     for (uint8_t i = 0; i < len; i++)

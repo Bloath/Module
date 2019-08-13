@@ -4,8 +4,8 @@
 /* define --------------------------------------------------------------------*/
 #define SENSOR_CALL(sensorObj, callBack)                                        \
     {                                                                           \
-        errorCode = sensorObj->callBack(sensorObj->data);                       \
-        if(errorCode != 0)                                                      \
+        errorCode = sensorObj->callBack(sensorObj);                             \
+        if(errorCode < 0)                                                      \
         {   Sensor_ErrorHandle(sensorObj, errorCode);  }                        \
     }
       
@@ -27,10 +27,8 @@
 void Sensor_ErrorHandle(SensorStruct *sensor, int errorCode)
 {
     if(errorCode < 0)
-    {   
-        PROCESS_CHANGE(sensor->__process, Process_Lock);    
-    }
-    sensor->CallBack_ErrorHandle(sensor->data, errorCode);
+    {   PROCESS_CHANGE(sensor->__process, Process_Lock);    }
+    sensor->CallBack_ErrorHandle(sensor, errorCode);
 }
 
 /*********************************************************************************************
@@ -56,6 +54,7 @@ void Sensor_Lock(SensorStruct *sensor)
 void Sensor_Restore(SensorStruct *sensor)
 {
     PROCESS_CHANGE(sensor->__process, Process_Init);  
+    sensor->__time = sysTime;
 }
 
 /*********************************************************************************************
@@ -80,13 +79,13 @@ void Sensor_Handle(SensorStruct *sensor)
         break;
     
     /* 空闲阶段，有两种触发方式
-       1、 设定时间到了
+       1、 设定时间到了，该系统会在启动时启动一次采集，防止时间设置过长导致得不采集
        2、 发现触发信号启动*/
     case Process_Idle:
-        if((sensor->interval != 0 && (sensor->__time + sensor->interval) < sysTime)
-               || (sensor->CallBack_IsTrigged != NULL && (sensor->CallBack_IsTrigged(sensor->data) == true)))
+        if((sensor->interval != 0 && ((sensor->__time + sensor->interval) < sysTime || sensor->__time == 0))
+               || (sensor->CallBack_IsTrigged != NULL && (sensor->CallBack_IsTrigged(sensor) == true)))
         {   
-            PROCESS_CHANGE(sensor->__process, Process_Idle);
+            PROCESS_CHANGE(sensor->__process, Process_Start);
             sensor->__time = sysTime;
         }
         break;
@@ -103,10 +102,11 @@ void Sensor_Handle(SensorStruct *sensor)
     case Process_Wait:
         if(sensor->CallBack_IsReady != NULL)
         {   
-            if(sensor->CallBack_IsReady(sensor->data) == true);    
+            SENSOR_CALL(sensor, CallBack_IsReady);
+            if(errorCode == 1)   
             {   PROCESS_CHANGE(sensor->__process, Process_Run);    }
-            if((sensor->__time + sensor->timeOut) < sysTime)
-            {   Sensor_ErrorHandle(sensor, -1); }
+            if(sensor->timeOut != 0 && (sensor->__time + sensor->timeOut) < sysTime)
+            {   Sensor_ErrorHandle(sensor, -5); }
         }
         else
         {   PROCESS_CHANGE(sensor->__process, Process_Run);  }
@@ -114,16 +114,16 @@ void Sensor_Handle(SensorStruct *sensor)
         
     /* 运行阶段，数据处理 */
     case Process_Run:
-        PROCESS_CHANGE(sensor->__process, Process_Finish);
         if(sensor->CallBack_Handle != NULL)
         {   SENSOR_CALL(sensor, CallBack_Handle);    }
+        PROCESS_CHANGE(sensor->__process, Process_Finish);
         break;
         
     /* 完成阶段 */
     case Process_Finish:
-        PROCESS_CHANGE(sensor->__process, Process_Idle);
         if(sensor->CallBack_Finish != NULL)
         {   SENSOR_CALL(sensor, CallBack_Finish);    }
+        PROCESS_CHANGE(sensor->__process, Process_Idle);
         break;
     }
 }

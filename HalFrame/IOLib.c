@@ -14,43 +14,35 @@
   * @param  ioPwm：ioPwm实例指针
             status：状态
   * @return 
-  * @remark 
+  * @remark -1：到时间了，没有新的时间进入
+            0：运行期间
+            1：到时瞬间
 
   ********************************************************************************************/
 int IoPwm_RunAsSpecify(IOPwmStruct *ioPwm, IOPwmStatusStruct *status)
 {
-    /* 根据激活状态
-       激活：则进行开关操作
-       非激活：则直接进入非使能状态*/
-    uint32_t toggleInterval = (status->totalInterval * status->dutyRatio) / 100;
-    toggleInterval = (ioPwm->CallBack_IsIOActive() == false)? (status->totalInterval - toggleInterval): toggleInterval;
-                                                               
-    if(status->isActive == true)
-    {
-        /* 占空比非100，则直接使能
-           占空比不为0则按照占空比实际处理*/
-        if(status->dutyRatio == 100)
-        {   
-            if(ioPwm->CallBack_IsIOActive() == false)
-            {   ioPwm->CallBack_IOOperation(true);  }
-        }
-        else if((ioPwm->__runTime + toggleInterval) < sysTime)
-        {
-            ioPwm->__runTime = sysTime;     
-            ioPwm->CallBack_IOOperation((ioPwm->CallBack_IsIOActive() == true)? false:true);       // 根据IO状态反转切换
-        }
-    } 
-    else
-    {   ioPwm->CallBack_IOOperation(false); }
-    
-    /* 持续时间为0则报-2，一般默认的才会为0 */
+     /* 持续时间为0则报-1，一般默认的才会为0 */
     if(status->keepInterval == 0)
-    {   return -2;  }
-    
-    /* 超时则报-1 */
-    if((ioPwm->startTime + status->keepInterval) < realTime)
     {   return -1;  }
     
+     /* 超时则报-1 */
+    if((ioPwm->startTime + status->keepInterval) < realTime && status->keepInterval != -1)
+    {   
+        status->keepInterval = 0;               // 持续时间置0
+        ioPwm->CallBack_IOOperation(false);     // 发现超时则直接非使能
+        return 1;  
+    }
+  
+    /* 计算出占空比 */
+    uint16_t toggleInterval = (ioPwm->CallBack_IsIOActive() == false)? (status->totalInterval - status->activeInterval): status->activeInterval;
+
+    
+    /* 按照占空比实际处理*/
+    if((ioPwm->__runTime + toggleInterval) < sysTime)
+    {
+        ioPwm->__runTime = sysTime;     
+        ioPwm->CallBack_IOOperation((ioPwm->CallBack_IsIOActive() == true)? false:true);       // 根据IO状态反转切换
+    }
     return 0;
 }
 
@@ -73,7 +65,7 @@ void IOPwm_Handle(IOPwmStruct *ioPwm)
         break;
         
     case Process_Idle:  // 默认状态执行阶段，当默认状态keepInterval不为0，则当超时自动切换到当前状态
-        if(IoPwm_RunAsSpecify(ioPwm, &(ioPwm->defaultStatus)) == -1)
+        if(IoPwm_RunAsSpecify(ioPwm, &(ioPwm->defaultStatus)) == 1)
         {
             PROCESS_CHANGE(ioPwm->process, Process_Run);
             ioPwm->startTime = realTime;
@@ -81,7 +73,7 @@ void IOPwm_Handle(IOPwmStruct *ioPwm)
         }
         break;
         
-    case Process_Run:   // 运行阶段，按照currentStatus执行，并返回非0（到时了）时切换为初始化
+    case Process_Run:   // 运行阶段，按照currentStatus执行，并返回非0（）时切换为初始化
         if(IoPwm_RunAsSpecify(ioPwm, &(ioPwm->currentStatus)) != 0)
         {   PROCESS_CHANGE(ioPwm->process, Process_Idle);   }
         break;
@@ -122,7 +114,6 @@ void IOPwm_ChangeDefault(IOPwmStruct *ioPwm, IOPwmStatusStruct *status)
 
   * @brief  IOPwm_ChangeStatus
   * @param  status：状态实例指针
-            isActive：是否为激活
             dutyRatio：占空比
             totalInterval：总时长
             keepInterval：保持时长
@@ -130,14 +121,36 @@ void IOPwm_ChangeDefault(IOPwmStruct *ioPwm, IOPwmStatusStruct *status)
   * @remark 
 
   ********************************************************************************************/
-void IOPwm_StatusModify(IOPwmStatusStruct *status, bool isActive, uint8_t dutyRatio, uint16_t totalInterval, uint16_t keepInterval)
+void IOPwm_StatusModify(IOPwmStatusStruct *status, uint8_t dutyRatio, uint16_t totalInterval, uint16_t keepInterval)
 {
-    status->isActive = isActive;
-    status->dutyRatio = dutyRatio;
+    status->activeInterval = (totalInterval * dutyRatio) / 100;
     status->totalInterval = totalInterval;
     status->keepInterval = keepInterval;
 }
+/*********************************************************************************************
 
+  * @brief  IOPwm_IsInDefault
+  * @param  ioPwm：ioPwm实例指针
+  * @return 
+  * @remark 是否处于默认运行下
+
+  ********************************************************************************************/
+bool IOPwm_IsInDefault(IOPwmStruct *ioPwm)
+{
+    return (ioPwm->process.current == Process_Idle);
+}
+/*********************************************************************************************
+
+  * @brief  IOPwm_IsIdle
+  * @param  ioPwm：ioPwm实例指针
+  * @return 
+  * @remark 是否为空闲
+
+  ********************************************************************************************/
+bool IOPwm_IsIdle(IOPwmStruct *ioPwm)
+{
+    return (ioPwm->process.current == Process_Idle && ioPwm->defaultStatus.keepInterval == 0);
+}
 /*********************************************************************************************
 
   * @brief  KeyDetect_PressCheck
@@ -146,9 +159,10 @@ void IOPwm_StatusModify(IOPwmStatusStruct *status, bool isActive, uint8_t dutyRa
   * @remark 按键按下检测
 
   ********************************************************************************************/
-void KeyDetect_PressCheck(KeyDetectStruct *key)
+void KeyDetect_PressCheck(KeyDetectStruct *key, bool isInterrupted)
 {
-    if(key->CallBack_IsKeyPressed() == true)
+    if((isInterrupted == true || key->CallBack_IsKeyPressed(key) == true)
+       && key->_isTrigged == false)
 	{	
 		key->_isTrigged = true;	
 		key->__time = sysTime;
@@ -165,10 +179,11 @@ void KeyDetect_PressCheck(KeyDetectStruct *key)
 void KeyDetect_Handle(KeyDetectStruct *key)
 {
 	// 检测到按键抬起
-    if(key->CallBack_IsKeyPressed() == false && key->_isTrigged == true)
+    if(key->CallBack_IsKeyPressed(key) == false && key->_isTrigged == true)
 	{	
-		key->_isTrigged = false;	
-		key->CallBack_KeyHandle(sysTime - key->__time);
+		key->_isTrigged = false;
+        if(key->CallBack_KeyHandle != NULL)
+		{   key->CallBack_KeyHandle(key, sysTime - key->__time); }
 	}
 }
 /*********************************************************************************************

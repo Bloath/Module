@@ -3,15 +3,11 @@
 
 #include "Module/Module.h"
 
-#define NB_RST_ENABLE()     GPIO_setOutputHighOnPin(COM_RESET_PORT, COM_RESET_PIN)
-#define NB_RST_DISABLE()    GPIO_setOutputLowOnPin(COM_RESET_PORT, COM_RESET_PIN)
+#define NB_UART_ENABLE()   UART_ENABLE(WIRELESS_UART)
+#define NB_UART_DISABLE()  UART_DISABLE(WIRELESS_UART))
 
-#define NB_UART_ENABLE()   EUSCI_A_UART_enable(COM_UART_BASE_ADDR)
-#define NB_UART_DISABLE()  EUSCI_A_UART_disable(COM_UART_BASE_ADDR)
-
-
-#define NB_POWER_ON()           GPIO_setOutputLowOnPin(COM_POWER_PORT, COM_POWER_PIN)
-#define NB_POWER_OFF()          GPIO_setOutputHighOnPin(COM_POWER_PORT, COM_POWER_PIN)
-#define NB_POWER_IS_ON()        ((GPIO_getOutputPinValue(COM_POWER_PORT, COM_POWER_PIN) == 0)? true : false)
+#define NB_POWER_ON()       IO_LOW(COM_POWER_GPIO_Port, COM_POWER_Pin)
+#define NB_POWER_OFF()      IO_HIGH(COM_POWER_GPIO_Port, COM_POWER_Pin)
+#define NB_POWER_IS_ON()    IO_IS_LOW(COM_POWER_GPIO_Port, COM_POWER_Pin)
   
 #endif

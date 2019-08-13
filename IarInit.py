@@ -14,6 +14,7 @@ headerPrefix = '' \
           '/* macro -------------------------------------------------------------*/\n' \
           '/* variables ---------------------------------------------------------*/\n' \
           '/* function prototypes -----------------------------------------------*/\n' \
+          '{2}\n'\
           '#endif'
 
 headerDefine = "#ifndef _{0}_H_\n#define _{0}_H_\n\n"
@@ -26,15 +27,25 @@ filePrefix = '/* Includes ------------------------------------------------------
              '/* variables ---------------------------------------------------------*/\n' \
              '/* function prototypes -----------------------------------------------*/\n\n' \
              '/*********************************************************************************************\n\n' \
-             '    * @brief\n' \
+             '    * @brief {1}_Init\n' \
              '    * @param\n' \
              '    * @retval\n' \
              '    * @remark\n\n' \
-             '********************************************************************************************/\n'
+             '********************************************************************************************/\n'\
+             'void {1}_Init()\n'\
+             '{}\n'\
+             '/*********************************************************************************************\n\n' \
+             '    * @brief {1}_Handle\n' \
+             '    * @param\n' \
+             '    * @retval\n' \
+             '    * @remark\n\n' \
+             '********************************************************************************************/\n'\
+             'void {1}_Handle()\n'\
+             '{}\n'\
 
 fileFrame = {
     'HardWare': ['Hal'],
-    'Handle': ['Conf', 'Service', 'Communicate', 'Global']
+    'Handle': ['Conf', 'Service', 'Communication', 'Global']
 }
 
 
@@ -53,14 +64,15 @@ for key,item in fileFrame.items():
     # 建立统一的header文件，并将所有文件的.h文件添加进去
     with open(projectDir + key + os.sep + key + '.h', 'w', encoding='utf8') as f:
         f.write(headerPrefix.format(headerDefine.format(key.upper()),
-                                    "".join("#include \"" + key + "/" + i + ".h\"\n" for i in item)))
+                                    "".join("#include \"" + key + "/" + i + ".h\"\n" for i in item),
+                                    ''))
 
     for file in item:
         print("创建 " + file + " 文件")
         with open(projectDir + key + os.sep + file + '.c', 'w', encoding='utf8') as f:
-            f.write(filePrefix.format(includePrefix))
+            f.write(filePrefix.format(includePrefix, file))
         with open(projectDir + key + os.sep + file + '.h', 'w', encoding='utf8') as f:
-            f.write(headerPrefix.format(headerDefine.format(file.upper()),""))
+            f.write(headerPrefix.format(headerDefine.format(file.upper()),"", "void {0}_Init();\nvoid {0}_Handle();\n".format(file)))
 
 # 3. 找到工程ewp文件，并开始dom解析
 

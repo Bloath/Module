@@ -79,15 +79,15 @@ extern char *nbOcSet[];
             }
     
             // 收到AAA000,则清除最后一条回复
-            if(strstr(msgStr, "AAA000") != NULL)
-            {   TxQueue_FreeByFunc(nb.txQueueService, Communicate_NbOCClearTxBlockFunction, &(nb.txQueueService->_lastIndex)); }
-            else
+            //if(strstr(msgStr, "AAA000") != NULL)
+            //{   TxQueue_FreeByFunc(nb.txQueueApp, Communicate_NbOCClearTxBlockFunction, &(nb.txQueueApp->_lastIndex)); }
+            //else
             {
                 uint8_t *msg = NULL;
                 int count = HexString2Msg(&msg, msgStr + 10, 0);                    // 转换为字节数组格式
                 if(count > 0)
                 {   
-                    RxQueue_Add(nb.rxQueueService, msg, count, true);        // 填充到接收缓冲当中
+                    RxQueue_Add(nb.rxQueueApp, msg, count, true);        // 填充到接收缓冲当中
                     
                     // 只有在抓换成功后，才回复确认
                     msgStr[1] = 0x33;
@@ -223,7 +223,7 @@ void NB_Http_ReceiveHandle(char *message, uint16_t len)
             uint8_t *packet = NULL;
             int count = String2Msg(&packet, location, 0);
             if (count > 0)
-            {   RxQueue_Add(nb.rxQueueService, packet, count, true);     }
+            {   RxQueue_Add(nb.rxQueueApp, packet, count, true);     }
         }     
         else
         {   NB_ErrorHandle(NbError_TxFail);   }

@@ -7,7 +7,7 @@
 /* define -------------------------------------------------------------*/
 /* macro --------------------------------------------------------------*/
 #define CACHE_INIT_STATIC(record)   {.data=record, .size=sizeof(record[0]), .maxLen=sizeof(record) / sizeof(record[0])}
-#define CACHE_INIT_DYNAMIC(loopPtr, record)    {loop->data=record; loop->size=sizeof(record[0]); loop->maxLen=sizeof(record); }
+#define CACHE_INIT_DYNAMIC(loop, record)    {(loop)->data=record; (loop)->size=sizeof(record[0]); (loop)->maxLen=sizeof(record) / (loop)->size; (loop)->__counter = 0;}
 #define CACHE_GET(cache, i) ((void *)((uint32_t)((cache)->data) + (cache)->size * i))
 #define CACHE_FOREACH(cache, cacheBlock)    for(cacheBlock=(cache)->data; (uint32_t)cacheBlock < (uint32_t)((cache)->data) + (cache)->size * (cache)->maxLen; cacheBlock += (cache)->size)
 
@@ -19,6 +19,7 @@ typedef struct
     uint8_t __counter;    
     uint8_t size;
     uint8_t maxLen;
+    uint32_t __usedFlag;
 } LoopCacheStruct;
 
 typedef struct

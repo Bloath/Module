@@ -27,7 +27,6 @@ typedef struct
 #define TASK_FLAG_INIT      (1<<0)
 #define TASK_FLAG_HANDLING  (1<<1)
 #define TASK_FLAG_PAUSING   (1<<2)
-#define TASK_FLAG_FINISHED  ()
 
 /* macro ---------------------------------------------------------------------*/
 /* variables -----------------------------------------------------------------*/

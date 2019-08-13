@@ -61,8 +61,9 @@ typedef struct
     char *port;
 
     TxQueueStruct *txQueueHal;                          // 硬件层 发送队列
-    TxQueueStruct *txQueueService;                      // 业务层 发送队列
-    RxQueueStruct *rxQueueService;                      // 业务层 接收队列，拆包后填充至该队列
+    RxQueueStruct *rxQueueHal;                          // 硬件层 接收队列
+    TxQueueStruct *txQueueApp;                          // 业务层 发送队列
+    RxQueueStruct *rxQueueApp;                          // 业务层 接收队列，拆包后填充至该队列
     
     
     void (*CallBack_HandleBeforeNetting)();             // 联网之前的处理

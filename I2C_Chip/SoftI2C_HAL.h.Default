@@ -3,6 +3,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "../Module.h"
+#include "HardWare/HalDefine.h"
 
 /* Public define ------------------------------------------------------------*/
 
@@ -10,14 +11,14 @@
 #define DATA_SIZE               sizeof(DATA_TYPE)       // 数据宽度所占字节个数
 
  
-#define SCL_Set()               HAL_GPIO_WritePin(SCL_GPIO_Port, SCL_Pin, GPIO_PIN_SET)
-#define SCL_Clr()               HAL_GPIO_WritePin(SCL_GPIO_Port, SCL_Pin, GPIO_PIN_RESET)
-#define SDA_Set()               HAL_GPIO_WritePin(SDA_GPIO_Port, SDA_Pin, GPIO_PIN_SET)
-#define SDA_Clr()               HAL_GPIO_WritePin(SDA_GPIO_Port, SDA_Pin, GPIO_PIN_RESET)
-#define SDA_Status              ((HAL_GPIO_ReadPin(SDA_GPIO_Port, SDA_Pin) == GPIO_PIN_SET)? true:false)
+#define SCL_Set()               IO_HIGH(SCL_GPIO_Port, SCL_Pin)
+#define SCL_Clr()               IO_LOW(SCL_GPIO_Port, SCL_Pin)
+#define SDA_Set()               IO_HIGH(SDA_GPIO_Port, SDA_Pin)
+#define SDA_Clr()               IO_LOW(SDA_GPIO_Port, SDA_Pin)
+#define SDA_Status              IO_IS_HIGH(SDA_GPIO_Port, SDA_Pin)
 
-
-#define I2C_Delay() 
+#define I2C_Delay()             Delay_us(2);
+//#define I2C_Delay()             {__NOP();__NOP();__NOP();__NOP();__NOP();__NOP();}
 
 /* Public typedef -----------------------------------------------------------*/
 
