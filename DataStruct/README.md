@@ -141,7 +141,7 @@ typedef struct
 
 #### 1.3.3 不同的手动清除发送块方法
 
-> 在通讯中，经常需要多次放松，收到回复后，根据回复内容进行下一步的操作，BufferQueue提供了多种清除方法，适应不同场合
+> 在通讯中，经常需要多次发送，收到回复后，根据回复内容进行下一步的操作，BufferQueue提供了多种清除方法，适应不同场合
 
 * **id控制**：`TxQueue_AddWithId`与`TxQueue_FreeById`在有些通讯场合，不同发送报文夹带ID，在填充和清除时都可以通过额外的ID进行标记和清除
 * **索引控制**：在`TxQueueStruct`中的`_lastIndex`标记最后一个调用发送处理函数的块，在某些场合可通过`TxQueue_FreeByIndex`直接将其清除

@@ -9,6 +9,7 @@
 ├── ESP8266					// ESP8266模块控制
 ├── I2C_Chip				// I2C芯片驱动，包含模拟I2C
 ├── NB						// NB模块驱动控制
+├── HalFrame				// 用于一些硬件的固定流程，I/O 按键 存储 电机等
 ├── SPI_Chip				// SPI芯片驱动，
 ├── ZcProtocol				// 我司的通讯协议相关解包封包
 
@@ -22,7 +23,7 @@
 
 ## 一、模块使用规则/说明
 
-#### 1.1 代码隔离
+### 1.1 代码隔离
 
 > 为了能够让多人使用和更新，必须将硬件相关代码、业务相关代码与控制代码进行隔离。该模块使用了这几种方法
 
@@ -44,22 +45,20 @@
 * 为了方便使用，`ModuleHandle.exe`该文件可批量的完成去后缀、加后缀的功能
 
 
-#### 1.2 头文件的引用
+### 1.2 头文件的引用
 
 * 使用：直接包含"Module.h"即可
 
-* 编写：Module中模块不能直接饮用Module.h，需要分开添加所用模块的头文件
+* 编写：Module中模块不能直引用Module.h，需要分开添加所用模块的头文件
 
 * ```C
   // BufferQueue.c中，添加不同模块的头文件以及自己模块的头文件
-  
+  #include "../Module_Conf.h"
   #include "../Common/Common.h"
   #include "BufferQueue.h"
   ```
 
-
-
-#### 1.3 命名规则
+### 1.3 命名规则
   * 模块总头文件 `xxx.h`，添加该文件夹下所有模块的头文件以及配置
   * 接口文件 `xxx_API.c/h`，模块的主要代码，要与硬件隔离并提供简单接口
   * *配置文件* `xxx_Conf.h`，针对模块的配置头文件。隔离文件
@@ -68,4 +67,90 @@
 
  
 
+## 二、使用建议
+
+### 2.1 内部时间维护
+
+> 该模块需要维护三个时间，所有的程序的运行都基于这三个时间
+
+* sysTime：毫秒，复位时要求清零
+* realTime：秒，复位时要求清零
+* timeStamp：秒，要求与真实时间戳进行同步
+
+这三个时间都是使用宏定义的方式，如果单片机没有类似的现成的寄存器，就需要新建32位的变量。
+
+例如
+
+```
+uint32_t sysTimeCounter,realTimeCounter,timeStampCounter
+
+#define sysTime	sysTimeCounter
+#define realTime realTimeCounter
+#define timeStamp timeStampCounter
+```
+
+
+
+### 2.2 Malloc
+
+> 由于单片机的堆通常有限并且没有mmu，直接使用默认的malloc不但代码量会大，并且不容易管理，所以在这里推荐使用我自己写的Malloc与Free，用法与malloc与free相同，并且不需要初始化。预留了很多可以查看占用的变量，可以在调试时查看，具体的看DataStruct里的Readme
+
+
+
+### 2.3 状态机
+
+> 在单片机非RTOS的写法当中，状态机基本上是肯定会出现的，模块也为这里做了微不足道的省事的优化
+
+```c
+typedef enum
+{
+    Process_Init = 0,
+    Process_Idle,
+    Process_Start,
+    Process_Run,
+    Process_BeforeFinish,
+    Process_Finish,
+    Process_LongWait,
+    Process_Wait,
+    Process_Reset,
+    Process_ResetWait,
+    Process_OrderAt,
+    Process_OrderAtWait,
+    Process_ErrorTrigged,
+    Process_ErrorHandle,
+    Process_Lock,
+} ProcessEnum;
+
+typedef struct
+{
+    ProcessEnum current;
+    ProcessEnum last;
+}ProcessStruct;
+
+#define PROCESS_CHANGE(processObj, process)     \
+    {                                           \
+        processObj.last = processObj.current;   \
+        processObj.current = process;           \
+    }
+```
+
+在写新的状态机的时候，可以将添加一个`ProcessStruct`对象，状态机的状态选择可以使用`ProcessEnum`列举的。并使用`PROCESS_CHANGE`进行切换，在回头调试的时候就可以知道在切换前的上一个状态是哪里，非常有帮助
+
+
+
+## 三、部分常用模块
+
+### 3.1 BufferQueue
+
+> 在通讯或者其他场合，很多时候都需要有队列，其核心在于，延迟处理。BufferQueue就是用在这种场合。
+
+BufferQueue分为两类
+
+* RxBufferQueue：接收缓冲，特点是填充后只处理一次就立马清除
+* TxBufferQueue：发送缓冲，
+  * 单次、多次发送
+  * 发送次数、发送超时限制
+  * 有序发送、无序发送
+
+具体的请参照`DataStruct/`中的README
 
