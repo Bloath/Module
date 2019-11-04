@@ -97,6 +97,10 @@ int RxQueue_Add(RxQueueStruct *rxQueue, uint8_t *packet, uint16_t Len, bool isMa
   ********************************************************************************************/
 void RxQueue_Handle(RxQueueStruct *rxQueue, void (*RxPacketHandle)(uint8_t *, uint16_t, void *), void *param)
 {
+    /* 没有则直接退出 */
+    if (rxQueue->_usedBlockQuantity == 0)
+    {   return; }
+  
     for (uint16_t i = 0; i < BLOCK_COUNT; i++)
     {
         if (rxQueue->__rxBlocks[i].flag & RX_FLAG_USED) //查找需要处理的报文
@@ -137,19 +141,15 @@ void TxQueue_Handle(TxQueueStruct *txQueue, bool (*Transmit)(uint8_t *, uint16_t
     PacketStruct packet;
     uint8_t i = 0;
     
+    /* 没有则直接退出 */
+    if (txQueue->_usedBlockQuantity == 0)
+    {   return; }
+    
     /* 发送间隔 txQueue->interval */
     if ((txQueue->__time + txQueue->interval) > sysTime)
     {   return; }
     else
     {   txQueue->__time = sysTime;  }
-
-    /* 如果没有 */
-    if (txQueue->_usedBlockQuantity == 0)
-    {   
-        if(txQueue->seqId != 0)
-        {   txQueue->seqId = 0; }
-        return; 
-    }
 
     /* 如果为有序发送，则需要查找最小ID，保证按照时间顺序处理 */
     if(txQueue->isTxUnordered == true)
@@ -260,6 +260,10 @@ int TxQueue_Add(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, uint8
 {
     uint16_t i;
 
+    /* 如果没有 */
+    if (txQueue->_usedBlockQuantity == 0)
+    {   txQueue->seqId = 0; }
+    
     for (i = 0; i < BLOCK_COUNT; i++)
     {
         if ((txQueue->__txBlocks[i].flag & TX_FLAG_USED) == 0)

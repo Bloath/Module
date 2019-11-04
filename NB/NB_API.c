@@ -12,15 +12,14 @@
 NBStruct nb;
 
 DATA_PREFIX char *nbConfiguration[] = {
-    "AT+CGMR\r\n",
-    "AT+CMEE=1\r\n",                        // 1. 开启错误序号提示
-    "AT+NPSMR=1\r\n",                       // 2. 提示是否进入休眠
-    "AT+NCONFIG=CELL_RESELECTION,true\r\n", // 3. 开启小区重选
+    "AT+CGMR\r\n",                           
+    "AT+NCSEARFCN\r\n",                     // 清除先验频点
+    "AT+CFUN=1\r\n",                        // 启动射频     ----> 启动连接
+    "AT+CMEE=1\r\n",                        // 开启错误序号提示
+    "AT+CGATT=1\r\n",                       // 开始附着
     "AT+CGSN=1\r\n",
-    "AT+CEREG=4\r\n",                       // 4. 开启信息提示
-    "AT+CSCON=1\r\n",                       // 5. 打开信号提示自动上报
-    "AT+CFUN=1\r\n",                        // 6. 启动射频     ----> 启动连接
-    "AT+CGATT=1\r\n",                       // 7. 开始附着
+    "AT+CEREG=4\r\n",                       // 开启信息提示
+    "AT+CSCON=1\r\n",                       // 打开信号提示自动上报
     NULL,                          
 };
 
@@ -46,6 +45,7 @@ DATA_PREFIX char *nbOcSet[] = {
 };
 
 DATA_PREFIX char *nbReadSim[] = {
+    "AT+CFUN=1\r\n",
     "AT+CIMI\r\n",
     NULL,                          
 };
@@ -107,7 +107,8 @@ void NB_PowerOn()
 bool NB_IsIdle()
 {
     return (nb._process == Process_Idle 
-            || (nb._process == Process_Run && nb._isTransmitting == false));
+            || (nb._process == Process_Run && nb._isTransmitting == false)
+            || nb._process == Process_Lock);
 }
 /*********************************************************************************************
 
@@ -217,7 +218,7 @@ void NB_Handle()
         }
 
         // 长时间之后未连接处理
-        if ((nb.__startConnectTime + 30) < realTime)
+        if ((nb.__startConnectTime + 50) < realTime)
         {   NB_ErrorHandle(NbError_AttTimeout); }
         break;
 
@@ -308,7 +309,7 @@ void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
         {   
             nb.__orderAt.isGetError = true;   
             nb.__orderAt.errorCounter ++;
-            if(nb.__orderAt.errorCounter > 3)
+            if(nb.__orderAt.errorCounter > 5)
             {   NB_ErrorHandle(NbError_AtError);    }
         }
     }
@@ -333,12 +334,7 @@ void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
         uint32_t temp32u = NumberString2Uint(temp); // 转换为数字
 
         // 0-2 微弱信号 2-10一般 11-31较强 99收不到
-        if (temp32u < 2)
-        {   nb._signal = NbSignal_Weak;  }
-        else if (temp32u == 99)
-        {   nb._signal = NbSignal_Undetected;    }
-        else
-        {   nb._signal = NbSignal_Normal;    }
+        nb._signal = temp32u;
         Free(temp);
         return;
     }
@@ -395,6 +391,7 @@ void NB_ErrorHandle(NbErrorEnum error)
     {
     case NbError_AttTimeout:        // 附着失败
     case NbError_AtError:
+        nb.__orderAt.errorCounter = 0;
     case NBError_ConnectError:
         NB_SetProcess(Process_Lock);
         break;

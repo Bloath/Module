@@ -25,6 +25,7 @@ int Msg2String(char *dst, uint8_t *message, uint16_t length);
 int Msg2HexString(char *dst, uint8_t *message, uint16_t length);
 void StringCat(char *dst, char *src);
 void* Memory2HexString(void *dst, void *src, uint16_t length, bool isBigEndian);
+int Uint2String(char *dst, uint32_t number);
 
 uint32_t NumberString2Uint(const char *numString);
 int Number2Array(uint8_t **dst, uint32_t number, bool isPositiveSequence);

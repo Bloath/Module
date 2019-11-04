@@ -10,13 +10,6 @@
 /* Public typedef ------------------------------------------------------------*/
 typedef enum
 {
-    NbSignal_Undetected,
-    NbSignal_Weak,
-    NbSignal_Normal,
-} NbSignalStrengthEnum;
-
-typedef enum
-{
     Unknown = 0,
     ChinaMobile,
     ChinaTelecom,
@@ -54,7 +47,7 @@ typedef struct
     bool _isTransmitting;                               // 正在发送
     bool isSleep;                                       // 是否休眠
     uint8_t socketId;                                   // 套接字编号
-    NbSignalStrengthEnum _signal;                       // 信号强度
+    uint8_t _signal;                                    // 信号强度
     SimTypeEnum sim;
     char **cmdList;
     char *host;
