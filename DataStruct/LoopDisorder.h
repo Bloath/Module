@@ -19,7 +19,7 @@ typedef struct
     uint8_t __counter;    
     uint8_t size;
     uint8_t maxLen;
-    uint32_t __usedFlag;
+    uint32_t totalCount;
 } LoopCacheStruct;
 
 typedef struct

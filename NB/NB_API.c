@@ -235,11 +235,11 @@ void NB_Handle()
         
     /* 开始工作部分，对于NB来说，有数据直接发送即可，等待回复 */
     case Process_Run:
-        TxQueue_Handle(nb.txQueueApp, nb.CallBack_HalTxFunc, NULL);
-        if (nb.txQueueApp->_usedBlockQuantity != 0)
+        if((nb._lastId = TxQueue_Handle(nb.txQueueApp, nb.CallBack_HalTxFunc, NULL)) >= 0)
         {
             nb.__time = realTime;
             nb._isTransmitting = true;
+            NB_SetProcess(Process_RunWait); 
         }
 
         if (nb._isTransmitting == true 
@@ -251,7 +251,13 @@ void NB_Handle()
             {   nb._isTransmitting = false; }
         }
         break;
-
+    
+    /* 发送等待部分，等待5s发送下一条 */
+    case Process_RunWait:
+        if ((nb.__time + 5) < realTime)
+        {   NB_SetProcess(Process_Run);  }
+        break;
+        
     case Process_Reset:
         NB_StringTrans("AT+NRB\r\n");
         NB_SetProcess(Process_ResetWait);
@@ -325,7 +331,6 @@ void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
     }
 
 
-
     // 信号强度判断
     location = strstr(message, "+CSQ");
     if (location != NULL)
@@ -347,7 +352,7 @@ void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
     }
     
     /* 发送过程中失败的问题 */
-    if(nb._process == Process_Run)
+    if(nb._process == Process_Run || nb._process == Process_RunWait)
     {
         if(strstr(message, "ERROR"))
         {   

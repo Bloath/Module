@@ -129,25 +129,29 @@ void RxQueue_Handle(RxQueueStruct *rxQueue, void (*RxPacketHandle)(uint8_t *, ui
   * @param  txBlock：发送缓冲块，发送缓冲队列头
             Transmit：发送函数指针（调用底层发送函数）
             packageParam：作为二次封包的参数
-  * @retval 无
+  * @retval -1：有数据但是不能发送（发送一次并手动清除）
+            -2：缓存为空
+            -3：还未到定时发送阶段
+            other：当前发送成功的数据的id号
   * @remark 
 
   ********************************************************************************************/
-void TxQueue_Handle(TxQueueStruct *txQueue, bool (*Transmit)(uint8_t *, uint16_t), void *packageParam)
+int TxQueue_Handle(TxQueueStruct *txQueue, bool (*Transmit)(uint8_t *, uint16_t), void *packageParam)
 {
     uint8_t tempId,tempIndex=0;
     bool isNeedFree = false;
     BlockFreeMethodEnum freeMethod;
     PacketStruct packet;
     uint8_t i = 0;
+    int result = -1;
     
     /* 没有则直接退出 */
     if (txQueue->_usedBlockQuantity == 0)
-    {   return; }
+    {   return -2; }
     
     /* 发送间隔 txQueue->interval */
     if ((txQueue->__time + txQueue->interval) > sysTime)
-    {   return; }
+    {   return result; }
     else
     {   txQueue->__time = sysTime;  }
 
@@ -188,12 +192,17 @@ void TxQueue_Handle(TxQueueStruct *txQueue, bool (*Transmit)(uint8_t *, uint16_t
                    1. 减少缓冲块中占用内存
                    2. 再进行分析时不用再重新拆包解析 */
                 if(txQueue->CallBack_PackagBeforeTransmit == NULL || (txQueue->__txBlocks[i].flag & TX_FLAG_PACKAGE) == 0)
-                {   isNeedFree = Transmit(txQueue->__txBlocks[i].message, txQueue->__txBlocks[i].length);   }           // 发送原始报文
+                {   
+                    isNeedFree = Transmit(txQueue->__txBlocks[i].message, txQueue->__txBlocks[i].length);                   // 发送原始报文
+                    result = txQueue->__txBlocks[i].id;
+                
+                }           
                 else if(txQueue->CallBack_PackagBeforeTransmit != NULL && (txQueue->__txBlocks[i].flag & TX_FLAG_PACKAGE) != 0)
                 {
                     if(txQueue->CallBack_PackagBeforeTransmit(&(txQueue->__txBlocks[i]), packageParam, &packet) == 0) // 二次封包
                     {
                         isNeedFree = Transmit(packet.data, packet.length);                                          // 发送二次封包报文
+                        result = txQueue->__txBlocks[i].id;
                         Free(packet.data);                                                                          // 释放内存空间
                     }
                 }
@@ -237,13 +246,25 @@ void TxQueue_Handle(TxQueueStruct *txQueue, bool (*Transmit)(uint8_t *, uint16_t
                 TxQueue_FreeBlock(txQueue, txQueue->__txBlocks + i);
             }
 
-            return;
+            return result;
         }
     }
 
-
+    
 }
+/*********************************************************************************************
 
+  * @brief  时间更新
+  * @param  txBlock：发送模块结构体指针
+            time：时间
+  * @return 
+  * @remark 
+
+  ********************************************************************************************/
+void TxQueue_TimeSync(TxQueueStruct *txQueue, uint32_t time)
+{
+    txQueue->__time = time;
+}
 /*********************************************************************************************
 
   * @brief  填充发送结构体

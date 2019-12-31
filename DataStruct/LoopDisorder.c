@@ -56,7 +56,7 @@ int LoopCache_Append(LoopCacheStruct *loopCache, void *newData)
     uint8_t index = loopCache->__counter;
 
     memcpy(CACHE_GET(loopCache, loopCache->__counter), newData, loopCache->size);
-    loopCache->__usedFlag |= (1<<loopCache->__counter);
+    loopCache->totalCount = 0;
     loopCache->__counter++;
 
     if (loopCache->__counter == loopCache->maxLen)
@@ -139,7 +139,7 @@ void LoopCache_Clear(LoopCacheStruct *loopCache)
 {
     memset(loopCache->data, 0, loopCache->size * loopCache->maxLen);
     loopCache->__counter = 0;
-    loopCache->__usedFlag = 0;
+    loopCache->totalCount = 0;
 }
 /*********************************************************************************************
 

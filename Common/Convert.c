@@ -115,6 +115,7 @@ int HexString2Msg(uint8_t **dst, char *srcStr, uint16_t specifyLen)
 int Msg2String(char *dst, uint8_t *message, uint16_t length)
 {
     int index = 0, i = 0;
+    int temp8u = 0;
     
     /* 找到字符串末尾 */
     while(dst[index] != '\0')
@@ -126,7 +127,7 @@ int Msg2String(char *dst, uint8_t *message, uint16_t length)
         dst[i * 2 + index] = Hex2Char(message[i] >> 4);
         dst[i * 2 + 1 + index] = Hex2Char(message[i] & 0x0F);
     }
-
+    
     dst[index + i * 2] = '\0'; //结束符
 
     return (index + i * 2 - 1);

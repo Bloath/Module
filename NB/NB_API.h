@@ -21,6 +21,7 @@ typedef enum
     NbError_ReadSimError,           // 读取SIM卡错误，等待下次连接
     NbError_AttTimeout,             // 网络附着超时，等待下次连接
     NBError_ConnectError,           // 连接错误，例如打开HTTP/TCP/UDP
+    NbError_NoRegister,
     NbError_TxFail,
     NbError_NeedReset,
     NbError_AtError,
@@ -48,6 +49,7 @@ typedef struct
     bool isSleep;                                       // 是否休眠
     uint8_t socketId;                                   // 套接字编号
     uint8_t _signal;                                    // 信号强度
+    int _lastId;                                         // 上次发送成功的ID
     SimTypeEnum sim;
     char **cmdList;
     char *host;
