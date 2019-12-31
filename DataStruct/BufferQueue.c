@@ -250,7 +250,7 @@ int TxQueue_Handle(TxQueueStruct *txQueue, bool (*Transmit)(uint8_t *, uint16_t)
         }
     }
 
-    
+    return result;
 }
 /*********************************************************************************************
 

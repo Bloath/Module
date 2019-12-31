@@ -17,6 +17,7 @@ typedef enum
     Process_Idle,
     Process_Start,
     Process_Run,
+    Process_RunWait,
     Process_BeforeFinish,
     Process_Finish,
     Process_LongWait,
@@ -38,7 +39,7 @@ typedef struct
 
 /* Public variables ----------------------------------------------------------*/
 extern uint32_t realTimeCounter, timeStampCounter;
-
+extern uint32_t uwTick;
 /* Public define -------------------------------------------------------------*/
 #define MODULE_DEBUG    1   
 #define sysTime uwTick
@@ -54,13 +55,16 @@ extern uint32_t realTimeCounter, timeStampCounter;
 
 #define DATA_PREFIX 
 
+
+
+/* Public macro --------------------------------------------------------------*/
 #define PROCESS_CHANGE(processObj, process)     \
     {                                           \
         processObj.last = processObj.current;   \
         processObj.current = process;           \
     }
+	
 
-/* Public macro --------------------------------------------------------------*/
 /* Public function prototypes ------------------------------------------------*/
 
 #endif

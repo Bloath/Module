@@ -3,7 +3,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "../Module.h"
-#include "HardWare/HalDefine.h"
+#include "HardWare/HardWare.h"
 
 /* Public define ------------------------------------------------------------*/
 
