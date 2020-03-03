@@ -15,14 +15,14 @@
   * @remark 
 
   ********************************************************************************************/
-void Comunicate_HDMaster_Polling(CommunicateStruct *communicate)
+void Comunicate_HDMaster_Polling(struct CommunicateStruct *communicate)
 {
     /* 根据主状态进行处理 */
-    switch (communicate->halfDuplex->__process)
+    switch (communicate->halfDuplex->__process.current)
     {
     /* 初始化 */
     case Process_Init:
-        communicate->halfDuplex->__process = Process_Idle;
+        PROCESS_CHANGE(communicate->halfDuplex->__process, Process_Idle)
         communicate->halfDuplex->__time = *communicate->halfDuplex->refTime;
         communicate->halfDuplex->parent = communicate;
         break;
@@ -33,13 +33,13 @@ void Comunicate_HDMaster_Polling(CommunicateStruct *communicate)
         if ((communicate->halfDuplex->__time + communicate->halfDuplex->loopInterval) > *communicate->halfDuplex->refTime)
         {   break;  }
         else
-        {   communicate->halfDuplex->__process = Process_Start;   }
+        {   PROCESS_CHANGE(communicate->halfDuplex->__process, Process_Start);   }
 
     /* 空闲状态，填充查询暂存报文，切换为等待状态 */
     case Process_Start:
         if (communicate->halfDuplex->CallBack_FillHoldMsg != NULL)
         {   communicate->halfDuplex->CallBack_FillHoldMsg(communicate->halfDuplex->parent); }       // 空闲数据包填充
-        communicate->halfDuplex->__process = Process_Wait;                                          // 切换等待状态
+        PROCESS_CHANGE(communicate->halfDuplex->__process, Process_Wait);                                          // 切换等待状态
         break;
 
     /* 等待状态，发送缓冲为手动清除，如果没有回复的话是不会清除的，否则会出现阻塞 
@@ -47,7 +47,7 @@ void Comunicate_HDMaster_Polling(CommunicateStruct *communicate)
     case Process_Wait:
         communicate->halfDuplex->__time = *communicate->halfDuplex->refTime;
         if (communicate->txQueue->_usedBlockQuantity == 0)
-        {   communicate->halfDuplex->__process = Process_Init;    }
+        {   PROCESS_CHANGE(communicate->halfDuplex->__process, Process_Init);    }
         break;
     }
 }
@@ -60,7 +60,7 @@ void Comunicate_HDMaster_Polling(CommunicateStruct *communicate)
   * @remark 
 
   ********************************************************************************************/
-void Communicate_Handle(CommunicateStruct *communicate)
+void Communicate_Handle(struct CommunicateStruct *communicate)
 {
     /* 半双工 + 客户端模式，发送查询暂存报文 */
     if (communicate->halfDuplex != NULL )
@@ -82,7 +82,7 @@ void Communicate_Handle(CommunicateStruct *communicate)
   * @remark 
 
   ********************************************************************************************/
- void Communicate_Lock(CommunicateStruct *communicate)
+ void Communicate_Lock(struct CommunicateStruct *communicate)
  {
     communicate->flag |= COM_FLAG_IS_LOCK;
  }

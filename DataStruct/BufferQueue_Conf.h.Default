@@ -3,6 +3,7 @@
 
 
 //#define TX_BLOCK_TIMEOUT   1          //发送缓冲块是否使用超时判断（在发送后多长时间没被清除，则判断为超时）
+#define BLOCK_WITH_PARAM    1           // 缓冲块中是否包含参数
 #define TX_TIME_OUT     3000            //超时时间，单位为ms
 
 #define BUFFER_LENGTH   1000            //缓冲大小，填写报文最大长度的两杯，否则会导致溢出

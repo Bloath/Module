@@ -2,32 +2,33 @@
 #define _MALLOC_H_
 
 /* Includes ------------------------------------------------------------------*/
-#include "../Module.h"
-
+#include "Module/Module_Conf.h"
 #include "Malloc_Conf.h"
 
 /* Public typedef ------------------------------------------------------------*/
 
-typedef enum
+enum MallocErrorEnum
 {
     Malloc_OutOfMemory = 0,
     Malloc_MemoryUnreasonable,
-} MallocErrorEnum;
+};
 
-typedef struct
+struct MemoryManageUnitcStruct
 {
     uint32_t __mallocPool[MALLOC_POOL_SIZE];                    // 采用32位，其目的是为了对齐
     MALLOC_BLOCK_COUNT_SIZE __blocks[MALLOC_BLOCK_COUNT];       // 32位为一块，每一块
     MALLOC_BLOCK_COUNT_SIZE _usedBlockQuantity;
-} MemoryManageUnitcStruct;
+    int (*CallBack_Error)(enum MallocErrorEnum mallocError);
+};
 
 /* Public define -------------------------------------------------------------*/
 /* Public macro --------------------------------------------------------------*/
 /* Public variables ----------------------------------------------------------*/
-extern MemoryManageUnitcStruct mmu;
+extern struct MemoryManageUnitcStruct mmu;
 
 /* Public function prototypes ------------------------------------------------*/
-void *Malloc(uint16_t size);
+void *Malloc(size_t size);
+void *Realloc(void *pointer, size_t size);
 void Free(void *pointer);
 
 #endif

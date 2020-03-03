@@ -1,11 +1,12 @@
 /* Includes ------------------------------------------------------------------*/
+#include "Module/Module.h"
 #include "ZcProtocol_API.h"
 
 /* private typedef ------------------------------------------------------------*/
 /* private define -------------------------------------------------------------*/
 /* private macro --------------------------------------------------------------*/
 /* private variables ----------------------------------------------------------*/
-ZcProtocol zcPrtc; // 拙诚协议实例
+struct ZcProtocol zcPrtc; // 拙诚协议实例
 uint8_t queryId = 0, eventId = 0;
 
 /* private function prototypes ------------------------------------------------*/
@@ -20,11 +21,12 @@ uint8_t ZcProtocol_GetCrc(uint8_t *message, uint16_t length);
   * @remark 
 
   ********************************************************************************************/
-uint8_t *ZcProtocol_ConvertMsg(ZcProtocol *zcProtocol, uint8_t *data, uint16_t dataLen)
+uint8_t *ZcProtocol_ConvertMsg(struct ZcProtocol *zcProtocol, uint8_t *data, uint16_t dataLen)
 {
     /* 确定数据长度，并申请相应内存 */
     zcProtocol->head.length = ZC_UNDATA_LEN + dataLen;
     uint8_t *msg = (uint8_t *)Malloc(zcProtocol->head.length);
+    memset(msg, 0, zcProtocol->head.length);
     
     if(msg == NULL)
     {   return NULL;    }
@@ -32,7 +34,7 @@ uint8_t *ZcProtocol_ConvertMsg(ZcProtocol *zcProtocol, uint8_t *data, uint16_t d
     /* 按照 头 、数据、结尾的顺序开始对报文进行赋值 */
     memcpy(msg, &zcProtocol->head, sizeof(zcProtocol->head));
 
-    EndianExchange(&( ((ZcProtocol *)msg)->head.timestamp ), &(zcProtocol->head.timestamp), 4);
+    EndianExchange(&( ((struct ZcProtocol *)msg)->head.timestamp ), &(zcProtocol->head.timestamp), 4);
     
     memcpy(msg + ZC_HEAD_LEN, data, dataLen);   // 复制数据域
 
@@ -50,13 +52,13 @@ uint8_t *ZcProtocol_ConvertMsg(ZcProtocol *zcProtocol, uint8_t *data, uint16_t d
   * @remark 检查协议头、尾以及CRC等
 
   ********************************************************************************************/
-ZcProtocol *ZcProtocol_Check(uint8_t *message, uint16_t length)
+struct ZcProtocol *ZcProtocol_Check(uint8_t *message, uint16_t length)
 {
     if (length < ZC_UNDATA_LEN)
     {   return NULL;    }
 
-    ZcProtocol *protocol = (ZcProtocol *)message; // 获取协议结构指针
-    ZcProtocolEnd *tail = (ZcProtocolEnd *)(message + protocol->head.length - 2);
+    struct ZcProtocol *protocol = (struct ZcProtocol *)message; // 获取协议结构指针
+    struct ZcProtocolEnd *tail = (struct ZcProtocolEnd *)(message + protocol->head.length - 2);
 
     /* 首尾判断 */
     if (protocol->head.head != ZC_HEAD || tail->end != ZC_END)
@@ -146,11 +148,11 @@ void ZcProtocol_IdIncrement(bool isQueryId)
   * @remark 通过输入命令以及数据，并填写到发送缓冲当中
 
   ********************************************************************************************/
-int ZcProtocol_Request(CommunicateStruct *communicate, uint8_t cmd, uint8_t *data, uint16_t dataLen, uint8_t txMode)
+int ZcProtocol_Request(struct CommunicateStruct *communicate, uint8_t cmd, uint8_t *data, uint16_t dataLen, uint8_t txMode)
 {
     uint8_t *msg;
     
-    zcPrtc.head.timestamp = timeStamp;  
+    zcPrtc.head.timestamp = TIMESTAMP;  
     zcPrtc.head.cmd = cmd;
     
     /* 暂存命令-> Id使用queryId，（1-127）不自增，在接收到当前Id的确认报文后自增 
@@ -183,7 +185,7 @@ int ZcProtocol_Request(CommunicateStruct *communicate, uint8_t cmd, uint8_t *dat
   * @remark 与请求不同，回复一般是用请求的ID、CMD等，仅仅是数据部分有区别
 
   ********************************************************************************************/
-void ZcProtocol_Response(CommunicateStruct *communicate, ZcProtocol *zcProtocol, uint8_t *data, uint16_t dataLen, uint8_t txMode)
+void ZcProtocol_Response(struct CommunicateStruct *communicate, struct ZcProtocol *zcProtocol, uint8_t *data, uint16_t dataLen, uint8_t txMode)
 {
     uint8_t *msg;
 

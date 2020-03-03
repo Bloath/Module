@@ -1,13 +1,12 @@
 /* Includes ------------------------------------------------------------------*/
-#include "../Common/Common.h"
-#include "BufferQueue.h"
+#include "Module/Module.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 /* Private function prototypes -----------------------------------------------*/
-void TxQueue_FreeBlock(TxQueueStruct *txQueue, TxBaseBlockStruct *txBlock);   //释放发送块，释放内存清除标志位
+void TxQueue_FreeBlock(struct TxQueueStruct *txQueue, struct TxBaseBlockStruct *txBlock);   //释放发送块，释放内存清除标志位
 
 /* Private functions ---------------------------------------------------------*/
 /*********************************************************************************************
@@ -20,7 +19,7 @@ void TxQueue_FreeBlock(TxQueueStruct *txQueue, TxBaseBlockStruct *txBlock);   //
   * @remark 
 
   ********************************************************************************************/
-int ReceiveSingleByte(uint8_t data, RxBufferStruct *rxBuffer)
+int ReceiveSingleByte(uint8_t data, struct RxBufferStruct *rxBuffer)
 {
     rxBuffer->_buffer[rxBuffer->count] = data; //填入缓冲
     rxBuffer->count++;                        //计数器递增
@@ -44,7 +43,7 @@ int ReceiveSingleByte(uint8_t data, RxBufferStruct *rxBuffer)
   * @remark 
 
   ********************************************************************************************/
-int RxQueue_Add(RxQueueStruct *rxQueue, uint8_t *packet, uint16_t Len, bool isMalloc)
+int RxQueue_Add(struct RxQueueStruct *rxQueue, uint8_t *packet, uint16_t Len, bool isMalloc)
 {
     uint8_t i = 0;
 
@@ -60,6 +59,7 @@ int RxQueue_Add(RxQueueStruct *rxQueue, uint8_t *packet, uint16_t Len, bool isMa
             if (isMalloc == false)
             {
                 rxQueue->__rxBlocks[i].message = (uint8_t *)Malloc((Len + 1) * sizeof(uint8_t)); //根据缓冲长度申请内存，多一个字节，用于填写字符串停止符
+                memset(rxQueue->__rxBlocks[i].message, 0, (Len + 1) * sizeof(uint8_t));
                 if(rxQueue->__rxBlocks[i].message == NULL)
                 {   return -3;   }
                 memcpy(rxQueue->__rxBlocks[i].message, packet, Len);
@@ -89,13 +89,11 @@ int RxQueue_Add(RxQueueStruct *rxQueue, uint8_t *packet, uint16_t Len, bool isMa
 
   * @brief  将缓冲内的数据填写到报文队列中
   * @param  rxBlockList：   接收缓冲结构体
-            RxPacketHandle：接收数据包处理函数指针
-            param：参数，填入接收缓冲中的参数
   * @retval 无
   * @remark 
 
   ********************************************************************************************/
-void RxQueue_Handle(RxQueueStruct *rxQueue, void (*RxPacketHandle)(uint8_t *, uint16_t, void *), void *param)
+void RxQueue_Handle(struct RxQueueStruct *rxQueue)
 {
     /* 没有则直接退出 */
     if (rxQueue->_usedBlockQuantity == 0)
@@ -105,12 +103,13 @@ void RxQueue_Handle(RxQueueStruct *rxQueue, void (*RxPacketHandle)(uint8_t *, ui
     {
         if (rxQueue->__rxBlocks[i].flag & RX_FLAG_USED) //查找需要处理的报文
         {
-            (*RxPacketHandle)(rxQueue->__rxBlocks[i].message, rxQueue->__rxBlocks[i].length, param);
+            if(rxQueue->CallBack_RxPacketHandle != NULL)
+            {   rxQueue->CallBack_RxPacketHandle(rxQueue->__rxBlocks + i);    }
             
             /* 当接收缓冲的清除前回调不为空，且返回值为true时，则直接跳过，由回调函数后续处理清除该数据 */
             if (rxQueue->CallBack_BeforeFree != NULL)
             {   
-                if (rxQueue->CallBack_BeforeFree(rxQueue->__rxBlocks[i].message, rxQueue->__rxBlocks[i].length))
+                if (rxQueue->CallBack_BeforeFree(rxQueue->__rxBlocks + i))
                 {   goto JumpFree;  }
             }
 
@@ -127,8 +126,6 @@ void RxQueue_Handle(RxQueueStruct *rxQueue, void (*RxPacketHandle)(uint8_t *, ui
 
   * @brief  发送缓冲处理
   * @param  txBlock：发送缓冲块，发送缓冲队列头
-            Transmit：发送函数指针（调用底层发送函数）
-            packageParam：作为二次封包的参数
   * @retval -1：有数据但是不能发送（发送一次并手动清除）
             -2：缓存为空
             -3：还未到定时发送阶段
@@ -136,12 +133,12 @@ void RxQueue_Handle(RxQueueStruct *rxQueue, void (*RxPacketHandle)(uint8_t *, ui
   * @remark 
 
   ********************************************************************************************/
-int TxQueue_Handle(TxQueueStruct *txQueue, bool (*Transmit)(uint8_t *, uint16_t), void *packageParam)
+int TxQueue_Handle(struct TxQueueStruct *txQueue)
 {
     uint8_t tempId,tempIndex=0;
     bool isNeedFree = false;
-    BlockFreeMethodEnum freeMethod;
-    PacketStruct packet;
+    enum BlockFreeMethodEnum freeMethod;
+    struct PacketStruct packet;
     uint8_t i = 0;
     int result = -1;
     
@@ -150,10 +147,10 @@ int TxQueue_Handle(TxQueueStruct *txQueue, bool (*Transmit)(uint8_t *, uint16_t)
     {   return -2; }
     
     /* 发送间隔 txQueue->interval */
-    if ((txQueue->__time + txQueue->interval) > sysTime)
+    if ((txQueue->__time + txQueue->interval) > SYSTIME)
     {   return result; }
     else
-    {   txQueue->__time = sysTime;  }
+    {   txQueue->__time = SYSTIME;  }
 
     /* 如果为有序发送，则需要查找最小ID，保证按照时间顺序处理 */
     if(txQueue->isTxUnordered == true)
@@ -176,7 +173,7 @@ int TxQueue_Handle(TxQueueStruct *txQueue, bool (*Transmit)(uint8_t *, uint16_t)
         {
 #ifdef TX_BLOCK_TIMEOUT
             /* 发送超时，进入错误处理，并释放发送缓冲块 */
-            if ((txQueue->__txBlocks[i].time + TX_TIME_OUT) < sysTime && txQueue->__txBlocks[i].flag & TX_FLAG_TIMEOUT)
+            if ((txQueue->__txBlocks[i].time + TX_TIME_OUT) < SYSTIME && txQueue->__txBlocks[i].flag & TX_FLAG_TIMEOUT)
             {
                 isNeedFree = true;
                 freeMethod = BlockFree_OverTime; // 超时清除
@@ -193,17 +190,22 @@ int TxQueue_Handle(TxQueueStruct *txQueue, bool (*Transmit)(uint8_t *, uint16_t)
                    2. 再进行分析时不用再重新拆包解析 */
                 if(txQueue->CallBack_PackagBeforeTransmit == NULL || (txQueue->__txBlocks[i].flag & TX_FLAG_PACKAGE) == 0)
                 {   
-                    isNeedFree = Transmit(txQueue->__txBlocks[i].message, txQueue->__txBlocks[i].length);                   // 发送原始报文
-                    result = txQueue->__txBlocks[i].id;
-                
+                    if(txQueue->CallBack_Transmit != NULL)
+                    {
+                        isNeedFree = txQueue->CallBack_Transmit(txQueue->__txBlocks[i].message, txQueue->__txBlocks[i].length);                   // 发送原始报文
+                        result = txQueue->__txBlocks[i].id;
+                    }
                 }           
                 else if(txQueue->CallBack_PackagBeforeTransmit != NULL && (txQueue->__txBlocks[i].flag & TX_FLAG_PACKAGE) != 0)
                 {
-                    if(txQueue->CallBack_PackagBeforeTransmit(&(txQueue->__txBlocks[i]), packageParam, &packet) == 0) // 二次封包
+                    if(txQueue->CallBack_PackagBeforeTransmit(&(txQueue->__txBlocks[i]), &packet) == 0) // 二次封包
                     {
-                        isNeedFree = Transmit(packet.data, packet.length);                                          // 发送二次封包报文
-                        result = txQueue->__txBlocks[i].id;
-                        Free(packet.data);                                                                          // 释放内存空间
+                        if(txQueue->CallBack_Transmit != NULL)
+                        {
+                            isNeedFree = txQueue->CallBack_Transmit(packet.data, packet.length);          // 发送二次封包报文
+                            result = txQueue->__txBlocks[i].id;
+                        }
+                        Free(packet.data);                                              // 释放内存空间
                     }
                 }
                 else if((txQueue->__txBlocks[i].flag & TX_FLAG_PACKAGE) != 0)
@@ -261,7 +263,7 @@ int TxQueue_Handle(TxQueueStruct *txQueue, bool (*Transmit)(uint8_t *, uint16_t)
   * @remark 
 
   ********************************************************************************************/
-void TxQueue_TimeSync(TxQueueStruct *txQueue, uint32_t time)
+void TxQueue_TimeSync(struct TxQueueStruct *txQueue, uint32_t time)
 {
     txQueue->__time = time;
 }
@@ -277,7 +279,7 @@ void TxQueue_TimeSync(TxQueueStruct *txQueue, uint32_t time)
   * @remark 
 
   ********************************************************************************************/
-int TxQueue_Add(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, uint8_t mode)
+int TxQueue_Add(struct TxQueueStruct *txQueue, uint8_t *message, uint16_t length, uint8_t mode)
 {
     uint16_t i;
 
@@ -293,6 +295,7 @@ int TxQueue_Add(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, uint8
             if((mode & TX_FLAG_IS_MALLOC) == 0)
             {
                 txQueue->__txBlocks[i].message = (uint8_t *)Malloc(length * sizeof(uint8_t));
+                memset(txQueue->__txBlocks[i].message, 0, length * sizeof(uint8_t));
                 if(txQueue->__txBlocks[i].message == NULL)
                 {   return -3 ;  }
                 memcpy(txQueue->__txBlocks[i].message, message, length);
@@ -308,7 +311,7 @@ int TxQueue_Add(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, uint8
             txQueue->_usedBlockQuantity += 1;                       // 已经使用块计数器 + 1
 
 #ifdef TX_BLOCK_TIMEOUT
-            txQueue->__txBlocks[i].time = sysTime;
+            txQueue->__txBlocks[i].time = SYSTIME;
 #endif
 
             /* 可以自定义标志位，自动添加占用标志位，默认只发送一次 */
@@ -337,7 +340,7 @@ int TxQueue_Add(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, uint8
   * @remark 
 
   ********************************************************************************************/
-int TxQueue_AddWithId(TxQueueStruct *txQueue, uint8_t *message, uint16_t length, uint8_t mode, TX_ID_SIZE id)
+int TxQueue_AddWithId(struct TxQueueStruct *txQueue, uint8_t *message, uint16_t length, uint8_t mode, TX_ID_SIZE id)
 {
     int16_t blockId = TxQueue_Add(txQueue, message, length, mode);
 
@@ -355,7 +358,7 @@ int TxQueue_AddWithId(TxQueueStruct *txQueue, uint8_t *message, uint16_t length,
   * @remark 
 
   ********************************************************************************************/
-void TxQueue_FreeBlock(TxQueueStruct *txQueue, TxBaseBlockStruct *txBlock)
+void TxQueue_FreeBlock(struct TxQueueStruct *txQueue, struct TxBaseBlockStruct *txBlock)
 {
     if ((txBlock->flag & TX_FLAG_USED) != 0)
     {
@@ -383,7 +386,7 @@ void TxQueue_FreeBlock(TxQueueStruct *txQueue, TxBaseBlockStruct *txBlock)
   * @remark 
 
   ********************************************************************************************/
-void TxQueue_FreeByFunc(TxQueueStruct *txQueue, bool (*func)(TxBaseBlockStruct *, void *), void *para)
+void TxQueue_FreeByFunc(struct TxQueueStruct *txQueue, bool (*func)(struct TxBaseBlockStruct *, void *), void *para)
 {
     uint16_t i;
 
@@ -405,7 +408,7 @@ void TxQueue_FreeByFunc(TxQueueStruct *txQueue, bool (*func)(TxBaseBlockStruct *
   * @remark 
 
   ********************************************************************************************/
-void TxQueue_FreeById(TxQueueStruct *txQueue, TX_ID_SIZE id)
+void TxQueue_FreeById(struct TxQueueStruct *txQueue, TX_ID_SIZE id)
 {
     uint16_t i;
 
@@ -427,7 +430,7 @@ void TxQueue_FreeById(TxQueueStruct *txQueue, TX_ID_SIZE id)
   * @remark 
 
   ********************************************************************************************/
-void TxQueue_FreeByIndex(TxQueueStruct *txQueue, uint8_t index)
+void TxQueue_FreeByIndex(struct TxQueueStruct *txQueue, uint8_t index)
 {
     TxQueue_FreeBlock(txQueue, txQueue->__txBlocks + index);
 }
@@ -439,7 +442,7 @@ void TxQueue_FreeByIndex(TxQueueStruct *txQueue, uint8_t index)
   * @remark 
 
   ********************************************************************************************/
-void TxQueue_FreeAll(TxQueueStruct *txQueue)
+void TxQueue_FreeAll(struct TxQueueStruct *txQueue)
 {
     for (uint8_t i = 0; i < BLOCK_COUNT; i++)
     {
@@ -458,7 +461,7 @@ void TxQueue_FreeAll(TxQueueStruct *txQueue)
   * @remark 有平台在变量初始化时有可能不会将START END 清零
 
   ********************************************************************************************/
-void DmaBuffer_Init(DmaBufferStruct *dmaBuffer, uint8_t *buffer, uint16_t bufferSize)
+void DmaBuffer_Init(struct DmaBufferStruct *dmaBuffer, uint8_t *buffer, uint16_t bufferSize)
 {
     dmaBuffer->_buffer = buffer;
     dmaBuffer->__bufferLength = bufferSize;
@@ -475,7 +478,7 @@ void DmaBuffer_Init(DmaBufferStruct *dmaBuffer, uint8_t *buffer, uint16_t buffer
   * @remark 串口空闲中断接收，包含空闲中断标志位的清除
 
   ********************************************************************************************/
-void DmaBuffer_IdleHandle(DmaBufferStruct *dmaBuffer, uint16_t remainCount)
+void DmaBuffer_IdleHandle(struct DmaBufferStruct *dmaBuffer, uint16_t remainCount)
 {
     dmaBuffer->__end = dmaBuffer->__bufferLength - remainCount;             // 结束位置计算
 
@@ -485,6 +488,7 @@ void DmaBuffer_IdleHandle(DmaBufferStruct *dmaBuffer, uint16_t remainCount)
     else if (dmaBuffer->__end < dmaBuffer->__start)
     {
         uint8_t *message = (uint8_t *)Malloc(dmaBuffer->__bufferLength - dmaBuffer->__start + dmaBuffer->__end);
+        memset(message, 0, dmaBuffer->__bufferLength - dmaBuffer->__start + dmaBuffer->__end);
         
         if(message != NULL)
         {

@@ -22,7 +22,7 @@
   * @retval 针对列表中的内容，算出来所有数据针对该内容的偏移量，半字对齐（节省空间），不用字节是为了折中效率和空间
 
   ********************************************************************************************/
-void DataStore_Init(DataStoreUnitStruct *dataStoreList, uint16_t unitCount)
+void DataStore_Init(struct DataStoreUnitStruct *dataStoreList, uint16_t unitCount)
 {
     uint32_t addressTemp = DATA_STORE_START_ADDRESS;
     
@@ -41,7 +41,7 @@ void DataStore_Init(DataStoreUnitStruct *dataStoreList, uint16_t unitCount)
   * @retval 单独写入一个存储块
 
   ********************************************************************************************/
-int DataStoreUnit_Write(DataStoreUnitStruct *dataStoreUnit)
+int DataStoreUnit_Write(struct DataStoreUnitStruct *dataStoreUnit)
 {
     uint8_t offset = dataStoreUnit->length % DATA_STORE_SIZE;
     uint16_t storeLength = (offset == 0)? dataStoreUnit->length: dataStoreUnit->length - offset + DATA_STORE_SIZE;                  // 计算存储长度
@@ -71,7 +71,7 @@ int DataStoreUnit_Write(DataStoreUnitStruct *dataStoreUnit)
   * @retval 单独恢复一个存储块
 
   ********************************************************************************************/
-int DataStoreUnit_Restore(DataStoreUnitStruct *dataStoreUnit)
+int DataStoreUnit_Restore(struct DataStoreUnitStruct *dataStoreUnit)
 {
     uint8_t offset = dataStoreUnit->length % DATA_STORE_SIZE;
     uint16_t storeLength = (offset == 0)? dataStoreUnit->length: dataStoreUnit->length - offset + DATA_STORE_SIZE;              // 计算存储长度
@@ -100,7 +100,7 @@ int DataStoreUnit_Restore(DataStoreUnitStruct *dataStoreUnit)
   * @retval 
 
   ********************************************************************************************/
-int DataStore_WriteAll(DataStoreUnitStruct *dataStoreList, uint16_t unitCount)
+int DataStore_WriteAll(struct DataStoreUnitStruct *dataStoreList, uint16_t unitCount)
 {
     int result = 0;
     int flag = 0;
@@ -121,7 +121,7 @@ int DataStore_WriteAll(DataStoreUnitStruct *dataStoreList, uint16_t unitCount)
   * @retval 
 
   ********************************************************************************************/
-int DataStore_RestoreAll(DataStoreUnitStruct *dataStoreList, uint16_t unitCount)
+int DataStore_RestoreAll(struct DataStoreUnitStruct *dataStoreList, uint16_t unitCount)
 {
     int result = 0;
     int flag = 0;

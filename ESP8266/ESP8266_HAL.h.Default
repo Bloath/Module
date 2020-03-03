@@ -2,7 +2,7 @@
 #define _ESP8266_HAL_H_
 
 /* Includes -----------------------------------------------------------*/
-#include "Module/Module.h"
+#include "Module/Module_Conf.h"
 #include "HardWare/HardWare.h"
 
 /* typedef ------------------------------------------------------------*/

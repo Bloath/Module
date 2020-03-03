@@ -1,15 +1,14 @@
 /* Includes ------------------------------------------------------------------*/
-#include "../Common/Common.h"
+#include "Module/Module.h"
 #include "NB.h"
 
 /* Private define -------------------------------------------------------------*/
 #define NB_HTTP_HEADER  ""
 
-
 /* Private macro --------------------------------------------------------------*/
 /* Private typedef ------------------------------------------------------------*/
 /* Private variables ----------------------------------------------------------*/
-NBStruct nb;
+struct NBStruct nb;
 
 DATA_PREFIX char *nbConfiguration[] = {
     "AT+CGMR\r\n",                           
@@ -52,27 +51,23 @@ DATA_PREFIX char *nbReadSim[] = {
 
 /* Private function prototypes ------------------------------------------------*/
 void NB_StringTrans(const char *string);
-void NB_ErrorHandle(NbErrorEnum error);
+void NB_ErrorHandle(enum NbErrorEnum error);
+void NB_RxHandle(struct RxBaseBlockStruct *rxBlock);
 
 /*********************************************************************************************
 
-  * @brief  
-  * @param  
-  * @param  
-  * @retval 
+  * @brief  NB改变流程
 
   ********************************************************************************************/    
-void NB_SetProcess(ProcessEnum process)
+void NB_SetProcess(enum ProcessEnum process)
 {
-    nb._lastProcess = nb._process;
-    nb._process = process;
-    nb.__time = realTime;
+    PROCESS_CHANGE(nb._process, process);
+    nb.__time = REALTIME;
 }
 /*********************************************************************************************
 
-  * @brief  
-  * @param  
-  * @param  
+  * @brief  发送命令列表
+  * @param  list：命令字列表 
   * @retval 
 
   ********************************************************************************************/   
@@ -85,9 +80,6 @@ void NB_SendATCommandList(char **list)
 /*********************************************************************************************
 
   * @brief  NB 启动电源
-  * @param  
-  * @param  
-  * @retval 
 
   ********************************************************************************************/    
 void NB_PowerOn()
@@ -98,17 +90,14 @@ void NB_PowerOn()
 }
 /*********************************************************************************************
 
-  * @brief  NB处于空闲
-  * @param  
-  * @param  
-  * @retval 
+  * @brief  判断Nb是否处于空闲状态
 
   ********************************************************************************************/    
 bool NB_IsIdle()
 {
-    return (nb._process == Process_Idle 
-            || (nb._process == Process_Run && nb._isTransmitting == false)
-            || nb._process == Process_Lock);
+    return (nb._process.current == Process_Idle 
+            || (nb._process.current == Process_Run && nb._isTransmitting == false)
+            || nb._process.current == Process_Lock);
 }
 /*********************************************************************************************
 
@@ -119,14 +108,15 @@ bool NB_IsIdle()
 
   ********************************************************************************************/
 void NB_Handle()
-{
-    TxQueue_Handle(nb.txQueueHal, nb.CallBack_HalTxFunc, nb.halTxParam);        // 硬件层 发送队列处理
-    
-    
-    switch(nb._process)
+{   
+    switch(nb._process.current)
     {
     /* 上电先查看SIM卡信息，之后才会有不同的处理方式 */
     case Process_Init:
+        nb.txQueueHal->interval = NB_HAL_TX_INTERVAL;
+        nb.txQueueHal->maxTxCount = NB_HAL_RETX_COUNT;
+        nb.txQueueApp->interval = NB_APP_TX_INTERVAL;                   
+        
         if(nb.sim == Unknown)
         {   NB_SendATCommandList(nbReadSim);  }
         else
@@ -140,14 +130,13 @@ void NB_Handle()
         case Unknown:
             break;
         case ChinaMobile:
-            nb.CallBack_StartConenct = NB_Http_StartConnect;
-            nb.CallBack_ReceiveHandle = NB_Http_ReceiveHandle;
-            nb.txQueueApp->CallBack_PackagBeforeTransmit = NB_Http_PacketPackage;
-
+            nb.CallBack_StartConenct = NB_Http_StartConnect;                                
+            nb.CallBack_RxSecondaryHandle = NB_HttpGet_ReceiveHandle;
+            nb.txQueueApp->CallBack_PackagBeforeTransmit = NB_HttpGet_PacketPackage;
             break;
         case ChinaTelecom:
             nb.CallBack_HandleBeforeNetting = NB_OC_HandleBeforeNetting;
-            nb.CallBack_ReceiveHandle = NB_OC_ReceiveHandle;
+            nb.CallBack_RxSecondaryHandle = NB_OC_ReceiveHandle;
             nb.txQueueApp->CallBack_PackagBeforeTransmit = NB_OC_PacketPackage;
             break;
         }
@@ -171,7 +160,7 @@ void NB_Handle()
      收到OK，则根据当前的索引进行下一步的操作，默认为继续发下一个AT指令
      收到错误，则编写对应的错误处理 */
     case Process_OrderAtWait:
-        if ((nb.__time + 5) < realTime)
+        if ((nb.__time + 5) < REALTIME)
         {   
             NB_SetProcess(Process_OrderAt);   
             nb.__orderAt.errorCounter ++;
@@ -193,7 +182,7 @@ void NB_Handle()
                     if(nb.cmdList == nbConfiguration)        // 配置参数发送完成 => 进入查询附着状态
                     {   
                         NB_SetProcess(Process_Wait);    
-                        nb.__startConnectTime = realTime;
+                        nb.__startConnectTime = REALTIME;
                     }  
                     else if (nb.cmdList == nbQuery)
                     {   NB_SetProcess(Process_Start);   }   // 查询参数发送完成 => 进入准备发送状态
@@ -211,14 +200,14 @@ void NB_Handle()
     /* 等待连接 */
     case Process_Wait:
         // 每5s发送一次查询连接
-        if ((nb.__time + 2) < realTime)
+        if ((nb.__time + 2) < REALTIME)
         {
-            nb.__time = realTime;
+            nb.__time = REALTIME;
             NB_StringTrans("AT+CGATT?\r\n");
         }
 
         // 长时间之后未连接处理
-        if ((nb.__startConnectTime + 50) < realTime)
+        if ((nb.__startConnectTime + 50) < REALTIME)
         {   NB_ErrorHandle(NbError_AttTimeout); }
         break;
 
@@ -235,9 +224,9 @@ void NB_Handle()
         
     /* 开始工作部分，对于NB来说，有数据直接发送即可，等待回复 */
     case Process_Run:
-        if((nb._lastId = TxQueue_Handle(nb.txQueueApp, nb.CallBack_HalTxFunc, NULL)) >= 0)
+        if((nb._lastId = TxQueue_Handle(nb.txQueueApp)) >= 0)
         {
-            nb.__time = realTime;
+            nb.__time = REALTIME;
             nb._isTransmitting = true;
             NB_SetProcess(Process_RunWait); 
         }
@@ -247,24 +236,26 @@ void NB_Handle()
             && nb.rxQueueApp->_usedBlockQuantity == 0)
         {
             // 延迟2s再进入休眠
-            if ((nb.__time + 2) < realTime)
+            if ((nb.__time + 2) < REALTIME)
             {   nb._isTransmitting = false; }
         }
         break;
     
-    /* 发送等待部分，等待5s发送下一条 */
+    /* 发送等待部分，等待3s发送下一条 */
     case Process_RunWait:
-        if ((nb.__time + 5) < realTime)
+        if ((nb.__time + 3) < REALTIME)
         {   NB_SetProcess(Process_Run);  }
         break;
         
     case Process_Reset:
         NB_StringTrans("AT+NRB\r\n");
+        NB_StringTrans("AT+NRB\r\n");
+        NB_StringTrans("AT+NRB\r\n");
         NB_SetProcess(Process_ResetWait);
         break;
 
     case Process_ResetWait:
-        if((nb.__time + 10) < realTime)
+        if((nb.__time + 10) < REALTIME)
         {   NB_ErrorHandle(NbError_AtError);    }
         break;
     }
@@ -272,16 +263,14 @@ void NB_Handle()
 /*********************************************************************************************
 
   * @brief  NB接收部分处理
-  * @param  packet：接收数据包
-            len：数据包长度
-            param：参数
+  * @param  rxBlock块
   * @retval 无
   * @remark 
 
   ********************************************************************************************/
-void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
+void NB_RxHandle(struct RxBaseBlockStruct *rxBlock)
 {
-    char *message = (char *)packet;
+    char *message = (char *)(rxBlock->message);
     char *location = NULL, *temp = NULL;
 
 
@@ -303,7 +292,7 @@ void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
     }
     
     // 在顺序发送AT出现OK或者ERROR的情况
-    if (nb._process == Process_OrderAtWait)
+    if (nb._process.current == Process_OrderAtWait)
     {
         if (strstr(message, "OK") != NULL)
         {   
@@ -330,7 +319,6 @@ void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
         return;
     }
 
-
     // 信号强度判断
     location = strstr(message, "+CSQ");
     if (location != NULL)
@@ -345,16 +333,16 @@ void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
     }
     
     // 重启完成
-    if (strstr(message, "REBOOT_") != NULL && nb._process == Process_ResetWait)
+    if (strstr(message, "REBOOT_") != NULL && nb._process.current == Process_ResetWait)
     {
         NB_SetProcess(Process_Init);   
         return;
     }
     
     /* 发送过程中失败的问题 */
-    if(nb._process == Process_Run || nb._process == Process_RunWait)
+    if(nb._process.current == Process_Run || nb._process.current == Process_RunWait)
     {
-        if(strstr(message, "ERROR"))
+        if(strstr(message, "ERR"))
         {   
             nb._errorCounter++;
             if(nb._errorCounter > 5)
@@ -366,8 +354,8 @@ void NB_RxHandle(uint8_t *packet, uint16_t len, void *param)
     }
     
     // 针对不同应用的接收处理部分
-    if(nb.CallBack_ReceiveHandle != NULL)
-    {   nb.CallBack_ReceiveHandle(message, len); }
+    if(nb.CallBack_RxSecondaryHandle != NULL)
+    {   nb.CallBack_RxSecondaryHandle(message, rxBlock->length); }
 }
 
 /*********************************************************************************************
@@ -390,7 +378,7 @@ void NB_StringTrans(const char *string)
   * @remark NB错误处理
 
   ********************************************************************************************/
-void NB_ErrorHandle(NbErrorEnum error)
+void NB_ErrorHandle(enum NbErrorEnum error)
 {
     switch(error)
     {

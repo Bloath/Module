@@ -19,14 +19,14 @@
             1：到时瞬间
 
   ********************************************************************************************/
-int IoPwm_RunAsSpecify(IOPwmStruct *ioPwm, IOPwmStatusStruct *status)
+int IoPwm_RunAsSpecify(struct IOPwmStruct *ioPwm, struct IOPwmStatusStruct *status)
 {
      /* 持续时间为0则报-1，一般默认的才会为0 */
     if(status->keepInterval == 0)
     {   return -1;  }
     
      /* 超时则报-1 */
-    if((ioPwm->startTime + status->keepInterval) < realTime && status->keepInterval != -1)
+    if((ioPwm->startTime + status->keepInterval) < REALTIME && status->keepInterval != -1)
     {   
         status->keepInterval = 0;               // 持续时间置0
         ioPwm->CallBack_IOOperation(false);     // 发现超时则直接非使能
@@ -38,9 +38,9 @@ int IoPwm_RunAsSpecify(IOPwmStruct *ioPwm, IOPwmStatusStruct *status)
 
     
     /* 按照占空比实际处理*/
-    if((ioPwm->__runTime + toggleInterval) < sysTime)
+    if((ioPwm->__runTime + toggleInterval) < SYSTIME)
     {
-        ioPwm->__runTime = sysTime;     
+        ioPwm->__runTime = SYSTIME;     
         ioPwm->CallBack_IOOperation((ioPwm->CallBack_IsIOActive() == true)? false:true);       // 根据IO状态反转切换
     }
     return 0;
@@ -54,7 +54,7 @@ int IoPwm_RunAsSpecify(IOPwmStruct *ioPwm, IOPwmStatusStruct *status)
   * @remark 
 
   ********************************************************************************************/
-void IOPwm_Handle(IOPwmStruct *ioPwm)
+void IOPwm_Handle(struct IOPwmStruct *ioPwm)
 {
     switch(ioPwm->process.current)
     {
@@ -68,8 +68,8 @@ void IOPwm_Handle(IOPwmStruct *ioPwm)
         if(IoPwm_RunAsSpecify(ioPwm, &(ioPwm->defaultStatus)) == 1)
         {
             PROCESS_CHANGE(ioPwm->process, Process_Run);
-            ioPwm->startTime = realTime;
-            ioPwm->__runTime = sysTime;
+            ioPwm->startTime = REALTIME;
+            ioPwm->__runTime = SYSTIME;
         }
         break;
         
@@ -88,11 +88,11 @@ void IOPwm_Handle(IOPwmStruct *ioPwm)
   * @remark 
 
   ********************************************************************************************/
-void IOPwm_ChangeStatus(IOPwmStruct *ioPwm, IOPwmStatusStruct *status)
+void IOPwm_ChangeStatus(struct IOPwmStruct *ioPwm, struct IOPwmStatusStruct *status)
 {
-    memcpy(&(ioPwm->currentStatus), status, sizeof(IOPwmStatusStruct));
-    ioPwm->__runTime = sysTime;
-    ioPwm->startTime = realTime;
+    memcpy(&(ioPwm->currentStatus), status, sizeof(struct IOPwmStatusStruct));
+    ioPwm->__runTime = SYSTIME;
+    ioPwm->startTime = REALTIME;
     PROCESS_CHANGE(ioPwm->process, Process_Run);
 }
 /*********************************************************************************************
@@ -104,11 +104,11 @@ void IOPwm_ChangeStatus(IOPwmStruct *ioPwm, IOPwmStatusStruct *status)
   * @remark 
 
   ********************************************************************************************/
-void IOPwm_ChangeDefault(IOPwmStruct *ioPwm, IOPwmStatusStruct *status)
+void IOPwm_ChangeDefault(struct IOPwmStruct *ioPwm, struct IOPwmStatusStruct *status)
 {
-    memcpy(&(ioPwm->defaultStatus), status, sizeof(IOPwmStatusStruct));
-    ioPwm->__runTime = sysTime;
-    ioPwm->startTime = realTime;
+    memcpy(&(ioPwm->defaultStatus), status, sizeof(struct IOPwmStatusStruct));
+    ioPwm->__runTime = SYSTIME;
+    ioPwm->startTime = REALTIME;
 }
 /*********************************************************************************************
 
@@ -121,7 +121,7 @@ void IOPwm_ChangeDefault(IOPwmStruct *ioPwm, IOPwmStatusStruct *status)
   * @remark 
 
   ********************************************************************************************/
-void IOPwm_StatusModify(IOPwmStatusStruct *status, uint8_t dutyRatio, uint16_t totalInterval, uint16_t keepInterval)
+void IOPwm_StatusModify(struct IOPwmStatusStruct *status, uint8_t dutyRatio, uint16_t totalInterval, uint16_t keepInterval)
 {
     status->activeInterval = (totalInterval * dutyRatio) / 100;
     status->totalInterval = totalInterval;
@@ -135,7 +135,7 @@ void IOPwm_StatusModify(IOPwmStatusStruct *status, uint8_t dutyRatio, uint16_t t
   * @remark 是否处于默认运行下
 
   ********************************************************************************************/
-bool IOPwm_IsInDefault(IOPwmStruct *ioPwm)
+bool IOPwm_IsInDefault(struct IOPwmStruct *ioPwm)
 {
     return (ioPwm->process.current == Process_Idle);
 }
@@ -147,7 +147,7 @@ bool IOPwm_IsInDefault(IOPwmStruct *ioPwm)
   * @remark 是否为空闲
 
   ********************************************************************************************/
-bool IOPwm_IsIdle(IOPwmStruct *ioPwm)
+bool IOPwm_IsIdle(struct IOPwmStruct *ioPwm)
 {
     return (ioPwm->process.current == Process_Idle && ioPwm->defaultStatus.keepInterval == 0);
 }
@@ -159,13 +159,13 @@ bool IOPwm_IsIdle(IOPwmStruct *ioPwm)
   * @remark 按键按下检测
 
   ********************************************************************************************/
-void KeyDetect_PressCheck(KeyDetectStruct *key, bool isInterrupted)
+void KeyDetect_PressCheck(struct KeyDetectStruct *key, bool isInterrupted)
 {
     if((isInterrupted == true || key->CallBack_IsKeyPressed(key) == true)
        && key->_isTrigged == false)
 	{	
 		key->_isTrigged = true;	
-		key->__time = sysTime;
+		key->__time = SYSTIME;
 	}
 }
 /*********************************************************************************************
@@ -176,25 +176,13 @@ void KeyDetect_PressCheck(KeyDetectStruct *key, bool isInterrupted)
   * @remark 按键抬起检测
 
   ********************************************************************************************/
-void KeyDetect_Handle(KeyDetectStruct *key)
+void KeyDetect_Handle(struct KeyDetectStruct *key)
 {
 	// 检测到按键抬起
     if(key->CallBack_IsKeyPressed(key) == false && key->_isTrigged == true)
 	{	
 		key->_isTrigged = false;
-        if(key->CallBack_KeyHandle != NULL)
-		{   key->CallBack_KeyHandle(key, sysTime - key->__time); }
+        if(key->CallBack_KeyRaiseHandle != NULL)
+		{   key->CallBack_KeyRaiseHandle(key, SYSTIME - key->__time); }
 	}
-}
-/*********************************************************************************************
-
-  * @brief  KeyDetect_IsKeyPressed
-  * @param  
-  * @return 
-  * @remark 查看按键是否被按下
-
-  ********************************************************************************************/
-bool KeyDetect_IsKeyPressed(KeyDetectStruct *key)
-{
-	return key->_isTrigged;
 }

@@ -16,12 +16,12 @@
   * @remark 设置下次操作
 
   ********************************************************************************************/
-int DCMotor_SetNextOperation(DCMotorStruct *motor, DCMotorOperation operation, bool isForced)
+int DCMotor_SetNextOperation(struct DCMotorStruct *motor, enum DCMotorOperation operation, bool isForced)
 {
     if(isForced == false && motor->isBanned == true)
     {   return -1;  }
   
-    DCMotorOperation *operationPointer = (isForced == true)? &(motor->currentOperation):&(motor->nextOperation);
+    enum DCMotorOperation *operationPointer = (isForced == true)? &(motor->currentOperation):&(motor->nextOperation);
 
     *operationPointer = operation;
     if(isForced == true)
@@ -37,7 +37,7 @@ int DCMotor_SetNextOperation(DCMotorStruct *motor, DCMotorOperation operation, b
   * @remark 设置下次操作
 
   ********************************************************************************************/
-void DCMotor_Handle(DCMotorStruct *motor)
+void DCMotor_Handle(struct DCMotorStruct *motor)
 {
     switch(motor->process.current)
     {
@@ -128,7 +128,7 @@ void DCMotor_Handle(DCMotorStruct *motor)
   * @remark 确认DCMotor是否处在某个状态，非互斥
 
   ********************************************************************************************/
-bool DCMotor_Status(DCMotorStruct *motor, DCMotorOperation operation)
+bool DCMotor_Status(struct DCMotorStruct *motor, enum DCMotorOperation operation)
 {
     if(motor->process.current == Process_Idle
        && motor->_lastOperation == operation)

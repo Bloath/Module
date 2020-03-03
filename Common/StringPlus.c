@@ -1,9 +1,5 @@
 /* Includes ------------------------------------------------------------------*/
-#include "string.h"
-
-#include "../Module.h"
-
-#include "Malloc.h"
+#include "Module/Module.h"
 
 /* Private define -------------------------------------------------------------*/
 /* Private macro --------------------------------------------------------------*/
@@ -37,6 +33,7 @@ char *String_CutByStr(const char *srcString, const char *strLeft, const char *st
     {   return NULL;    }
 
     char *str = (char *)Malloc(temp8 + 1);
+    memset(str, 0, temp8 + 1);
     
     if(str == NULL)
     {   return NULL;    }
@@ -73,6 +70,7 @@ char *String_CutByChr(const char *srcString, char leftChar, char rightChar)
     {   return NULL;    }
 
     char *str = (char *)Malloc(temp8 + 1);
+    memset(str, 0, temp8 + 1);
     
     if(str == NULL)
     {   return NULL;    }

@@ -24,7 +24,7 @@
             再调用CallBack_ErrorHandle，根据用户需求做处理
 
   ********************************************************************************************/
-void Sensor_ErrorHandle(SensorStruct *sensor, int errorCode)
+void Sensor_ErrorHandle(struct SensorStruct *sensor, int errorCode)
 {
     if(errorCode < 0)
     {   PROCESS_CHANGE(sensor->__process, Process_Lock);    }
@@ -39,7 +39,7 @@ void Sensor_ErrorHandle(SensorStruct *sensor, int errorCode)
   * @remark 锁定
 
   ********************************************************************************************/
-void Sensor_Lock(SensorStruct *sensor)
+void Sensor_Lock(struct SensorStruct *sensor)
 {
     PROCESS_CHANGE(sensor->__process, Process_Lock);  
 }
@@ -51,10 +51,10 @@ void Sensor_Lock(SensorStruct *sensor)
   * @remark 恢复
 
   ********************************************************************************************/
-void Sensor_Restore(SensorStruct *sensor)
+void Sensor_Restore(struct SensorStruct *sensor)
 {
     PROCESS_CHANGE(sensor->__process, Process_Init);  
-    sensor->__time = sysTime;
+    sensor->__time = SYSTIME;
 }
 
 /*********************************************************************************************
@@ -65,7 +65,7 @@ void Sensor_Restore(SensorStruct *sensor)
   * @remark 
 
   ********************************************************************************************/
-void Sensor_Handle(SensorStruct *sensor)
+void Sensor_Handle(struct SensorStruct *sensor)
 {
     int errorCode = 0;
   
@@ -82,18 +82,18 @@ void Sensor_Handle(SensorStruct *sensor)
        1、 设定时间到了，该系统会在启动时启动一次采集，防止时间设置过长导致得不采集
        2、 发现触发信号启动*/
     case Process_Idle:
-        if((sensor->interval != 0 && ((sensor->__time + sensor->interval) < sysTime || sensor->__time == 0))
+        if((sensor->interval != 0 && ((sensor->__time + sensor->interval) < SYSTIME || sensor->__time == 0))
                || (sensor->CallBack_IsTrigged != NULL && (sensor->CallBack_IsTrigged(sensor) == true)))
         {   
             PROCESS_CHANGE(sensor->__process, Process_Start);
-            sensor->__time = sysTime;
+            sensor->__time = SYSTIME;
         }
         break;
     
     /* 启动阶段 */
     case Process_Start:
         PROCESS_CHANGE(sensor->__process, Process_Wait);
-        sensor->__time = sysTime;                           // 记录当前时间
+        sensor->__time = SYSTIME;                           // 记录当前时间
         if(sensor->CallBack_Start != NULL)
         {   SENSOR_CALL(sensor, CallBack_Start);    }       // 启动
         break;
@@ -105,7 +105,7 @@ void Sensor_Handle(SensorStruct *sensor)
             SENSOR_CALL(sensor, CallBack_IsReady);
             if(errorCode == 1)   
             {   PROCESS_CHANGE(sensor->__process, Process_Run);    }
-            if(sensor->timeOut != 0 && (sensor->__time + sensor->timeOut) < sysTime)
+            if(sensor->timeOut != 0 && (sensor->__time + sensor->timeOut) < SYSTIME)
             {   Sensor_ErrorHandle(sensor, -5); }
         }
         else

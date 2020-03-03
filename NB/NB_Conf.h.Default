@@ -3,7 +3,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 /* Public define -------------------------------------------------------------*/
-#define NB_SERVICE_TX_INTERVAL 2000
+#define NB_APP_TX_INTERVAL 2000
 #define NB_HAL_TX_INTERVAL 300
 #define NB_HAL_RETX_COUNT 3
 

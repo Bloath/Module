@@ -4,8 +4,7 @@
 #include "math.h"
 #include "stdio.h"
 
-#include "../Common/Malloc.h"
-#include "Convert.h"
+#include "Module/Module.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
@@ -59,6 +58,7 @@ int String2Msg(uint8_t **dst, char *srcStr, uint16_t specifyLen)
 {
     int length = (specifyLen == 0) ? strlen(srcStr) : specifyLen;
     uint8_t *msg = (uint8_t *)Malloc(length / 2);
+    memset(msg, 0, length / 2);
     
     if(msg == NULL)
     {   return -1;  }
@@ -86,6 +86,7 @@ int HexString2Msg(uint8_t **dst, char *srcStr, uint16_t specifyLen)
 {
     int length = (specifyLen == 0) ? strlen(srcStr) : specifyLen;
     uint8_t *msg = (uint8_t *)Malloc(length / 4);
+     memset(msg, 0, length / 4);
     uint8_t temp8u = 0;
     if(msg == NULL)
     {   return -1;  }
@@ -114,23 +115,16 @@ int HexString2Msg(uint8_t **dst, char *srcStr, uint16_t specifyLen)
   ********************************************************************************************/
 int Msg2String(char *dst, uint8_t *message, uint16_t length)
 {
-    int index = 0, i = 0;
-    int temp8u = 0;
-    
-    /* 找到字符串末尾 */
-    while(dst[index] != '\0')
-    {   index++;    }
+    int i = 0;
     
     /* 开始填充 */
     for (i = 0; i < length; i++)
     {
-        dst[i * 2 + index] = Hex2Char(message[i] >> 4);
-        dst[i * 2 + 1 + index] = Hex2Char(message[i] & 0x0F);
+        dst[i * 2] = Hex2Char(message[i] >> 4);
+        dst[i * 2 + 1] = Hex2Char(message[i] & 0x0F);
     }
-    
-    dst[index + i * 2] = '\0'; //结束符
 
-    return (index + i * 2 - 1);
+    return (length * 2);
 }
 /*********************************************************************************************
 
@@ -144,27 +138,21 @@ int Msg2String(char *dst, uint8_t *message, uint16_t length)
   ********************************************************************************************/
 int Msg2HexString(char *dst, uint8_t *message, uint16_t length)
 {
-    int index = 0, i = 0;
+    int i = 0;
     uint8_t h,l;
-    
-    /* 找到字符串末尾 */
-    while(dst[index] != '\0')
-    {   index++;    }
     
     /* 开始填充 */
     for (i = 0; i < length; i++)
     {
         h = Hex2Char(message[i] >> 4);
         l = Hex2Char(message[i] & 0x0F);
-        dst[i * 4 + index] = Hex2Char(h >> 4);
-        dst[i * 4 + 1 + index] = Hex2Char(h & 0x0F);
-        dst[i * 4 + 2 + index] = Hex2Char(l >> 4);
-        dst[i * 4 + 3 + index] = Hex2Char(l & 0x0F);
+        dst[i * 4] = Hex2Char(h >> 4);
+        dst[i * 4 + 1] = Hex2Char(h & 0x0F);
+        dst[i * 4 + 2] = Hex2Char(l >> 4);
+        dst[i * 4 + 3] = Hex2Char(l & 0x0F);
     }
 
-    dst[index + i * 4] = '\0'; //结束符
-
-    return (index + i * 4 - 1);
+    return (length * 4);
 }
 /*********************************************************************************************
 
@@ -263,6 +251,7 @@ int Number2Array(uint8_t **dst, uint32_t number, bool isPositiveSequence)
 
     /* 申请内存并填充 */
     uint8_t *numArray = (uint8_t *)Malloc(powIndex + 1); // 申请对应内存
+    memset(numArray, 0, powIndex + 1);
     
     if(numArray == NULL)
     {   return -1;  }
@@ -310,7 +299,7 @@ void* EndianExchange(void *dst, void *src, uint16_t len)
   * @remark 
 
   ********************************************************************************************/
-void TimeStamp2Calendar(uint32_t time, CalendarStruct *calendar, uint8_t timeZone)
+void TimeStamp2Calendar(uint32_t time, struct CalendarStruct *calendar, uint8_t timeZone)
 {
     time += timeZone * SECONDS_HOUR;
     uint32_t daySec = SECONDS_DAY;
@@ -364,7 +353,7 @@ void TimeStamp2Calendar(uint32_t time, CalendarStruct *calendar, uint8_t timeZon
   * @remark 
 
   ********************************************************************************************/
-uint32_t Calendar2TimeStamp(CalendarStruct *calendar, uint8_t timeZone)
+uint32_t Calendar2TimeStamp(struct CalendarStruct *calendar, uint8_t timeZone)
 {
     uint32_t temp32u = 0;
     uint8_t i = 0;

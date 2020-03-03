@@ -1,16 +1,16 @@
 /* Includes ------------------------------------------------------------------*/
-#include "ESP8266_API.h"
+#include "Module/Module.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
-Esp8266Struct esp8266;
+struct Esp8266Struct esp8266;
 
 /* Private function prototypes -----------------------------------------------*/
 void ESP8266_SendData(uint8_t *data, uint16_t length);
 void ESP8266_SendString(const char *string);
-void ESP8266_ErrorHandle(ESP8266_Error errorType);
+void ESP8266_ErrorHandle(enum ESP8266_Error errorType);
 bool ESP8266_HttpTransmit(uint8_t *message, uint16_t length);
 void ESP8266_ResponseHandle(uint8_t *message, uint16_t length);
 
@@ -83,18 +83,17 @@ void ESP8266_EnableAirkiss()
   ********************************************************************************************/
 void ESP8266_Handle()
 {
-    TxQueue_Handle(esp8266.txQueueHal, esp8266.CallBack_HalTxFunc, esp8266.halTxParam);
-
     switch (esp8266._conProcess)
     {
     /****** 初始化，设置发送队列时长，并发送模式设置与自动连接 ********/
     case ConnectStatus_Init: 
         esp8266.txQueueHal->interval = ESP8266_HAL_TX_INTERVAL;             // 硬件层 发送时长
         esp8266.txQueueApp->interval = ESP8266_SERVICE_TX_INTERVAL;     // 业务层 发送时长
+        esp8266.txQueueApp->CallBack_Transmit = ESP8266_HttpTransmit;   
         
         ESP8266_SendString("AT+CWMODE_DEF=1\r\n");
         ESP8266_SendString("AT+CWAUTOCONN=1\r\n");
-        esp8266.__time = realTime;
+        esp8266.__time = REALTIME;
         if ((esp8266._flag & ESP8266_AIRKISS) != 0)
         {   
             esp8266._conProcess = ConnectStatus_AirKiss; 
@@ -108,21 +107,21 @@ void ESP8266_Handle()
     case ConnectStatus_Reset:
         ESP8266_RST_ENABLE();
         ESP8266_UART_DISABLE();
-        esp8266.__time = realTime;
+        esp8266.__time = REALTIME;
         esp8266._conProcess = ConnectStatus_ResetWait;
         break;
 
     case ConnectStatus_ResetWait:
-        if ((esp8266.__time + 2) < realTime)
+        if ((esp8266.__time + 2) < REALTIME)
         {
             ESP8266_RST_DISABLE();
-            esp8266.__time = realTime;
+            esp8266.__time = REALTIME;
             esp8266._conProcess = ConnectStatus_ResetFinish;
         }
         break;
         
     case ConnectStatus_ResetFinish:
-        if ((esp8266.__time + 5) < realTime)
+        if ((esp8266.__time + 5) < REALTIME)
         {   
             ESP8266_UART_ENABLE();
             esp8266._conProcess = ConnectStatus_Init; 
@@ -132,10 +131,10 @@ void ESP8266_Handle()
 
     /********** 空闲状态、检查是否连接wifi ****************/
     case ConnectStatus_Idle:
-        if ((esp8266.__time + ESP8266_INTERVAL) < realTime)
+        if ((esp8266.__time + ESP8266_INTERVAL) < REALTIME)
         {
             ESP8266_SendString("AT+CWJAP?\r\n");
-            esp8266.__time = realTime;
+            esp8266.__time = REALTIME;
             esp8266._conProcess = ConnectStatus_WaitAck;
         }
         break;
@@ -145,11 +144,11 @@ void ESP8266_Handle()
         ESP8266_SendString("AT+CWSTARTSMART=3\r\n");    // 1. 发送 "AT+CWSTARTSMART=3" 进入等待状态
         esp8266._conProcess = ConnectStatus_WaitAck;     // 2. 等待接受广播信号，如果接收到 "smartconfig connected" 则发送 "AT+CWSTOPSMART" 释放
         esp8266._flag |= ESP8266_AIRKISSING;
-        esp8266.__time = realTime;
+        esp8266.__time = REALTIME;
         break;
 
     case ConnectStatus_AirKissWait:                     // 3. 如果60s内没有收到广播信号，则直接发送 "AT+CWSTOPSMART" 释放
-        if ((esp8266.__time + 60) < realTime)
+        if ((esp8266.__time + 60) < REALTIME)
         {
             esp8266._flag &= ~ESP8266_AIRKISSING;
             ESP8266_SendString("AT+CWSTOPSMART\r\n");
@@ -159,13 +158,13 @@ void ESP8266_Handle()
 
     /***************** 等待回复 **********************/
     case ConnectStatus_WaitAck:
-        if ((esp8266.__time + ESP8266_INTERVAL) < realTime)
+        if ((esp8266.__time + ESP8266_INTERVAL) < REALTIME)
         {   ESP8266_ErrorHandle(Error_Timeout);    }    //等待超时错误处理，（AT指令发送数据后，长时间没回复）
         break;
 
     /***************** 已连接 **********************/
     case ConnectStatus_Connected:
-        TxQueue_Handle(esp8266.txQueueApp, ESP8266_HttpTransmit, NULL);
+        TxQueue_Handle(esp8266.txQueueApp);
         break;
     }
 }
@@ -205,7 +204,7 @@ bool ESP8266_HttpTransmit(uint8_t *message, uint16_t length)
         ESP8266_SendString(cmdPacket); 
         
         esp8266.UTProcess = UTStatus_WaitAck;
-        time = realTime;
+        time = REALTIME;
         break;
 
     /* 发送数据数量，先发送数据数量, AT+CIPSEND=数量，等待模块回复 > */
@@ -221,7 +220,7 @@ bool ESP8266_HttpTransmit(uint8_t *message, uint16_t length)
         ESP8266_SendString(cmdPacket);          // 发送数据
 
         esp8266.UTProcess = UTStatus_WaitAck;  // 切换为等待模式
-        time = realTime;
+        time = REALTIME;
         break;
 
     /* 将数据写入模块，等待回复SEND OK */
@@ -230,6 +229,7 @@ bool ESP8266_HttpTransmit(uint8_t *message, uint16_t length)
         packet = esp8266.http.CallBack_HttpPackage(message, length, esp8266.http.host, esp8266.http.port);           // 将数据重新打包
 #elif defined(ESP8266_UDP)
         packet = (char*)Malloc(length * 2);
+        memset(packet, 0, length * 2);
         if(packet != NULL)
         {   Msg2String(packet, message, length);    }
 #endif
@@ -239,14 +239,14 @@ bool ESP8266_HttpTransmit(uint8_t *message, uint16_t length)
         else
         {
             ESP8266_SendData((uint8_t *)packet, strlen(packet));            // 交给底层缓冲进行发送，标记为isMalloc，在发送缓冲中释放内存
-            time = realTime;
+            time = REALTIME;
             esp8266.UTProcess = UTStatus_WaitAck;                        // 切换为等待模式
         }
         break;
 
     /* 等待回复，超时次数过多则弹出错误 */
     case UTStatus_WaitAck:
-        if ((time + ESP8266_INTERVAL) < realTime)
+        if ((time + ESP8266_INTERVAL) < REALTIME)
         {   ESP8266_ErrorHandle(Error_TcpTimeout);  } 
 
         break;
@@ -258,7 +258,7 @@ bool ESP8266_HttpTransmit(uint8_t *message, uint16_t length)
 #elif defined(ESP8266_UDP)
         esp8266.UTProcess = UTStatus_Connected;
 #endif
-        time = realTime;
+        time = REALTIME;
         break;
     }
 
@@ -268,14 +268,13 @@ bool ESP8266_HttpTransmit(uint8_t *message, uint16_t length)
 /*********************************************************************************************
 
   * @brief  ESP8266的接收处理函数
-  * @param  data：需要发送的数据指针
-  * @param  length：数据长度  
+  * @param  rxBlock：接收的块
   * @retval 
 
   ********************************************************************************************/
-void ESP8266_RxMsgHandle(uint8_t *packet, uint16_t length, void *param)
+void ESP8266_RxMsgHandle(struct RxBaseBlockStruct *rxBlock)
 {
-    char *message = (char *)packet;
+    char *message = (char *)(rxBlock->message);
     
     if (strstr(message, "SPI Mode") != NULL)
     {
@@ -315,7 +314,7 @@ void ESP8266_RxMsgHandle(uint8_t *packet, uint16_t length, void *param)
         if (strstr(message, "No AP") != NULL)
         {   
             esp8266._conProcess = ConnectStatus_Idle; 
-            esp8266.__time = realTime;
+            esp8266.__time = REALTIME;
             esp8266._flag &= ~ESP8266_WIFI_CONNECTED;
             
             
@@ -427,7 +426,7 @@ void ESP8266_RxMsgHandle(uint8_t *packet, uint16_t length, void *param)
   * @remark 
 
   ********************************************************************************************/
-void ESP8266_ErrorHandle(ESP8266_Error errorType)
+void ESP8266_ErrorHandle(enum ESP8266_Error errorType)
 {
     switch (errorType)
     {

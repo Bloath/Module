@@ -7,6 +7,7 @@
 #include "DCMotor.h"
 #include "DataStore.h"
 #include "Priority.h"
+#include "SoftI2c.h"
 /* Public typedef ------------------------------------------------------------*/
 /* Public define -------------------------------------------------------------*/
 /* Public macro --------------------------------------------------------------*/

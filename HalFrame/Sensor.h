@@ -2,10 +2,10 @@
 #define _SENSOR_H_
 
 /* Includes ------------------------------------------------------------------*/
-#include "../Module_Conf.h"
+#include "Module/Module_Conf.h"
 /* typedef -------------------------------------------------------------------*/
 
-typedef struct
+struct SensorStruct
 {
     int (*CallBack_Init)(void *);
     bool (*CallBack_IsTrigged)(void *);
@@ -18,16 +18,16 @@ typedef struct
     uint32_t interval;                  // 采集间隔
     uint32_t timeOut;                   // 采集超时设置，是指Run 与 finsh之间，等待IsFinish的时间间隔，以ms为单位
     
-    ProcessStruct __process;
+    struct ProcessStruct __process;
     uint32_t __time;
-}SensorStruct;
+};
 
 /* define --------------------------------------------------------------------*/
 /* macro ---------------------------------------------------------------------*/
 /* variables -----------------------------------------------------------------*/
 /* function prototypes -------------------------------------------------------*/
 /* functions -----------------------------------------------------------------*/
-void Sensor_Lock(SensorStruct *sensor);
-void Sensor_Restore(SensorStruct *sensor);
-void Sensor_Handle(SensorStruct *sensor);
+void Sensor_Lock(struct SensorStruct *sensor);
+void Sensor_Restore(struct SensorStruct *sensor);
+void Sensor_Handle(struct SensorStruct *sensor);
 #endif

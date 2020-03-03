@@ -1,50 +1,51 @@
 #ifndef _IOLIB_H_
 #define _IOLIB_H_
 /* Includes ------------------------------------------------------------------*/
-#include "../Module_Conf.h"
+#include "Module/Module_Conf.h"
 
 /* Public typedef ------------------------------------------------------------*/
-typedef struct
+struct IOPwmStatusStruct
 {
     uint16_t activeInterval;            // 使能时间
     uint16_t totalInterval;             // 总时间 ms
     int16_t keepInterval;               // 持续时间 s, 为-1则为一直保持
-}IOPwmStatusStruct;
+};
 
-typedef struct
+struct IOPwmStruct
 {
-    ProcessStruct process;
-    IOPwmStatusStruct defaultStatus;    // 默认状态，为非使能
-    IOPwmStatusStruct currentStatus;    // 当前状态，当超出keepInterval之后切换为默认状态
+    struct ProcessStruct process;
+    struct IOPwmStatusStruct defaultStatus;    // 默认状态，为非使能
+    struct IOPwmStatusStruct currentStatus;    // 当前状态，当超出keepInterval之后切换为默认状态
     uint32_t __runTime;
     uint32_t startTime;
     
     void (*CallBack_Init)();
     void (*CallBack_IOOperation)(bool isActive);
     bool (*CallBack_IsIOActive)();
-}IOPwmStruct;
+};
 
-typedef struct __KeyDetectStruct
+struct KeyDetectStruct
 {
 	uint32_t __time;
+    struct GpioStruct io;
 	bool _isTrigged;
+    uint8_t id;
 	
-	bool (*CallBack_IsKeyPressed)(struct __KeyDetectStruct*);				// 检查是否被按下，必填
-	void (*CallBack_KeyHandle)(struct __KeyDetectStruct*, uint32_t );	    // 抬起后得处理
-}KeyDetectStruct;
+	bool (*CallBack_IsKeyPressed)(struct KeyDetectStruct*);				// 检查是否被按下，必填
+	void (*CallBack_KeyRaiseHandle)(struct KeyDetectStruct*, uint32_t );	    // 抬起后得处理
+};
 
 /* Public define -------------------------------------------------------------*/
 /* Public macro --------------------------------------------------------------*/
 /* Public variables ----------------------------------------------------------*/
 /* Public function prototypes ------------------------------------------------*/
-void IOPwm_Handle(IOPwmStruct *ioPwm);
-void IOPwm_ChangeStatus(IOPwmStruct *ioPwm, IOPwmStatusStruct *status);
-void IOPwm_ChangeDefault(IOPwmStruct *ioPwm, IOPwmStatusStruct *status);
-void IOPwm_StatusModify(IOPwmStatusStruct *status, uint8_t dutyRatio, uint16_t totalInterval, uint16_t keepInterval);
-bool IOPwm_IsInDefault(IOPwmStruct *ioPwm);
-bool IOPwm_IsIdle(IOPwmStruct *ioPwm);
+void IOPwm_Handle(struct IOPwmStruct *ioPwm);
+void IOPwm_ChangeStatus(struct IOPwmStruct *ioPwm, struct IOPwmStatusStruct *status);
+void IOPwm_ChangeDefault(struct IOPwmStruct *ioPwm, struct IOPwmStatusStruct *status);
+void IOPwm_StatusModify(struct IOPwmStatusStruct *status, uint8_t dutyRatio, uint16_t totalInterval, uint16_t keepInterval);
+bool IOPwm_IsInDefault(struct IOPwmStruct *ioPwm);
+bool IOPwm_IsIdle(struct IOPwmStruct *ioPwm);
 
-void KeyDetect_PressCheck(KeyDetectStruct *key, bool isInterrupted);
-void KeyDetect_Handle(KeyDetectStruct *key);
-bool KeyDetect_IsKeyPressed(KeyDetectStruct *key);
+void KeyDetect_PressCheck(struct KeyDetectStruct *key, bool isInterrupted);
+void KeyDetect_Handle(struct KeyDetectStruct *key);
 #endif

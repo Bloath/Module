@@ -1,5 +1,4 @@
 /* Includes ------------------------------------------------------------------*/
-
 #include "Priority.h"
 /* typedef -------------------------------------------------------------------*/
 /* define --------------------------------------------------------------------*/
@@ -17,7 +16,7 @@
   * @remark 
 
   ********************************************************************************************/
-void Priority_AddTask(PriorityStruct *priorityObj, TaskUnitStruct *taskObj, uint8_t level)
+void Priority_AddTask(struct PriorityStruct *priorityObj, struct TaskUnitStruct *taskObj, uint8_t level)
 {
     for(int i=0; i<PRIORITY_TASK_COUNT; i++)
     {
@@ -40,7 +39,7 @@ void Priority_AddTask(PriorityStruct *priorityObj, TaskUnitStruct *taskObj, uint
   * @remark 轮询，在优先级中，很多都需要轮询，
 
   ********************************************************************************************/
-void Priority_LoopTaskList(PriorityStruct *priorityObj, void (*CallBack_Handle)(TaskUnitStruct*, void*), void *param)
+void Priority_LoopTaskList(struct PriorityStruct *priorityObj, void (*CallBack_Handle)(struct TaskUnitStruct*, void*), void *param)
 {
     for(int i=0; i<PRIORITY_TASK_COUNT; i++)
     {
@@ -57,7 +56,7 @@ void Priority_LoopTaskList(PriorityStruct *priorityObj, void (*CallBack_Handle)(
   * @remark 当
 
   ********************************************************************************************/
-void Priority_LevelHandle(TaskUnitStruct* task, void* param)
+void Priority_LevelHandle(struct TaskUnitStruct* task, void* param)
 {
     int level = *(int *)param;
 
@@ -118,7 +117,7 @@ void Priority_LevelHandle(TaskUnitStruct* task, void* param)
   * @remark 找到当前需要处理的非空闲的最高level
 
   ********************************************************************************************/
-int Priority_FindHighestTask(PriorityStruct *priorityObj)
+int Priority_FindHighestTask(struct PriorityStruct *priorityObj)
 {
     int level = -1;
   
@@ -145,7 +144,7 @@ int Priority_FindHighestTask(PriorityStruct *priorityObj)
   * @remark 
 
   ********************************************************************************************/
-void Priority_Handle(PriorityStruct *priorityObj)
+void Priority_Handle(struct PriorityStruct *priorityObj)
 {
     int level = -1;
 

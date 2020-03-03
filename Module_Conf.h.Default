@@ -10,8 +10,11 @@
 #include "stdio.h"
 #include "Time.h"
 
+#include "Module/HalDefine/stm32_HalDefine.h"
+#include "HardWare/HardWare.h"
+
 /* Public typedef ------------------------------------------------------------*/
-typedef enum
+enum ProcessEnum
 {
     Process_Init = 0,
     Process_Idle,
@@ -29,23 +32,22 @@ typedef enum
     Process_ErrorTrigged,
     Process_ErrorHandle,
     Process_Lock,
-} ProcessEnum;
+};
 
-typedef struct
-{
-    ProcessEnum current;
-    ProcessEnum last;
-}ProcessStruct;
+struct ProcessStruct
+{ 
+    enum ProcessEnum current;
+    enum ProcessEnum last;
+};
 
 /* Public variables ----------------------------------------------------------*/
 extern uint32_t realTimeCounter, timeStampCounter;
-extern uint32_t uwTick;
 /* Public define -------------------------------------------------------------*/
 #define MODULE_DEBUG    1   
-#define sysTime uwTick
+#define SYSTIME uwTick
 //#define realTime (*(uint32_t *)(0x4B0))
-#define realTime (realTimeCounter)
-#define timeStamp (timeStampCounter)
+#define REALTIME (realTimeCounter)
+#define TIMESTAMP (timeStampCounter)
 
 #define SECONDS_YEAR   31536000L
 #define SECONDS_MONTH   2592000L
@@ -55,6 +57,9 @@ extern uint32_t uwTick;
 
 #define DATA_PREFIX 
 
+#define CPU_FREQUENCY   48000000
+#define CPU_1US_COUNT   (CPU_FREQUENCY / 1000000)
+
 
 
 /* Public macro --------------------------------------------------------------*/
@@ -63,7 +68,8 @@ extern uint32_t uwTick;
         processObj.last = processObj.current;   \
         processObj.current = process;           \
     }
-	
+
+#define PROCESS_RETURN(processObj)     {processObj.current = processObj.last;}
 
 /* Public function prototypes ------------------------------------------------*/
 

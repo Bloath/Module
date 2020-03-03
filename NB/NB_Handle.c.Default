@@ -1,6 +1,6 @@
 /* Includes ------------------------------------------------------------------*/
+#include "Module/Module.h"
 #include "NB.h"
-#include "Handle/Communication.h"
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
@@ -32,14 +32,14 @@ extern char *nbOcSet[];
   ********************************************************************************************/
  void NB_OC_ReceiveHandle(char *message, uint16_t len)
  {   
-    if (nb._lastProcess == Process_Start && strstr(message, "OK"))
+    if (nb._process.last == Process_Start && strstr(message, "OK"))
     {   NB_SetProcess(Process_Run);    }
    
     // 接收到日期 -> 正式进入发送状态
     char *location = strstr(message, "+CCLK");
     if (location != NULL)
     {
-        CalendarStruct calendar;
+        struct CalendarStruct calendar;
         calendar.year = 2000 + (location[6] - 0x30) * 10 + location[7] - 0x30;
         calendar.month = (location[9] - 0x30) * 10 + location[10] - 0x30;
         calendar.day = (location[12] - 0x30) * 10 + location[13] - 0x30;
@@ -47,7 +47,7 @@ extern char *nbOcSet[];
         calendar.min = (location[18] - 0x30) * 10 + location[19] - 0x30;
         calendar.sec = (location[21] - 0x30) * 10 + location[22] - 0x30;
         //uint8_t timeZone = (location[24] - 0x30) * 10 + location[25] - 0x30;
-        timeStampCounter = Calendar2TimeStamp(&calendar, 0);
+        TIMESTAMP = Calendar2TimeStamp(&calendar, 0);
     }
     
      // 接收到数据
@@ -94,11 +94,10 @@ extern char *nbOcSet[];
                     memset(msgStr + 6, 0x30, 4);
                     msgStr[10] = 0;
                     char *response = (char*)Malloc(32);
+                    memset(response, 0, 32);
                     if(response != NULL)
                     {
-                        strcat(response, "AT+NMGS=5,");
-                        strcat(response, msgStr);
-                        strcat(response, "\r\n");
+                        sprintf(response, "AT+NMGS=5,%s\r\n", msgStr);
                         NB_StringTrans(response);
                         Free(response);
                     }
@@ -119,7 +118,7 @@ extern char *nbOcSet[];
   * @remark -1 Malloc失败
 
   ********************************************************************************************/
-int NB_OC_PacketPackage(TxBaseBlockStruct *block, void *param, PacketStruct *packet)//需要处理Malloc
+int NB_OC_PacketPackage(struct TxBaseBlockStruct *block, struct PacketStruct *packet)//需要处理Malloc
 {
     /* 申请内存
        AT+NMGS= 8位
@@ -127,6 +126,7 @@ int NB_OC_PacketPackage(TxBaseBlockStruct *block, void *param, PacketStruct *pac
        \r\n 2位      */
     uint16_t totalLen = 40 + block->length * 4;
     char *msg = (char *)Malloc(totalLen);
+    memset(msg, 0, totalLen);
     if(msg == NULL)
     {   return -1;  }
     
@@ -136,11 +136,9 @@ int NB_OC_PacketPackage(TxBaseBlockStruct *block, void *param, PacketStruct *pac
     uint8_t prefix[3] = {1, (uint8_t)((block->length * 2) >> 8), (uint8_t)(block->length * 2)};
     
     /* 拼接指令协议 */
-    strcat(msg, "AT+NMGS=");                            // AT头
-    Uint2String(msg, block->length * 2 + 3);            // 填充数字
-    strcat(msg, ",");                                   // 填充，
-    Msg2String(msg, prefix, 3);                                
-    Msg2HexString(msg, block->message, block->length);  // 填充报文
+    sprintf(msg, "AT+NMGS=%d,", block->length * 2 + 3);
+    Msg2HexString(msg + strlen(msg) + 1, prefix, 3);                                
+    Msg2HexString(msg + strlen(msg) + 1, block->message, block->length);  // 填充报文
     strcat(msg, "\r\n");                                // 填充换行
 
     packet->data = (uint8_t *)msg;
@@ -160,17 +158,12 @@ void NB_Http_StartConnect()
  {
     char *httpCreate = NULL;
     httpCreate = (char *)Malloc(64);
-    strcat(httpCreate, "AT+HTTPCREATE=\"http://");
-    strcat(httpCreate, nb.host);
-    strcat(httpCreate, ":");
-    strcat(httpCreate, nb.port);
-    strcat(httpCreate, "\"\r\n");
+    memset(httpCreate, 0, 64);
+
+    sprintf(httpCreate, "AT+HTTPCREATE=\"http://%s:%s\"\r\n", nb.host, nb.port);
     NB_StringTrans(httpCreate);
     Free(httpCreate);
  } 
-
-
-
 /*********************************************************************************************
 
   * @brief  
@@ -179,12 +172,12 @@ void NB_Http_StartConnect()
   * @remark 
 
   ********************************************************************************************/
-void NB_Http_ReceiveHandle(char *message, uint16_t len)
+void NB_HttpGet_ReceiveHandle(char *message, uint16_t len)
  {
    char *location = NULL, *temp = NULL;
    
      // 是否正常打开SOCKET
-    if (nb._lastProcess == Process_Start)
+    if (nb._process.last == Process_Start)
     {
         if(strstr(message, "ERROR"))
         {   NB_ErrorHandle(NBError_ConnectError);   }
@@ -196,11 +189,31 @@ void NB_Http_ReceiveHandle(char *message, uint16_t len)
             {
                 nb.socketId = *location - 0x30;
                 NB_SetProcess(Process_Run);
+                PROCESS_CHANGE(nb.http.__process, Process_Init);
             }
             else
             {   NB_ErrorHandle(NBError_ConnectError);  }
         }
         return;
+    }
+    
+    location = strstr(message, "OK");
+    if(location != NULL 
+       && nb._process.last == Process_Run)
+    {
+        NB_SetProcess(Process_Run);
+        switch(nb.http.__process.current)
+        {
+        case Process_Init:
+            PROCESS_CHANGE(nb.http.__process, Process_Start);
+            break;
+        case Process_Start:
+            PROCESS_CHANGE(nb.http.__process, Process_Run);
+            break;
+        case Process_Run:
+            PROCESS_CHANGE(nb.http.__process, Process_Wait);
+            break;
+        }
     }
     
     // 获取到内容则为+HTTPNMIC，获取到头则为+HTTPNMIH
@@ -229,23 +242,6 @@ void NB_Http_ReceiveHandle(char *message, uint16_t len)
         {   NB_ErrorHandle(NbError_TxFail);   }
         return;
     }
-    
-        /* 处于发送状态
-     出现Error时，有可能并未入网，ERROR出现10次重启模块 */
-    if (nb._process == Process_Run)
-    {
-        // 在数据发送处理部分接收到error，需要复位
-        if (strstr(message, "ERROR") != NULL || strstr(message, "HTTPERR") != NULL)
-        {
-            nb._errorCounter++;
-
-            // 发现错误次数比较多，（HTTP CREATE是可以打开的，发送才会出现ERROR）
-            if ((nb._errorCounter / 4) >= 2)
-            {   NB_ErrorHandle(NbError_NeedReset); }
-            else if ((nb._errorCounter % 4) == 3)
-            {   NB_ErrorHandle(NbError_TxFail); }
-        }
-    }
  }
 /*********************************************************************************************
 
@@ -255,7 +251,7 @@ void NB_Http_ReceiveHandle(char *message, uint16_t len)
   * @remark 
 
   ********************************************************************************************/
-int NB_Http_PacketPackage(TxBaseBlockStruct *block, void *param, PacketStruct *packet)//需要处理Malloc
+int NB_HttpGet_PacketPackage(struct TxBaseBlockStruct *block, struct PacketStruct *packet)//需要处理Malloc
 {
     /* 申请内存
        AT+NMGS= 8位
@@ -263,13 +259,11 @@ int NB_Http_PacketPackage(TxBaseBlockStruct *block, void *param, PacketStruct *p
        \r\n 2位      */
     uint16_t totalLen = 40 + block->length * 2;
     char *msg = (char *)Malloc(totalLen);
+    memset(msg, 0, totalLen);
 
     /* 拼接指令协议 */
-    strcat(msg, "AT+HTTPSEND=");                        // AT头
-    Uint2String(msg, nb.socketId);                      // 填充数字
-    strcat(msg, ",0,");                                 // 填充，
-    strcat(msg, "/communication?message=");             // 填充path
-    Msg2String(msg, block->message, block->length);     // 填充报文
+    sprintf(msg, "AT+HTTPSEND=%d,0,/communication?message=", nb.socketId);
+    Msg2String(msg + strlen(msg) + 1, block->message, block->length);     // 填充报文
     strcat(msg, "\r\n");                                // 填充换行
 
     packet->data = (uint8_t *)msg;
@@ -277,3 +271,98 @@ int NB_Http_PacketPackage(TxBaseBlockStruct *block, void *param, PacketStruct *p
     
     return 0;
 }
+/*********************************************************************************************
+
+  * @brief  NB_HttpPost_Transmit
+  * @param  block
+  * @retval 无
+  * @remark 
+
+  ********************************************************************************************/
+bool NB_HttpPost_Transmit(uint8_t *message, uint16_t length)
+{
+    char stringTemp[100];
+  
+    switch(nb.http.__process.current)
+    {
+    case Process_Init:
+        sprintf(stringTemp, "AT+HTTPHEADER=%d,\"%s\"\r\n", nb.socketId, nb.http.header);
+        NB_StringTrans(stringTemp);
+        break;
+    case Process_Start:
+        sprintf(stringTemp, "AT+HTTPCONTENT=%d,\"%s\"\r\n", nb.socketId, message);
+        NB_StringTrans(stringTemp);
+        break;
+    case Process_Run:
+        sprintf(stringTemp, "AT+HTTPSEND=%d,1,\"%s\"\r\n", nb.socketId, nb.http.url);
+        NB_StringTrans(stringTemp);
+        break;
+    case Process_Wait:
+        break;
+    }
+    
+    return false;
+}
+/*********************************************************************************************
+
+  * @brief  
+  * @param   
+  * @return 
+  * @remark 
+
+  ********************************************************************************************/
+void NB_HttpPost_ReceiveHandle(char *message, uint16_t len)
+ {
+   char *location = NULL, *temp = NULL;
+   
+     // 是否正常打开SOCKET
+    if (nb._process.last == Process_Start)
+    {
+        if(strstr(message, "ERROR"))
+        {   NB_ErrorHandle(NBError_ConnectError);   }
+        else
+        {
+            location = strstr(message, "\r\n\r\nOK\r\n");
+            location -= 1;
+            if( *location >= 30 && *location <= 0x39)
+            {
+                nb.socketId = *location - 0x30;
+                NB_SetProcess(Process_Run);
+                PROCESS_CHANGE(nb.http.__process, Process_Init);
+            }
+            else
+            {   NB_ErrorHandle(NBError_ConnectError);  }
+        }
+        return;
+    }
+    
+    
+    // 获取到内容则为+HTTPNMIC，获取到头则为+HTTPNMIH
+    location = strstr(message, "+HTTPNMIC");
+    if (location != NULL)
+    {
+        nb._errorCounter = 0;
+        location = strstr(message, "\n68");
+            
+        /* 回复body提取可用字符串 */
+        if (location != NULL)
+        {   
+            location += 1;                 
+            
+            /* 找到换行符，将换行符改为结束符，再对报文进行转换 */
+            temp = strstr(location, "16\r\n");
+            if(temp != NULL)
+            {   temp[2] = '\0';   }
+            
+            uint8_t *packet = NULL;
+            int count = String2Msg(&packet, location, 0);
+            if (count > 0)
+            {   RxQueue_Add(nb.rxQueueApp, packet, count, true);     }
+        }     
+        else
+        {   NB_ErrorHandle(NbError_TxFail);   }
+        return;
+    }
+    
+
+ }

@@ -1,10 +1,11 @@
 #ifndef _NB_HAL_H_
 #define _NB_HAL_H_
 
-#include "Module/Module.h"
+#include "Module/Module_Conf.h"
+#include "HardWare/HardWare.h"
 
-#define NB_UART_ENABLE()   UART_ENABLE(WIRELESS_UART)
-#define NB_UART_DISABLE()  UART_DISABLE(WIRELESS_UART))
+#define NB_UART_ENABLE()   UART_ENABLE(&WIRELESS_UART)
+#define NB_UART_DISABLE()  UART_DISABLE(&WIRELESS_UART)
 
 #define NB_POWER_ON()       IO_LOW(COM_POWER_GPIO_Port, COM_POWER_Pin)
 #define NB_POWER_OFF()      IO_HIGH(COM_POWER_GPIO_Port, COM_POWER_Pin)

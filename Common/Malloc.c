@@ -1,16 +1,13 @@
 /* Includes ------------------------------------------------------------------*/
 #include "string.h"
-
-#include "../Module.h"
 #include "Malloc.h"
 #include "Malloc_Conf.h"
-#include "Malloc_Handle.h"
 
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro --------------------------------------------------------------*/
 /* Private variables ----------------------------------------------------------*/
-DATA_PREFIX MemoryManageUnitcStruct mmu;
+DATA_PREFIX struct MemoryManageUnitcStruct mmu;
 
 /* Private function prototypes ------------------------------------------------*/
 /*******************************************************************************
@@ -21,7 +18,7 @@ DATA_PREFIX MemoryManageUnitcStruct mmu;
 * Return          : 申请“内存”空闲指针，没申请到则为NULL
 
 *******************************************************************************/
-void *Malloc(uint16_t size)
+void *Malloc(size_t size)
 {
     DISABLE_ALL_INTERRPUTS();
     
@@ -35,7 +32,8 @@ void *Malloc(uint16_t size)
     /* 剩余容量不足 */
     if (mmu._usedBlockQuantity >= MALLOC_BLOCK_COUNT)
     {
-        Malloc_ErrorHandle(Malloc_OutOfMemory);
+        if(mmu.CallBack_Error != NULL)
+        {   mmu.CallBack_Error(Malloc_OutOfMemory); }
         return NULL;
     }
 
@@ -60,10 +58,25 @@ void *Malloc(uint16_t size)
     }
     else
     {
-        Malloc_ErrorHandle(Malloc_MemoryUnreasonable);
+        if(mmu.CallBack_Error != NULL)
+        {   mmu.CallBack_Error(Malloc_MemoryUnreasonable);  }
         ENABLE_ALL_INTERRPUTS();
         return NULL;
     }
+}
+/*******************************************************************************
+
+* Function Name   : Malloc
+* Description     : 自定义申请内存的长度，与malloc不同，是通过全局长数组+多个申请块进行管理
+* Parameter       : pointer：旧的指针
+                    size，申请长度
+* Return          : 这个算法暂时没想好，预留后面更新
+
+*******************************************************************************/
+void *Realloc(void *pointer, size_t size)
+{
+    Free(pointer);
+    return Malloc(size);
 }
 /*******************************************************************************
 * Function Name   : Free
@@ -79,7 +92,7 @@ void Free(void *pointer)
     MALLOC_BLOCK_COUNT_SIZE len = mmu.__blocks[index];                                                    // 查找其所占长度
     mmu._usedBlockQuantity -= len;
 
-    memset(pointer, 0, len * MALLOC_BLOCK_SIZE);
+    //memset(pointer, 0, len * MALLOC_BLOCK_SIZE);
     
     for (MALLOC_BLOCK_COUNT_SIZE i = 0; i < len; i++)
     {   mmu.__blocks[index + i] = 0;  } // 在管理单元中释放该位

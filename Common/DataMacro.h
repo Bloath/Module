@@ -1,7 +1,7 @@
 #ifndef _DATAMACRO_H_
 #define _DATAMACRO_H_
 
-#include "../Module_Conf.h"
+#include "Module/Module_Conf.h"
 
 // 宏定义中带有返回值的写法，只有GCC编译器支持。
 

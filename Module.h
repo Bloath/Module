@@ -8,10 +8,10 @@
 #include "DataStruct/DataStruct.h"
 #include "Communicate/Communicate.h"
 #include "ESP8266/ESP8266.h"
-#include "I2C_Chip/SoftI2C.h"
 #include "ZcProtocol/ZcProtocol.h"
 #include "NB/NB.h"
 #include "HalFrame/HalFrame.h"
+#include "Chips/Chips.h"
 
 /* typedef ------------------------------------------------------------*/
 /* variables ----------------------------------------------------------*/
