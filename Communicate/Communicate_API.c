@@ -68,10 +68,10 @@ void Communicate_Handle(struct CommunicateStruct *communicate)
 
     /* 发送队列处理 */
     if (communicate->CallBack_TxFunc != NULL)
-    {   TxQueue_Handle(communicate->txQueue, communicate->CallBack_TxFunc, communicate->txFuncParam);   }
+    {   TxQueue_Handle(communicate->txQueue);   }
     
     if (communicate->CallBack_RxHandleFunc != NULL)
-    {   RxQueue_Handle(communicate->rxQueue, communicate->CallBack_RxHandleFunc, (void *)communicate);  }
+    {   RxQueue_Handle(communicate->rxQueue);  }
 }
 
 /*********************************************************************************************
