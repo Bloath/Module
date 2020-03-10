@@ -38,6 +38,7 @@ struct ProcessStruct
 { 
     enum ProcessEnum current;
     enum ProcessEnum last;
+    uint32_t __time;
 };
 
 /* Public variables ----------------------------------------------------------*/
@@ -67,6 +68,13 @@ extern uint32_t realTimeCounter, timeStampCounter;
     {                                           \
         processObj.last = processObj.current;   \
         processObj.current = process;           \
+    }
+    
+#define PROCESS_CHANGE_WITH_TIME(processObj, process, time)     \
+    {                                                           \
+        processObj.last = processObj.current;                   \
+        processObj.current = process;                           \
+        processObj.__time = time;                               \
     }
 
 #define PROCESS_RETURN(processObj)     {processObj.current = processObj.last;}
