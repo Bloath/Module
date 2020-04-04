@@ -12,7 +12,6 @@
 
 #include "Module/HalDefine/stm32_HalDefine.h"
 #include "HardWare/HardWare.h"
-#include "ThirdLibrary/cJSON.h"
 
 /* Public typedef ------------------------------------------------------------*/
 enum ProcessEnum
