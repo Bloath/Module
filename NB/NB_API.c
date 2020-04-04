@@ -15,6 +15,7 @@ DATA_PREFIX char *nbConfiguration[] = {
     "AT+NCSEARFCN\r\n",                     // 清除先验频点
     "AT+CFUN=1\r\n",                        // 启动射频     ----> 启动连接
     "AT+CMEE=1\r\n",                        // 开启错误序号提示
+    "AT+CPSMS=0\r\n",
     "AT+CGATT=1\r\n",                       // 开始附着
     "AT+CGSN=1\r\n",
     "AT+CEREG=4\r\n",                       // 开启信息提示
@@ -272,6 +273,7 @@ void NB_RxHandle(struct RxBaseBlockStruct *rxBlock)
 {
     char *message = (char *)(rxBlock->message);
     char *location = NULL, *temp = NULL;
+    struct CalendarStruct calendarTemp = {0};
 
 
     if (nb.cmdList == nbReadSim && (location = strstr(message, "460")) != NULL)
@@ -319,6 +321,37 @@ void NB_RxHandle(struct RxBaseBlockStruct *rxBlock)
         return;
     }
 
+    location = strstr(message, "+CCLK:");
+    if (location != NULL && nb.CallBack_TimeUpdate != NULL)
+    {
+        location += 6;                          // 跳过cclk
+        
+        location[2] = '\0';
+        calendarTemp.year = 2000 + NumberString2Uint(location);
+        location += 3;
+      
+        location[2] = '\0';
+        calendarTemp.month = NumberString2Uint(location);
+        location += 3;
+        
+        location[2] = '\0';
+        calendarTemp.day = NumberString2Uint(location);
+        location += 3;
+   
+        location[2] = '\0';
+        calendarTemp.hour = NumberString2Uint(location);
+        location += 3;
+        
+        location[2] = '\0';
+        calendarTemp.min = NumberString2Uint(location);
+        location += 3;
+        
+        location[2] = '\0';
+        calendarTemp.sec = NumberString2Uint(location);
+        
+        nb.CallBack_TimeUpdate(Calendar2TimeStamp(&calendarTemp, 0));
+    }
+    
     // 信号强度判断
     location = strstr(message, "+CSQ");
     if (location != NULL)

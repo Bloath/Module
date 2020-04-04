@@ -10,7 +10,7 @@
 void NB_Http_StartConnect();
 void NB_HttpGet_ReceiveHandle(char *message, uint16_t len);
 int NB_HttpGet_PacketPackage(struct TxBaseBlockStruct *block, struct PacketStruct *packet);
-bool NB_HttpPost_Transmit(uint8_t *message, uint16_t length);
+bool NB_HttpPost_Transmit(struct TxBaseBlockStruct *txBlock);
 
 
 void NB_OC_HandleBeforeNetting();

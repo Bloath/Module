@@ -17,11 +17,12 @@ struct LoopCacheStruct
 {
     void *data;                     // 数据指针
     uint8_t unitSize;               // 数据宽度
-    bool _isCatchUp;                // 是否被赶超
     uint16_t unitCount;              // 数据个数
+    
+    bool _isCatchUp;                // 是否被赶超
+    bool _isFull;                   // 是否已满
     uint16_t _currentIndex;          // 当前数据索引
     uint16_t _lastIndex;             // 上次数据索引，与当前索引配合可查看新入库数据
-
 };
 
 struct DisorderCacheStruct
@@ -40,7 +41,8 @@ void LoopCache_Init(struct LoopCacheStruct *loopCache, void *data, uint8_t unitS
 int LoopCache_Append(struct LoopCacheStruct *loopCache, void *newData);                                                // 添加新成员
 void LoopCache_ClearNull(struct LoopCacheStruct *loopCache, bool (*nullCondition)(void *, void *), void *param);       // 通过函数指针清除空成员，并将非空成员前推
 void LoopCache_Clear(struct LoopCacheStruct *loopCache);          
-int LoopCache_Handle(struct LoopCacheStruct *loopCache, void (*DataHandle)(void *data));
+int LoopCache_Handle(struct LoopCacheStruct *loopCache, void (*DataHandle)(void *data, void *param), void *param);
+void LoopCache_HandleAll(struct LoopCacheStruct *loopCache, void (*DataHandle)(void *data, void *param), void *param);
 
 /*****************************无序缓存*****************************/
 void DisorderCache_Init(struct DisorderCacheStruct *disorderCache, void *data, uint8_t unitSize, uint8_t unitCount);          // 初始化

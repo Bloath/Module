@@ -190,7 +190,13 @@ int TxQueue_Handle(struct TxQueueStruct *txQueue)
                    2. 再进行分析时不用再重新拆包解析 */
                 if(txQueue->CallBack_PackagBeforeTransmit == NULL || (txQueue->__txBlocks[i].flag & TX_FLAG_PACKAGE) == 0)
                 {   
-                    if(txQueue->CallBack_Transmit != NULL)
+                    // 优先使用CallBack_TransmitUseBlock发送
+                    if(txQueue->CallBack_TransmitUseBlock != NULL)
+                    {
+                        isNeedFree = txQueue->CallBack_TransmitUseBlock(txQueue->__txBlocks + i);                               // 发送原始报文
+                        result = txQueue->__txBlocks[i].id;
+                    }
+                    else if(txQueue->CallBack_Transmit != NULL)
                     {
                         isNeedFree = txQueue->CallBack_Transmit(txQueue->__txBlocks[i].message, txQueue->__txBlocks[i].length);                   // 发送原始报文
                         result = txQueue->__txBlocks[i].id;
@@ -365,14 +371,7 @@ void TxQueue_FreeBlock(struct TxQueueStruct *txQueue, struct TxBaseBlockStruct *
         Free(txBlock->message);
 
         txQueue->_usedBlockQuantity -= 1;
-        txBlock->length = 0;
-        txBlock->retransCounter = 0;
-        txBlock->id = 0;
-
-#ifdef TX_BLOCK_TIMEOUT
-        txBlock->time = 0;
-#endif
-        txBlock->flag = 0;
+        memset(txBlock, 0, sizeof(struct TxBaseBlockStruct));
     }
 }
 

@@ -20,6 +20,8 @@ DATA_PREFIX struct MemoryManageUnitcStruct mmu;
 *******************************************************************************/
 void *Malloc(size_t size)
 {
+    int i = 0;
+  
     DISABLE_ALL_INTERRPUTS();
     
     uint8_t *pool = (uint8_t *)mmu.__mallocPool;          // mmu.mallocPool为32位数组（为了对齐），下面的操作都是使用字节数组
@@ -50,7 +52,7 @@ void *Malloc(size_t size)
     {
         mmu._usedBlockQuantity += applyBlockCount;                                   // 使用块个数累加
         
-        for (MALLOC_BLOCK_COUNT_SIZE i = 0; i < applyBlockCount; i++)
+        for (i = 0; i < applyBlockCount; i++)
         {   mmu.__blocks[index - applyBlockCount + i + 1] = applyBlockCount;  }       // 通过循环，将块管理中对应块的地址填充（标记为可用，内容为申请块个数）
 
         ENABLE_ALL_INTERRPUTS();

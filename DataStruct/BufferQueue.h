@@ -14,6 +14,7 @@
 #define TX_FLAG_RT          (1 << 2)        // 需要进行重新发送
 #define TX_FLAG_TIMEOUT     (1 << 3)        // 是否超时标志位
 #define TX_FLAG_PACKAGE     (1 << 4)        // 需要打包
+#define TX_FLAG_IN_BATCHES  (1 << 5)
 #define TX_FLAG_MC          (1 << 6)        // 手动清除
 #define TX_FLAG_IS_MALLOC   (1 << 7)        // 已经为MALLOC，不需要复制，使用该位时，如果为字符串，则长度要包含结束位
 
@@ -66,6 +67,7 @@ struct TxBaseBlockStruct
     uint16_t length;
     uint16_t flag;
     uint16_t retransCounter;
+    uint16_t currentIndex;
     TX_ID_SIZE id;
     uint8_t seqId;
 #ifdef BLOCK_WITH_PARAM
@@ -89,8 +91,9 @@ struct TxQueueStruct
     uint16_t maxTxCount;                            // 最大重发次数
     uint16_t interval;                              // 发送间隔
     
-    bool (*CallBack_Transmit)(uint8_t *, uint16_t);                                                     // 发送函数
-    void (*CallBack_AutoClearBlock)(struct TxBaseBlockStruct *, enum BlockFreeMethodEnum );             // 自动清除回调
+    bool (*CallBack_Transmit)(uint8_t *, uint16_t);                                             // 发送函数
+    bool (*CallBack_TransmitUseBlock)(struct TxBaseBlockStruct *txBlock);                       // 通过块发送
+    void (*CallBack_AutoClearBlock)(struct TxBaseBlockStruct *, enum BlockFreeMethodEnum );     // 自动清除回调
     int (*CallBack_PackagBeforeTransmit)(struct TxBaseBlockStruct *, struct PacketStruct *);    // 在发送前的组包处理，返回组完的包，需要通过Free释放
 };// 发送块缓冲队列
 

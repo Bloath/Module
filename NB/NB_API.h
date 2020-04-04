@@ -41,6 +41,8 @@ struct NBHttpStruct
     struct ProcessStruct __process;
     char *url;
     char *header;
+    char isFinish;
+    int16_t currentIndex;
 };
 
 struct NBStruct
@@ -72,7 +74,7 @@ struct NBStruct
     void (*CallBack_StartConenct)();                                // 启动连接
     void (*CallBack_RxSecondaryHandle)(char *message, uint16_t len);// 接收处理部分
     void (*CallBack_TxError)(enum NbErrorEnum);                     // 错误处理
-    void (*CallBack_TimeUpdate)();                                  // 硬件层 获取新时间
+    void (*CallBack_TimeUpdate)(uint32_t timeStamp);                // 硬件层 获取新时间
 };
 
 /* Public variables ----------------------------------------------------------*/

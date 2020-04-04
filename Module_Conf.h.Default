@@ -12,6 +12,7 @@
 
 #include "Module/HalDefine/stm32_HalDefine.h"
 #include "HardWare/HardWare.h"
+#include "ThirdLibrary/cJSON.h"
 
 /* Public typedef ------------------------------------------------------------*/
 enum ProcessEnum
@@ -77,8 +78,23 @@ extern uint32_t realTimeCounter, timeStampCounter;
         processObj.__time = time;                               \
     }
 
-#define PROCESS_RETURN(processObj)     {processObj.current = processObj.last;}
+#define PROCESS_RETURN(processObj)                              \
+    {                                                           \
+        enum ProcessEnum __processTemp;                         \
+        __processTemp = processObj.current;                     \
+        processObj.current = processObj.last;                   \
+        processObj.last = __processTemp;                        \
+    }
 
+#define PROCESS_RETURN_WITH_TIME(processObj, time)              \
+    {                                                           \
+        enum ProcessEnum __processTemp;                         \
+        __processTemp = processObj.current;                     \
+        processObj.current = processObj.last;                   \
+        processObj.last = __processTemp;                        \
+        processObj.__time = time;                               \
+    }
+    
 /* Public function prototypes ------------------------------------------------*/
 
 #endif

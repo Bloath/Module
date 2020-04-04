@@ -59,7 +59,10 @@ int LoopCache_Append(struct LoopCacheStruct *loopCache, void *newData)
     loopCache->_currentIndex++;
 
     if (loopCache->_currentIndex == loopCache->unitCount)
-    {   loopCache->_currentIndex = 0;   }
+    {    
+        loopCache->_currentIndex = 0; 
+        loopCache->_isFull = true;
+    }
 
     // 如果两个索引相当了，那last就必须被current拖动前进
     if(loopCache->_currentIndex == loopCache->_lastIndex)
@@ -78,7 +81,7 @@ int LoopCache_Append(struct LoopCacheStruct *loopCache, void *newData)
   * @remark 返回总数量
 
   ********************************************************************************************/
-int LoopCache_Handle(struct LoopCacheStruct *loopCache, void (*DataHandle)(void *data))
+int LoopCache_Handle(struct LoopCacheStruct *loopCache, void (*DataHandle)(void *data, void *param), void *param)
 {
     int i=0; 
     
@@ -88,7 +91,7 @@ int LoopCache_Handle(struct LoopCacheStruct *loopCache, void (*DataHandle)(void 
     {
         for(i=loopCache->_lastIndex; i<loopCache->_currentIndex; i++)
         {   
-            (*DataHandle)(CACHE_GET(loopCache, i));  
+            (*DataHandle)(CACHE_GET(loopCache, i), param);  
             count++;
         }
     }
@@ -98,13 +101,13 @@ int LoopCache_Handle(struct LoopCacheStruct *loopCache, void (*DataHandle)(void 
     {
         for(i=loopCache->_lastIndex; i<loopCache->unitCount; i++)
         {   
-            (*DataHandle)(CACHE_GET(loopCache, i));  
+            (*DataHandle)(CACHE_GET(loopCache, i), param);  
             count++;
         }
         
         for(i=0; i<loopCache->_currentIndex; i++)
         {   
-            (*DataHandle)(CACHE_GET(loopCache, i));  
+            (*DataHandle)(CACHE_GET(loopCache, i), param);  
             count++;
         }
         loopCache->_isCatchUp = false;
@@ -113,6 +116,33 @@ int LoopCache_Handle(struct LoopCacheStruct *loopCache, void (*DataHandle)(void 
     
     loopCache->_lastIndex = loopCache->_currentIndex;
     return count;
+}
+/*********************************************************************************************
+
+  * @brief  LoopCache_HandleAll
+  * @dcpt   处理loop中所有的数据
+  * @param  loopCache：循环控制指针
+            DataHandle：数据处理函数
+  * @remark 返回总数量
+
+  ********************************************************************************************/
+void LoopCache_HandleAll(struct LoopCacheStruct *loopCache, void (*DataHandle)(void *data, void *param), void *param)
+{
+    int i=0; 
+    
+    int count = 0;
+    
+    for(i=loopCache->_currentIndex; i<loopCache->unitCount; i++)
+    {   
+        (*DataHandle)(CACHE_GET(loopCache, i), param);  
+        count++;
+    }
+    
+    for(i=0; i<loopCache->_currentIndex; i++)
+    {   
+        (*DataHandle)(CACHE_GET(loopCache, i), param);  
+        count++;
+    }
 }
 /*********************************************************************************************
 
@@ -188,7 +218,7 @@ int DisorderCache_Get(struct DisorderCacheStruct *disorderCache)
 void LoopCache_Clear(struct LoopCacheStruct *loopCache)
 {
     memset(loopCache->data, 0, loopCache->unitSize * loopCache->unitCount);
-    loopCache->_currentIndex = 0;
+    memset(&loopCache->_isCatchUp, 0, sizeof(struct LoopCacheStruct) - ((uint32_t)(&loopCache->_isCatchUp) - (uint32_t)(loopCache)));
 }
 /*********************************************************************************************
 
@@ -201,7 +231,7 @@ void LoopCache_Clear(struct LoopCacheStruct *loopCache)
 void DisorderCache_Clear(struct DisorderCacheStruct *disorderCache)
 {
     memset(disorderCache->data, 0, disorderCache->unitSize * disorderCache->unitCount);
-    disorderCache->__usedFlag = 0;
+    memset(&disorderCache->__usedFlag, 0, sizeof(struct DisorderCacheStruct) - ((uint32_t)(&disorderCache->__usedFlag) - (uint32_t)(disorderCache)));
 }
 /*********************************************************************************************
 

@@ -22,31 +22,30 @@ struct Dps310FifoStruct
 {
     uint32_t origin[32];            // fifo原始数据
     uint32_t lastTemperatureOrigin; // 上一次的温度原始数据
-    uint32_t pressureList[32];      // 压力数据转换
-    int16_t temperature;            // 温度
+    uint32_t pressureEx1List[32];      // 压力数据转换
+    int16_t temperatureEx1;            // 温度
     uint16_t oCount;                // 原始数据数量
     uint16_t pCount;                // 压力数据个数
 };
 
-struct Dps310SDataStruct
+struct Dps310DataStruct
 {
     uint32_t pressureOrigin;
     uint32_t temperatureOrigin;
-    uint32_t pressure;
-    int16_t temperature;
+    uint32_t pressureEx1;
+    int16_t temperatureEx1;
     struct ProcessStruct _process;  // 流程
 };
 
 struct Dps310Struct
 {
     /* 硬件相关 */
-    uint32_t __time;                // 用于记录超时
     struct SoftI2cStruct *i2c;
     uint8_t devAddress;             // 设备地址
     
     struct DPS310CoefStruct coef;   // 参数
     struct Dps310FifoStruct *fifo;  // fifo，为指针，如果需要则新建
-    struct Dps310SDataStruct *data; // 数据
+    struct Dps310DataStruct *data;  // 数据
     
     void (*CallBack_ReadData)(struct Dps310Struct *);
     void (*CallBack_ReadFifo)(struct Dps310Struct *);

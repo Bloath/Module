@@ -36,7 +36,7 @@ void Delay_us(uint16_t count)
 {
     while (count--)
     {
-        for (uint16_t j = 0; j < (CPU_1US_COUNT >> 2); j++)
+        for (uint16_t j = 0;  j < (CPU_1US_COUNT >> 2); j++)
         {   ;   }
     }
 }
@@ -51,7 +51,7 @@ void Delay_us(uint16_t count)
   ********************************************************************************************/
 void Log(struct LogStruct *log, const char *format, ...)
 {
-	char logContent[200] = {0};
+	char logContent[512] = {0};
     if(log->CallBack_Transmit == NULL)
     {   return; }
     

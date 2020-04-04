@@ -6,6 +6,7 @@
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 extern char *nbOcSet[];
+extern struct TxQueueStruct debugTxQueue;
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 
@@ -160,7 +161,7 @@ void NB_Http_StartConnect()
     httpCreate = (char *)Malloc(64);
     memset(httpCreate, 0, 64);
 
-    sprintf(httpCreate, "AT+HTTPCREATE=\"http://%s:%s\"\r\n", nb.host, nb.port);
+    sprintf(httpCreate, "AT+HTTPCREATE=\"http://%s:%s/\"\r\n", nb.host, nb.port);
     NB_StringTrans(httpCreate);
     Free(httpCreate);
  } 
@@ -175,6 +176,7 @@ void NB_Http_StartConnect()
 void NB_HttpGet_ReceiveHandle(char *message, uint16_t len)
  {
    char *location = NULL, *temp = NULL;
+   cJSON *json = NULL;
    
      // 是否正常打开SOCKET
     if (nb._process.last == Process_Start)
@@ -189,7 +191,7 @@ void NB_HttpGet_ReceiveHandle(char *message, uint16_t len)
             {
                 nb.socketId = *location - 0x30;
                 NB_SetProcess(Process_Run);
-                PROCESS_CHANGE(nb.http.__process, Process_Init);
+                PROCESS_CHANGE_WITH_TIME(nb.http.__process, Process_Init, REALTIME);
             }
             else
             {   NB_ErrorHandle(NBError_ConnectError);  }
@@ -197,46 +199,46 @@ void NB_HttpGet_ReceiveHandle(char *message, uint16_t len)
         return;
     }
     
-    location = strstr(message, "OK");
-    if(location != NULL 
-       && nb._process.last == Process_Run)
+    if(nb._process.last == Process_Run)
     {
-        NB_SetProcess(Process_Run);
-        switch(nb.http.__process.current)
+        location = strstr(message, "OK");
+        if(location != NULL)
         {
-        case Process_Init:
-            PROCESS_CHANGE(nb.http.__process, Process_Start);
-            break;
-        case Process_Start:
-            PROCESS_CHANGE(nb.http.__process, Process_Run);
-            break;
-        case Process_Run:
-            PROCESS_CHANGE(nb.http.__process, Process_Wait);
-            break;
-        }
+            NB_SetProcess(Process_Run);
+            nb.http.__process.current = nb.http.__process.last;
+            switch(nb.http.__process.current)
+            {
+            case Process_Init:
+                PROCESS_CHANGE_WITH_TIME(nb.http.__process, Process_Start, REALTIME);
+                break;
+            case Process_Start:
+                PROCESS_CHANGE_WITH_TIME(nb.http.__process, Process_Run, REALTIME); 
+                break;
+            case Process_Run:
+                PROCESS_CHANGE_WITH_TIME(nb.http.__process, Process_Wait, REALTIME);
+                break;
+            }
+        }        
     }
+
     
     // 获取到内容则为+HTTPNMIC，获取到头则为+HTTPNMIH
     location = strstr(message, "+HTTPNMIC");
     if (location != NULL)
     {
         nb._errorCounter = 0;
-        location = strstr(message, "\n68");
+        location = strstr(message, "\r\n{");
+        location += 2;
             
         /* 回复body提取可用字符串 */
         if (location != NULL)
-        {   
-            location += 1;                 
-            
+        {                 
             /* 找到换行符，将换行符改为结束符，再对报文进行转换 */
-            temp = strstr(location, "16\r\n");
+            temp = strstr(location, "}\r\n\r\n");
             if(temp != NULL)
-            {   temp[2] = '\0';   }
+            {   temp[1] = '\0';   }
             
-            uint8_t *packet = NULL;
-            int count = String2Msg(&packet, location, 0);
-            if (count > 0)
-            {   RxQueue_Add(nb.rxQueueApp, packet, count, true);     }
+            RxQueue_Add(nb.rxQueueApp, location, strlen(location), false);
         }     
         else
         {   NB_ErrorHandle(NbError_TxFail);   }
@@ -279,25 +281,79 @@ int NB_HttpGet_PacketPackage(struct TxBaseBlockStruct *block, struct PacketStruc
   * @remark 
 
   ********************************************************************************************/
-bool NB_HttpPost_Transmit(uint8_t *message, uint16_t length)
+#define SINGLE_TX_LENGTH    800
+//#define TRANS_TX_QUEUE  (nb.txQueueHal)
+//       
+#define TRANS_WITH_DEBUG(message, len)                      \
+    {                                                       \
+        debugTxQueue.CallBack_Transmit(message, len);       \
+        nb.txQueueHal->CallBack_Transmit(message, len);     \
+    }
+          
+#define TRANS_TX_QUEUE  (&debugTxQueue)
+bool NB_HttpPost_Transmit(struct TxBaseBlockStruct *txBlock)
 {
-    char stringTemp[100];
-  
+    char stringTemp[200];
+    
+    /* 如果超了，则直接返回true */
+    if(txBlock->currentIndex >= txBlock->length)
+    {   return true;    }
+    
+    int end = 0;
+    
+    /* 判断长度，确认新end的位置 */
+    if((txBlock->currentIndex + SINGLE_TX_LENGTH) > txBlock->length)
+    {   end = txBlock->length;  }
+    else
+    {   end = txBlock->currentIndex + SINGLE_TX_LENGTH; }
+    
+    /* 调整位置，前后不能有逗号 */
+    while(txBlock->message[end - 1] != ','
+         && txBlock->message[end - 1] != '}')
+    {   end += 1;   }
+    
     switch(nb.http.__process.current)
     {
     case Process_Init:
         sprintf(stringTemp, "AT+HTTPHEADER=%d,\"%s\"\r\n", nb.socketId, nb.http.header);
+        PROCESS_CHANGE_WITH_TIME(nb.http.__process, Process_Wait, REALTIME);
         NB_StringTrans(stringTemp);
         break;
     case Process_Start:
-        sprintf(stringTemp, "AT+HTTPCONTENT=%d,\"%s\"\r\n", nb.socketId, message);
-        NB_StringTrans(stringTemp);
+        
+        sprintf(stringTemp, "AT+HTTPCONTENT=%d,\"", nb.socketId);
+        TRANS_WITH_DEBUG(stringTemp, strlen(stringTemp));
+        
+        /*  判断是否为分批发送
+            1. 是分批发送，则按照id与总长度进行分批发送
+            2. 不是分批发送，则拆分数据进行发送(不与at指令前导合并) */
+        if(FLAG_IS_SET(txBlock->flag, TX_FLAG_IN_BATCHES))
+        {   
+            sprintf(stringTemp, "{'id':%d, 'messageType':'section', 'deviceId':'%s', 'totalLength':%d, 'contentLength': %d, 'start':%d, 'end':%d, 'content':\"", 
+                    txBlock->id, 
+                    DEVICE_ID,
+                    txBlock->length, 
+                    end - txBlock->currentIndex,
+                    txBlock->currentIndex, 
+                    end);
+            TRANS_WITH_DEBUG(stringTemp, strlen(stringTemp));
+            TRANS_WITH_DEBUG(txBlock->message + txBlock->currentIndex, end - txBlock->currentIndex); 
+            TRANS_WITH_DEBUG("\"}", 2);
+        }
+        else
+        {   TRANS_WITH_DEBUG(txBlock->message, txBlock->length );   }
+        
+        TRANS_WITH_DEBUG("\"\r\n", 3);
+        PROCESS_CHANGE_WITH_TIME(nb.http.__process, Process_Wait, REALTIME);
         break;
     case Process_Run:
         sprintf(stringTemp, "AT+HTTPSEND=%d,1,\"%s\"\r\n", nb.socketId, nb.http.url);
         NB_StringTrans(stringTemp);
+        PROCESS_CHANGE_WITH_TIME(nb.http.__process, Process_Wait, REALTIME);
         break;
     case Process_Wait:
+        if((nb.http.__process.__time + 5) < REALTIME)
+        {   PROCESS_RETURN_WITH_TIME(nb.http.__process, REALTIME);  }
         break;
     }
     

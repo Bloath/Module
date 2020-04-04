@@ -46,7 +46,7 @@ filePrefix = '/* Includes ------------------------------------------------------
 
 fileFrame = {
     'HardWare': ['Hal'],
-    'Handle': ['Conf', 'Service', 'Communication', 'Global', 'Alogrithm']
+    'Handle': ['Conf', 'Service', 'Communication', 'Global', 'Alogrithm', 'ErrorHandle']
 }
 
 

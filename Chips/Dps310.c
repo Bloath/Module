@@ -38,7 +38,7 @@ int Dps310_Init(struct Dps310Struct *dps310, uint32_t config)
     Delay_ms(10);
     
     if((result = SoftI2c_Read(dps310->i2c, dps310->devAddress, TMP_COEF_SRCE, &coefsource, 1)) < 0) // TMP_COEF_SRCE位为1（使用MEMS），否则(使用ASIC）.
-	{	return -1;	}
+	{	return result;	}
     coefsource &= 0x80;
 
     uint8_t pressConfig = (uint8_t)(config >> 24);
@@ -58,14 +58,14 @@ int Dps310_Init(struct Dps310Struct *dps310, uint32_t config)
     {	meafConfig |= (1 << 3);	}
     
     if((result = Dps310_GetCoef(dps310)) < 0)
-    {   return -1;  }
+    {   return result;  }
     
     result += SoftI2c_SingleWrite(dps310->i2c, dps310->devAddress,  PRS_CFG, pressConfig);
     result += SoftI2c_SingleWrite(dps310->i2c, dps310->devAddress,  TMP_CFG, tempConfig | coefsource);
 	result += SoftI2c_SingleWrite(dps310->i2c, dps310->devAddress,  CFG_REG, (uint8_t)config | meafConfig);        
     result += SoftI2c_SingleWrite(dps310->i2c, dps310->devAddress,  MEAS_CFG, (uint8_t)(config >> 8));    
     if(result < 0)
-	{	return -1;	}  
+	{	return result;	}  
     
     /* 如果为后台模式，则清除fifo */
     if(((uint8_t)(config >> 8) & 0x07) >= 5)
@@ -207,7 +207,7 @@ int Dps310_SyncRead(struct Dps310Struct *dps310, uint32_t timeOut)
         }
     } while (1);
 
-    Dps310_DataConvert(dps310, dps310->data->pressureOrigin, dps310->data->temperatureOrigin, &(dps310->data->pressure), &(dps310->data->temperature));
+    Dps310_DataConvert(dps310, dps310->data->pressureOrigin, dps310->data->temperatureOrigin, &(dps310->data->pressureEx1), &(dps310->data->temperatureEx1));
     
     if(dps310->CallBack_ReadData != NULL)
     {   dps310->CallBack_ReadData(dps310);    }
@@ -248,9 +248,8 @@ void Dps310_AsynRead(struct Dps310Struct *dps310, uint32_t timeOut)
         break;
 
     case Process_Start: // 启动压力转换
-        dps310->__time = SYSTIME;
         Dps310_StartSingleConvert(dps310, DPS310_MEASURE_PRESSURE);
-        PROCESS_CHANGE(dps310->data->_process, Process_Wait);
+        PROCESS_CHANGE_WITH_TIME(dps310->data->_process, Process_Wait, SYSTIME);
         break;
 
     case Process_Wait:      // 等待压力转换完成
@@ -259,10 +258,10 @@ void Dps310_AsynRead(struct Dps310Struct *dps310, uint32_t timeOut)
         {
             dps310->data->pressureOrigin = Dps310_GetOrigin(dps310, PRS_STARTADDRESS);         // 获取压力初始值
             Dps310_StartSingleConvert(dps310, DPS310_MEASURE_TEMPERATURE);                    // 启动温度转换
-            PROCESS_CHANGE(dps310->data->_process, Process_LongWait);                                         // 切换到等到温度转换等待
+            PROCESS_CHANGE_WITH_TIME(dps310->data->_process, Process_LongWait, SYSTIME);      // 切换到等到温度转换等待
         }
-        else if(result < 0 || (dps310->__time + timeOut) < SYSTIME)
-        {   PROCESS_CHANGE(dps310->data->_process, Process_Lock); }
+        else if(result < 0 || (dps310->data->_process.__time + timeOut) < SYSTIME)
+        {   PROCESS_CHANGE_WITH_TIME(dps310->data->_process, Process_Lock, SYSTIME); }
         break;
 
     case Process_LongWait:  // 等待温度转换完成
@@ -270,16 +269,17 @@ void Dps310_AsynRead(struct Dps310Struct *dps310, uint32_t timeOut)
         if (result == 1)
         {
             dps310->data->temperatureOrigin = Dps310_GetOrigin(dps310, TMP_STARTADDRESS);         // 获取压力初始值
-            PROCESS_CHANGE(dps310->data->_process, Process_Finish);                                               // 切换到完成
+            PROCESS_CHANGE_WITH_TIME(dps310->data->_process, Process_Finish, SYSTIME);            // 切换到完成
         }
-        else if(result < 0 || (dps310->__time + timeOut) < SYSTIME)
-        {   PROCESS_CHANGE(dps310->data->_process, Process_Lock); }
+        else if(result < 0 || (dps310->data->_process.__time + timeOut) < SYSTIME)
+        {   PROCESS_CHANGE_WITH_TIME(dps310->data->_process, Process_Lock, SYSTIME); }
         break;
 
     case Process_Finish:    // 完成操作
+         Dps310_DataConvert(dps310, dps310->data->pressureOrigin, dps310->data->temperatureOrigin, &(dps310->data->pressureEx1), &(dps310->data->temperatureEx1));
         if(dps310->CallBack_ReadData != NULL)
         {   dps310->CallBack_ReadData(dps310);    }
-        PROCESS_CHANGE(dps310->data->_process, Process_Idle);
+        PROCESS_CHANGE_WITH_TIME(dps310->data->_process, Process_Idle, SYSTIME);
         break;
     }
 }
@@ -330,8 +330,8 @@ int Dps310_BackgroudRead(struct Dps310Struct *dps310)
             Dps310_DataConvert(dps310, 
                                dps310->fifo->origin[i], 
                                dps310->fifo->lastTemperatureOrigin, 
-                               dps310->fifo->pressureList + dps310->fifo->pCount, 
-                               &(dps310->fifo->temperature));  // 数据转换
+                               dps310->fifo->pressureEx1List + dps310->fifo->pCount, 
+                               &(dps310->fifo->temperatureEx1));  // 数据转换
             dps310->fifo->pCount ++;
         }
         else
