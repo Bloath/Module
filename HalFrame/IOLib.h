@@ -35,6 +35,15 @@ struct KeyDetectStruct
 	void (*CallBack_KeyRaiseHandle)(struct KeyDetectStruct*, uint32_t );	    // 抬起后得处理
 };
 
+struct OperationKeep
+{
+    uint32_t time;
+    uint32_t *referenceTime;
+    void (*CallBack_IOOperation)(bool isActive);
+    uint16_t interval;
+    bool isRunning;
+};
+
 /* Public define -------------------------------------------------------------*/
 /* Public macro --------------------------------------------------------------*/
 /* Public variables ----------------------------------------------------------*/
@@ -48,4 +57,7 @@ bool IOPwm_IsIdle(struct IOPwmStruct *ioPwm);
 
 void KeyDetect_PressCheck(struct KeyDetectStruct *key, bool isInterrupted);
 void KeyDetect_Handle(struct KeyDetectStruct *key);
+
+void OperationKeep_Start(struct OperationKeep *operation, uint32_t interval);
+void OperationKeep_Handle(struct OperationKeep *operation);
 #endif
