@@ -43,6 +43,9 @@ struct NBHttpStruct
     char *header;
     char isFinish;
     int16_t currentIndex;
+    uint8_t errorCounter;
+    
+    void (*CallBack_HttpError)();
 };
 
 struct NBStruct
@@ -62,6 +65,7 @@ struct NBStruct
     char **cmdList;
     char *host;
     char *port;
+    char imei[16];                                       // nb模组sn码
     
     struct NBHttpStruct http;
 
@@ -75,6 +79,7 @@ struct NBStruct
     void (*CallBack_RxSecondaryHandle)(char *message, uint16_t len);// 接收处理部分
     void (*CallBack_TxError)(enum NbErrorEnum);                     // 错误处理
     void (*CallBack_TimeUpdate)(uint32_t timeStamp);                // 硬件层 获取新时间
+    void (*CallBack_GetImei)();                                     // 获取IMEI
 };
 
 /* Public variables ----------------------------------------------------------*/
@@ -87,6 +92,7 @@ int NB_DataPackage(struct TxBaseBlockStruct *block, void *param, struct PacketSt
 void NB_StringTrans(const char *string);
 void NB_ErrorHandle(enum NbErrorEnum error);
 void NB_PowerOn();
+void NB_PowerOff();
 void NB_SetProcess(enum ProcessEnum process);
 void NB_SendATCommandList(char **list);
 #endif

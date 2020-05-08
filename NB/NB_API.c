@@ -17,7 +17,6 @@ DATA_PREFIX char *nbConfiguration[] = {
     "AT+CMEE=1\r\n",                        // 开启错误序号提示
     "AT+CPSMS=0\r\n",
     "AT+CGATT=1\r\n",                       // 开始附着
-    "AT+CGSN=1\r\n",
     "AT+CEREG=4\r\n",                       // 开启信息提示
     "AT+CSCON=1\r\n",                       // 打开信号提示自动上报
     NULL,                          
@@ -46,6 +45,7 @@ DATA_PREFIX char *nbOcSet[] = {
 
 DATA_PREFIX char *nbReadSim[] = {
     "AT+CFUN=1\r\n",
+    "AT+CGSN=1\r\n",
     "AT+CIMI\r\n",
     NULL,                          
 };
@@ -88,6 +88,16 @@ void NB_PowerOn()
     /* 有数据时且WIFI电源为切断时，开启WIFI电源，重置运行流程 */    
     NB_POWER_ON();
     NB_SetProcess(Process_Reset);
+}
+/*********************************************************************************************
+
+  * @brief  NB 启动电源
+
+  ********************************************************************************************/    
+void NB_PowerOff()
+{
+    /* 关闭电源 */    
+    NB_POWER_OFF();
 }
 /*********************************************************************************************
 
@@ -310,7 +320,22 @@ void NB_RxHandle(struct RxBaseBlockStruct *rxBlock)
             {   NB_ErrorHandle(NbError_AtError);    }
         }
     }
-
+    
+    // 读取NB的IEMI码
+    location = strstr(message, "+CGSN:");
+    if (location != NULL)
+    {
+        if(nb.imei[0] == 0)
+        {   
+            memcpy(nb.imei, location + 6, 15);
+            nb.imei[15] = '\0';
+            if(nb.CallBack_GetImei != NULL)
+            {   nb.CallBack_GetImei();  }
+        }
+        return; 
+    }
+    
+    
     // 是否附着正常判断 CGATT
     location = strstr(message, "+CGATT:1");
     if (location != NULL)
@@ -350,6 +375,7 @@ void NB_RxHandle(struct RxBaseBlockStruct *rxBlock)
         calendarTemp.sec = NumberString2Uint(location);
         
         nb.CallBack_TimeUpdate(Calendar2TimeStamp(&calendarTemp, 0));
+        return;
     }
     
     // 信号强度判断

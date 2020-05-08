@@ -1,7 +1,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "Tools.h"
 #include "stdarg.h"
-
+#include "Module/Module.h"
 /* Private typedef -----------------------------------------------------------*/
 /* Private define ------------------------------------------------------------*/
 /* Private macro --------------------------------------------------------------*/
@@ -36,7 +36,7 @@ void Delay_us(uint16_t count)
 {
     while (count--)
     {
-        for (uint16_t j = 0;  j < (CPU_1US_COUNT >> 2); j++)
+        for (uint16_t j = 0;  j < (CPU_1US_COUNT >> 3); j++)
         {   ;   }
     }
 }
@@ -51,7 +51,10 @@ void Delay_us(uint16_t count)
   ********************************************************************************************/
 void Log(struct LogStruct *log, const char *format, ...)
 {
-	char logContent[512] = {0};
+	char *logContent = (char*)Malloc(512);
+    if(logContent == NULL)
+    {   return; }
+    
     if(log->CallBack_Transmit == NULL)
     {   return; }
     
@@ -68,5 +71,7 @@ void Log(struct LogStruct *log, const char *format, ...)
 	va_end(args);
     
     log->CallBack_Transmit((uint8_t *)logContent, strlen(logContent));
+    
+    Free(logContent);
 }
 

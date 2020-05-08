@@ -103,7 +103,7 @@ void Priority_LevelHandle(struct TaskUnitStruct* task, void* param)
         }
         
         task->CallBack_Handle();                            // 处理函数
-        if(FLAG_IS_SET(task->flag, TASK_FLAG_HANDLING) == false)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 if(FLAG_IS_SET(task->flag, TASK_FLAG_HANDLING) == false)
         {   FLAG_SET(task->flag, TASK_FLAG_HANDLING);   }   // 置位处理标志位
     }
     
