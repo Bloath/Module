@@ -1,5 +1,6 @@
 /* Includes ----------------------------------------------------------*/
 #include "DataStore.h"
+#include "Module/Module.h"
 
 /* define ------------------------------------------------------------*/
 #define DATA_STORE_WRITE(dst, src, length)                      \
@@ -10,128 +11,115 @@
     }
 /* typedef -----------------------------------------------------------*/
 /* macro -------------------------------------------------------------*/
+#define SAVE_SIZE(size)   (((size % 4) == 0)? size:((size / 4) + 1) * 4)
 /* variables ---------------------------------------------------------*/
 /* function prototypes -----------------------------------------------*/
 /* functions ---------------------------------------------------------*/
 /*********************************************************************************************
 
-  * @brief  存储数据列表初始化
-  * @param  dataStoreList：存储数据列表
-            length：长度
+  * @brief  存储列表添加
+  * @param  dataStore：存储数据
+            address: 要存储的对象的地址
+            length：要存储的对象的长度
   * @param  
-  * @retval 针对列表中的内容，算出来所有数据针对该内容的偏移量，半字对齐（节省空间），不用字节是为了折中效率和空间
+  * @retval 添加到队列中
 
   ********************************************************************************************/
-void DataStore_Init(struct DataStoreUnitStruct *dataStoreList, uint16_t unitCount)
+int DataStore_Add(struct DataStoreStruct *dataStore, void* address, uint16_t size)
 {
-    uint32_t addressTemp = DATA_STORE_START_ADDRESS;
-    
-    for(int i=0; i<unitCount; i++)
-    {
-        dataStoreList[i].__storeAddress = addressTemp;            // 付给存储地址
-        addressTemp += ((dataStoreList[i].length % DATA_STORE_SIZE) == 0)? dataStoreList[i].length:((dataStoreList[i].length / DATA_STORE_SIZE) + 1) * DATA_STORE_SIZE;
-        addressTemp += DATA_STORE_SIZE;                         // 添加CRC校验位
-    }
-}
-/*********************************************************************************************
-
-  * @brief  DataStoreUnit_Write
-  * @param  dataStoreUnit：存储数据单元
-  * @param  
-  * @retval 单独写入一个存储块
-
-  ********************************************************************************************/
-int DataStoreUnit_Write(struct DataStoreUnitStruct *dataStoreUnit)
-{
-    uint8_t offset = dataStoreUnit->length % DATA_STORE_SIZE;
-    uint16_t storeLength = (offset == 0)? dataStoreUnit->length: dataStoreUnit->length - offset + DATA_STORE_SIZE;                  // 计算存储长度
-    uint32_t temp32u = 0;                   // 建立临时变量，作为偏移来处理
-    uint8_t *p = (uint8_t *)&temp32u;       // 临时变量指针
-    uint32_t crc = 0;
-    int writeResult = 0;
-    
-    DATA_STORE_WRITE(dataStoreUnit->__storeAddress, dataStoreUnit->address, (offset == 0)? storeLength: storeLength - DATA_STORE_SIZE);
-    
-    if(offset != 0)
-    {   
-        for(int i=0; i<offset; i++)
-        {   p[i] = *(uint8_t *)(dataStoreUnit->address + dataStoreUnit->length - offset + i);   }                                   // 将剩余的值写入临时变量
-        DATA_STORE_WRITE(dataStoreUnit->__storeAddress + storeLength - DATA_STORE_SIZE, (uint32_t)&temp32u, DATA_STORE_SIZE);                   // 写入
-    }
-    crc = DATA_STORE_CRC(dataStoreUnit->__storeAddress, storeLength);
-    DATA_STORE_WRITE(dataStoreUnit->__storeAddress + storeLength, (uint32_t)&crc, DATA_STORE_SIZE);                                             // 写入CRC
-    
-    return 0;
-}
-/*********************************************************************************************
-
-  * @brief  DataStoreUnit_Restore
-  * @param  dataStoreUnit：存储数据单元
-  * @param  
-  * @retval 单独恢复一个存储块
-
-  ********************************************************************************************/
-int DataStoreUnit_Restore(struct DataStoreUnitStruct *dataStoreUnit)
-{
-    uint8_t offset = dataStoreUnit->length % DATA_STORE_SIZE;
-    uint16_t storeLength = (offset == 0)? dataStoreUnit->length: dataStoreUnit->length - offset + DATA_STORE_SIZE;              // 计算存储长度
-    uint32_t crc = DATA_STORE_CRC(dataStoreUnit->__storeAddress, storeLength);
-    int i = 0;
-    uint8_t *p = (uint8_t *)&crc;
-    
-    for(i=0; i<DATA_STORE_SIZE; i++)
-    {
-        if(*(uint8_t *)(dataStoreUnit->__storeAddress + storeLength + i) != p[i])
-        {   break;  }
-    }
-    
-    if(i != DATA_STORE_SIZE)
+    if(dataStore->dataStoreList == NULL)
     {   return -1;  }
     
-    memcpy((void*)(dataStoreUnit->address), (void*)(dataStoreUnit->__storeAddress), dataStoreUnit->length);
+    dataStore->dataStoreList[dataStore->count].address = address;
+    dataStore->dataStoreList[dataStore->count].size = size;
+    dataStore->dataLength += SAVE_SIZE(size);
+    dataStore->count += 1;
     
     return 0;
 }
-
 /*********************************************************************************************
 
-  * @brief  写入全部数据
-  * @param  dataStoreList: 存储单元指针
-            unitCount：存储单元个数
-  * @retval 
+  写入全部数据
 
   ********************************************************************************************/
-int DataStore_WriteAll(struct DataStoreUnitStruct *dataStoreList, uint16_t unitCount)
+int DataStore_Write(struct DataStoreStruct *dataStore)
 {
+    uint8_t *tempArray = NULL;
+    uint32_t crc = 0, tempAddress;
     int result = 0;
-    int flag = 0;
-    for(int i=0; i<unitCount; i++)
+    
+    /* 1. 检查读写回调函数是否为空 */
+    if(dataStore->CallBack_HalWrite == NULL)
+    {   return -1;  }
+    
+    /* 2. 申请内存准备存放数据 */
+    tempArray = (uint8_t *)Malloc(dataStore->dataLength + 4);
+    if(tempArray == NULL)
+    {   return -2;  }
+    memset(tempArray, 0, dataStore->dataLength + 4);
+    
+    /* 3. 将需要存储的数据填充到临时数组中 */
+    tempAddress = (uint32_t)tempArray;
+    for(int i=0; i<dataStore->count; i++)
     {   
-        result = DataStoreUnit_Write(dataStoreList + i);  
-        if(result != 0)
-        {   flag |= (1<<i);   }
+        memcpy((void*)tempAddress, 
+               dataStore->dataStoreList[i].address, 
+               dataStore->dataStoreList[i].size);   
+        tempAddress += SAVE_SIZE(dataStore->dataStoreList[i].size);
     }
     
-    return flag;
+    /* 4. 计算CRC并填充到数据中 */
+    crc = Crc32(tempArray, dataStore->dataLength, 0xFFFFFFFF);
+    memcpy(tempArray + dataStore->dataLength, &crc, 4);
+    
+    /* 5. 写入存储设备中 */
+    result = dataStore->CallBack_HalWrite((uint32_t)(dataStore->startAddress), (uint32_t)tempArray, dataStore->dataLength + 4);
+    
+    Free(tempArray);
+    
+    return result;
 }
 /*********************************************************************************************
 
-  * @brief  恢复全部数据
-  * @param  dataStoreList: 存储单元指针
-            unitCount：存储单元个数
-  * @retval 
+  恢复全部数据
 
   ********************************************************************************************/
-int DataStore_RestoreAll(struct DataStoreUnitStruct *dataStoreList, uint16_t unitCount)
+int DataStore_Restore(struct DataStoreStruct *dataStore)
 {
+    uint8_t *tempArray = NULL;
+    uint32_t crc = 0, tempAddress;
     int result = 0;
-    int flag = 0;
-    for(int i=0; i<unitCount; i++)
-    {   
-        result = DataStoreUnit_Restore(dataStoreList + i);  
-        if(result != 0)
-        {   flag |= (1<<i);   }   
+    
+    /* 1. 检查读写回调函数是否为空 */
+    if(dataStore->CallBack_HalRead == NULL)
+    {   return -1;  }
+    
+    /* 2. 申请内存准备存放数据 */
+    tempArray = (uint8_t *)Malloc(dataStore->dataLength + 4);
+    if(tempArray == NULL)
+    {   return -2;  }
+    memset(tempArray, 0, dataStore->dataLength + 4);
+    
+    /* 3.将数据读取出来并计算crc */
+    dataStore->CallBack_HalRead((uint32_t)tempArray, dataStore->startAddress, dataStore->dataLength +  4);
+    crc = Crc32(tempArray, dataStore->dataLength, 0xFFFFFFFF);
+    
+    /* 4. 校验crc是否正确 */
+    if(crc != *(uint32_t *)(tempArray + dataStore->dataLength))
+    {   return -2;  }
+    
+    /* 5. 恢复数据 */
+    tempAddress = (uint32_t)(tempArray);
+    for(int i=0; i<dataStore->count; i++)
+    {
+        memcpy(dataStore->dataStoreList[i].address,
+               (void*)tempAddress,
+               dataStore->dataStoreList[i].size);
+        tempAddress += SAVE_SIZE(dataStore->dataStoreList[i].size);
     }
     
-    return flag;
+    /* 释放内存 */
+    Free(tempArray);
+    
+    return 0;
 }
