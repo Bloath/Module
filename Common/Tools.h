@@ -19,7 +19,7 @@ struct LogStruct
 /* Private function prototypes ------------------------------------------------*/
 void Delay_ms(uint16_t count);
 void Delay_us(uint16_t count);
-void Log(struct LogStruct *log, const char *format, ...);
+void Log(struct LogStruct *log, uint8_t level, const char *format, ...);
 uint32_t Crc32(void *start, uint32_t length, uint32_t crcLast);
 
 #endif
