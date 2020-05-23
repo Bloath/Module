@@ -30,6 +30,26 @@
         }                                               \
     }
 
+#define Array_Sum(array, length, base)                  \
+    {                                                   \
+        for (uint16_t __i = 0; __i < length; __i++)     \
+        {                                               \
+            base += array[__i];                         \
+        }                                               \
+    }
+
+#define Array_MaxIndex(array, length, index)            \
+    {                                                   \
+        index = 0;                                      \
+        for (uint16_t __i = 1; __i < length; __i++)     \
+        {                                               \
+            if (array[__i] > array[index])              \
+            {                                           \
+                index = __i;                            \
+            }                                           \
+        }                                               \
+    }
+
 #define Array_SortAsc(array, length)                                    \
     {                                                                   \
         for (uint16_t __i = 0; __i < length; __i++)                     \

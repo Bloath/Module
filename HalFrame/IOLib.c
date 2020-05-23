@@ -186,3 +186,36 @@ void KeyDetect_Handle(struct KeyDetectStruct *key)
 		{   key->CallBack_KeyRaiseHandle(key, SYSTIME - key->__time); }
 	}
 }
+/*********************************************************************************************
+
+  * @brief  OptKeep_Start
+  * @param  operation: 操作指针
+            interval: 持续时间
+  * @return 
+  * @remark  操作保持开始
+
+  ********************************************************************************************/
+void OperationKeep_Start(struct OperationKeep *operation, uint32_t interval)
+{
+    operation->CallBack_IOOperation(true);
+    operation->time = *(operation->referenceTime);
+    operation->interval = interval;
+    operation->isRunning = true;
+}
+/*********************************************************************************************
+
+  * @brief  OptKeep_Handle
+  * @param  operation: 操作指针
+  * @return 
+  * @remark 
+
+  ********************************************************************************************/
+void OperationKeep_Handle(struct OperationKeep *operation)
+{
+    if(operation->isRunning == true
+       && (operation->time + operation->interval) < *(operation->referenceTime))
+    {
+        operation->CallBack_IOOperation(false);
+        operation->isRunning = false;
+    }
+}

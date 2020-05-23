@@ -119,10 +119,10 @@ struct DmaBufferStruct
 };
 
 /* Public macro --------------------------------------------------------------*/
-#define  STM32_DMA_INIT(uart, buffer)                               \
-        {                                                           \
-            HAL_UART_Receive_DMA(&uart, buffer, sizeof(buffer));    \
-            SET_BIT(uart.Instance->CR1, USART_CR1_IDLEIE);          \
+#define  STM32_DMA_INIT(uart, buffer)                                   \
+        {                                                               \
+            HAL_UART_Receive_DMA(&uart, buffer, sizeof(buffer));        \
+            SET_BIT(uart.Instance->CR1, USART_CR1_IDLEIE);              \
         }
         
 #define STM32_RX_HANDLE(uart, dma)                                      \
