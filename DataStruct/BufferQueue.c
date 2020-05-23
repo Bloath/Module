@@ -435,6 +435,25 @@ void TxQueue_FreeByIndex(struct TxQueueStruct *txQueue, uint8_t index)
 }
 /*********************************************************************************************
 
+  * @brief  清除分包数据
+  * @param  txBlock：发送结构体指针
+  * @return 
+  * @remark 
+
+  ********************************************************************************************/
+void TxQueue_FreeBatch(struct TxQueueStruct *txQueue)
+{
+    for (uint8_t i = 0; i < BLOCK_COUNT; i++)
+    {
+        if ((txQueue->__txBlocks[i].flag & TX_FLAG_USED) != 0)
+        {   
+            if(txQueue->__txBlocks[i].currentIndex >= txQueue->__txBlocks[i].length)
+            {   TxQueue_FreeBlock(txQueue, txQueue->__txBlocks + i);  }
+        }
+    }
+}
+/*********************************************************************************************
+
   * @brief  清除所有缓冲
   * @param  txBlock：发送结构体指针
   * @return 

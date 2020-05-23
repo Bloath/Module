@@ -66,7 +66,7 @@ void Priority_LevelHandle(struct TaskUnitStruct* task, void* param)
         if(FLAG_IS_SET(task->flag, TASK_FLAG_HANDLING) == true && task->CallBack_Finish != NULL)
         {   task->CallBack_Finish();    }               // 调用完成回调
         task->flag = 0;                                 // 清空标志位
-        
+        task->time = 0;
         return;
     }
    
@@ -86,6 +86,9 @@ void Priority_LevelHandle(struct TaskUnitStruct* task, void* param)
             1. init
             2. unpause
             3. handle，在handle出现返回值为true时，表示完成，调用finish  */
+        if(task->time == 0)
+        {   task->time = SYSTIME;   }
+      
         // 如果没有初始化，则初始化
         if(FLAG_IS_SET(task->flag, TASK_FLAG_INIT) == false)
         {
@@ -152,4 +155,16 @@ void Priority_Handle(struct PriorityStruct *priorityObj)
     Priority_LoopTaskList(priorityObj, Priority_LevelHandle, &level); 
     if(level != priorityObj->currentLevel)                       
     {   priorityObj->currentLevel = level;  }
+}
+/*********************************************************************************************
+
+  * @brief  Priority_TaskkeepTime
+  * @param  task: 需要查询的任务
+  * @return 
+  * @remark 
+
+  ********************************************************************************************/
+int Priority_TaskkeepTime(struct TaskUnitStruct* task)
+{
+    return (task->time == 0)? 0: SYSTIME - task->time;
 }

@@ -19,6 +19,6 @@ struct LogStruct
 /* Private function prototypes ------------------------------------------------*/
 void Delay_ms(uint16_t count);
 void Delay_us(uint16_t count);
-void Log(struct LogStruct *log, const char *format, ...);
+void Log(struct LogStruct *log, uint8_t level, const char *format, ...);
 
 #endif

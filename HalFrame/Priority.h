@@ -12,6 +12,7 @@ struct TaskUnitStruct
     void (*CallBack_Finish)();          // 完成
     void (*CallBack_Pause)();           // 暂停
     void (*CallBack_Unpause)();         // 恢复暂停
+    uint32_t time;                      // 时间
     uint16_t flag;                      // 标志位
     uint8_t level;                      // 等级
 };
@@ -34,5 +35,5 @@ struct PriorityStruct
 /* functions -----------------------------------------------------------------*/
 void Priority_AddTask(struct PriorityStruct *priorityObj, struct TaskUnitStruct *taskObj, uint8_t level);
 void Priority_Handle(struct PriorityStruct *priorityObj);
-
+int Priority_TaskkeepTime(struct TaskUnitStruct* task);
 #endif

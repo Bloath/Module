@@ -151,6 +151,7 @@ void TxQueue_FreeByFunc(struct TxQueueStruct *txQueue, bool (*func)(struct TxBas
 void TxQueue_FreeById(struct TxQueueStruct *txQueue, TX_ID_SIZE id);                                           // 通过ID，释放指定发送块
 void TxQueue_FreeByIndex(struct TxQueueStruct *txQueue, uint8_t index);                                        // 通过Index，释放制定发送快
 void TxQueue_FreeAll(struct TxQueueStruct *txQueue);
+void TxQueue_FreeBatch(struct TxQueueStruct *txQueue);
 
 void DmaBuffer_Init(struct DmaBufferStruct *dmaBuffer, uint8_t *buffer, uint16_t bufferSize);                  // 
 void DmaBuffer_IdleHandle(struct DmaBufferStruct *dmaBuffer, uint16_t remainCount);

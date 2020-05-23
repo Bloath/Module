@@ -49,8 +49,16 @@ void Delay_us(uint16_t count)
   * @remark 
 
   ********************************************************************************************/
-void Log(struct LogStruct *log, const char *format, ...)
+void Log(struct LogStruct *log, uint8_t level, const char *format, ...)
 {
+#ifdef LOG_LEVEL
+    uint8_t logLevel = LOG_LEVEL;
+#else
+    uint8_t logLevel = 0;
+#endif
+    if(level < logLevel)
+    {   return; }
+    
 	char *logContent = (char*)Malloc(512);
     if(logContent == NULL)
     {   return; }
