@@ -130,6 +130,8 @@ void Log(struct LogStruct *log, uint8_t level, const char *format, ...)
     if(logContent == NULL)
     {   return; }
     
+    memset(logContent, 0, 512);
+    
     if(log->CallBack_Transmit == NULL)
     {   return; }
     
