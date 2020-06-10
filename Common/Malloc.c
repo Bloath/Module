@@ -24,7 +24,7 @@ void *Malloc(size_t size)
   
     DISABLE_ALL_INTERRPUTS();
     
-    uint8_t *pool = (uint8_t *)mmu.__mallocPool;          // mmu.mallocPool为32位数组（为了对齐），下面的操作都是使用字节数组
+    uint8_t *pool = (uint8_t *)mmu._mallocPool;          // mmu.mallocPool为32位数组（为了对齐），下面的操作都是使用字节数组
 
     /* 通过size的大小转换为申请块的个数，例如块宽度为32字节，申请size为33，则申请2块，31则申请1块 */
     MALLOC_BLOCK_COUNT_SIZE applyBlockCount = ((size % MALLOC_BLOCK_SIZE) == 0) ? (size / MALLOC_BLOCK_SIZE) : (size / MALLOC_BLOCK_SIZE + 1); 
@@ -42,7 +42,7 @@ void *Malloc(size_t size)
     /* 循环查找是否有合适的区域，连续多个块的值不为0 */
     for (index = 0; index < MALLOC_BLOCK_COUNT; index++)
     {
-        tempCounter = (mmu.__blocks[index] == 0) ? (tempCounter + 1) : 0;
+        tempCounter = (mmu._blocks[index] == 0) ? (tempCounter + 1) : 0;
         if (tempCounter == applyBlockCount)
         {   break;  }
     }
@@ -53,7 +53,7 @@ void *Malloc(size_t size)
         mmu._usedBlockQuantity += applyBlockCount;                                   // 使用块个数累加
         
         for (i = 0; i < applyBlockCount; i++)
-        {   mmu.__blocks[index - applyBlockCount + i + 1] = applyBlockCount;  }       // 通过循环，将块管理中对应块的地址填充（标记为可用，内容为申请块个数）
+        {   mmu._blocks[index - applyBlockCount + i + 1] = applyBlockCount;  }       // 通过循环，将块管理中对应块的地址填充（标记为可用，内容为申请块个数）
 
         ENABLE_ALL_INTERRPUTS();
         return (void *)(pool + (index - applyBlockCount + 1) * MALLOC_BLOCK_SIZE);
@@ -90,14 +90,14 @@ void Free(void *pointer)
 {
     DISABLE_ALL_INTERRPUTS();
 
-    MALLOC_BLOCK_COUNT_SIZE index = ((uint32_t)pointer - (uint32_t)mmu.__mallocPool) / MALLOC_BLOCK_SIZE; // 查找属于哪一块
-    MALLOC_BLOCK_COUNT_SIZE len = mmu.__blocks[index];                                                    // 查找其所占长度
+    MALLOC_BLOCK_COUNT_SIZE index = ((uint32_t)pointer - (uint32_t)mmu._mallocPool) / MALLOC_BLOCK_SIZE; // 查找属于哪一块
+    MALLOC_BLOCK_COUNT_SIZE len = mmu._blocks[index];                                                    // 查找其所占长度
     mmu._usedBlockQuantity -= len;
 
     //memset(pointer, 0, len * MALLOC_BLOCK_SIZE);
     
     for (MALLOC_BLOCK_COUNT_SIZE i = 0; i < len; i++)
-    {   mmu.__blocks[index + i] = 0;  } // 在管理单元中释放该位
+    {   mmu._blocks[index + i] = 0;  } // 在管理单元中释放该位
 
     ENABLE_ALL_INTERRPUTS();
 }

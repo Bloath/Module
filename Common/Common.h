@@ -5,9 +5,9 @@
 #include "Malloc.h"
 #include "Tools.h"
 #include "Convert.h"
-#include "StringPlus.h"
 #include "ArrayMacro.h"
 #include "DataMacro.h"
+#include "MD5.h"
 
 /* Public define -------------------------------------------------------------*/
 /* Public macro --------------------------------------------------------------*/

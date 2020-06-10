@@ -147,7 +147,7 @@ void Log(struct LogStruct *log, uint8_t level, const char *format, ...)
 	vsprintf(logContent + strlen(logContent), format, args);
 	va_end(args);
     
-    log->CallBack_Transmit((uint8_t *)logContent, strlen(logContent));
+    log->CallBack_Transmit((uint8_t *)logContent, strlen(logContent), log->param);
     
     Free(logContent);
 }

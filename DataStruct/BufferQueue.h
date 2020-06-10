@@ -51,17 +51,14 @@ struct PacketStruct
     uint16_t length;
 };
 
-struct RxBaseBlockStruct
+struct RxUnitStruct
 {
     uint8_t flag;
     uint8_t *message;
     uint16_t length;
-#ifdef BLOCK_WITH_PARAM
-    void *param;
-#endif
 }; //接收块
 
-struct TxBaseBlockStruct
+struct TxUnitStruct
 {
     uint8_t *message;
     uint16_t length;
@@ -70,10 +67,7 @@ struct TxBaseBlockStruct
     uint16_t currentIndex;
     TX_ID_SIZE id;
     uint8_t seqId;
-#ifdef BLOCK_WITH_PARAM
-    void *param;
-#endif
-#ifdef TX_BLOCK_TIMEOUT
+#ifdef TX_UNIT_TIMEOUT
     uint32_t time;
 #endif
 }; // 发送块
@@ -81,39 +75,41 @@ struct TxBaseBlockStruct
 //***********************高级块缓冲单位************************
 struct TxQueueStruct
 {
-    struct TxBaseBlockStruct __txBlocks[BLOCK_COUNT];       // 数据块
-    uint32_t __time;                                        // 对不同的发送函数来说，有着不同的发送间隔，需要进行单独设置
-    uint8_t seqId;                                          // 序列ID，为有序发送准备
+    struct TxUnitStruct _txUnits[UNIT_COUNT];       // 数据块
+    uint32_t _time;                                  // 对不同的发送函数来说，有着不同的发送间隔，需要进行单独设置
+    uint8_t _seqId;                                  // 序列ID，为有序发送准备
     
     uint8_t _usedBlockQuantity;                     // 已使用的块数量
     uint8_t _lastIndex;                             // 上一次发送的索引
     bool isTxUnordered;                             // 是否无序发送
     uint16_t maxTxCount;                            // 最大重发次数
     uint16_t interval;                              // 发送间隔
+    void *param;
     
-    bool (*CallBack_Transmit)(uint8_t *, uint16_t);                                             // 发送函数
-    bool (*CallBack_TransmitUseBlock)(struct TxBaseBlockStruct *txBlock);                       // 通过块发送
-    void (*CallBack_AutoClearBlock)(struct TxBaseBlockStruct *, enum BlockFreeMethodEnum );     // 自动清除回调
-    int (*CallBack_PackagBeforeTransmit)(struct TxBaseBlockStruct *, struct PacketStruct *);    // 在发送前的组包处理，返回组完的包，需要通过Free释放
+    bool (*CallBack_Transmit)(uint8_t *, uint16_t, void *);                                             // 发送函数
+    bool (*CallBack_TransmitUseBlock)(struct TxUnitStruct *txBlock, void *);                       // 通过块发送
+    void (*CallBack_AutoClearBlock)(struct TxUnitStruct *, enum BlockFreeMethodEnum, void *);     // 自动清除回调
+    int (*CallBack_PackagBeforeTransmit)(struct TxUnitStruct *, struct PacketStruct *, void *);    // 在发送前的组包处理，返回组完的包，需要通过Free释放
 };// 发送块缓冲队列
 
 struct RxQueueStruct
 {
-    struct RxBaseBlockStruct __rxBlocks[BLOCK_COUNT];
-    uint32_t __time;
-    uint16_t _usedBlockQuantity;  
+    struct RxUnitStruct _rxUnits[UNIT_COUNT];
+    uint32_t _time;
+    uint16_t _usedBlockQuantity;
+    void *param;
     
-    void (*CallBack_RxPacketHandle)(struct RxBaseBlockStruct *);                // 接收数据包处理
-    bool (*CallBack_BeforeFree)(struct RxBaseBlockStruct *);                    // 在清除之前的回调，防止某些debug应用多次申请空间复制。  
+    void (*CallBack_RxPacketHandle)(struct RxUnitStruct *, void *);                // 接收数据包处理
+    bool (*CallBack_BeforeFree)(struct RxUnitStruct *, void *);                    // 在清除之前的回调，防止某些debug应用多次申请空间复制。  
 }; //接收块缓冲队列
 
 struct DmaBufferStruct
 {
-    struct RxQueueStruct _rxQueue;              // 发送缓冲队列
-    uint8_t *_buffer;                           // DMA环形缓冲池，指针
-    uint16_t __bufferLength;                    // 缓冲池大小
-    uint16_t __start;                           // 头位置标记
-    uint16_t __end;                             // 尾位置标记
+    struct RxQueueStruct rxQueue;               // 发送缓冲队列
+    uint8_t *buffer;                            // DMA环形缓冲池，指针
+    uint16_t bufferLength;                      // 缓冲池大小
+    uint16_t _start;                            // 头位置标记
+    uint16_t _end;                              // 尾位置标记
     
     void (*CallBack_MallocFail)();              // 接收数据过长，缓冲没地方
 };
@@ -147,7 +143,7 @@ int TxQueue_AddWithId(struct TxQueueStruct *txQueue, uint8_t *message, uint16_t 
 int TxQueue_Handle(struct TxQueueStruct *txQueue);                                                                      // 发送报文队列处理
 void TxQueue_TimeSync(struct TxQueueStruct *txQueue, uint32_t time);
 
-void TxQueue_FreeByFunc(struct TxQueueStruct *txQueue, bool (*func)(struct TxBaseBlockStruct*, void *), void *para);  // 通过指定函数，释放指定发送块
+void TxQueue_FreeByFunc(struct TxQueueStruct *txQueue, bool (*func)(struct TxUnitStruct*, void *), void *para);  // 通过指定函数，释放指定发送块
 void TxQueue_FreeById(struct TxQueueStruct *txQueue, TX_ID_SIZE id);                                           // 通过ID，释放指定发送块
 void TxQueue_FreeByIndex(struct TxQueueStruct *txQueue, uint8_t index);                                        // 通过Index，释放制定发送快
 void TxQueue_FreeAll(struct TxQueueStruct *txQueue);

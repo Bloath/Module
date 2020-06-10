@@ -19,7 +19,9 @@ enum ProcessEnum
 {
     Process_Init = 0,
     Process_Idle,
+    Process_BeforeStart,
     Process_Start,
+    Process_BeforeRun,
     Process_Run,
     Process_RunWait,
     Process_BeforeFinish,

@@ -98,7 +98,7 @@ bool ESP8266_IsIdle();
 void ESP8266_Reset();
 void ESP8266_PowerOn();
 void ESP8266_EnableAirkiss();
-void ESP8266_RxMsgHandle(struct RxBaseBlockStruct *rxBlock);
+void ESP8266_RxMsgHandle(struct RxUnitStruct *rxBlock, void *param);
 void ESP8266_SendAtString(const char *cmd);
 void ESP8266_ErrorHandle(enum ESP8266_Error errorType);
 

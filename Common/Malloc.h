@@ -15,14 +15,16 @@ enum MallocErrorEnum
 
 struct MemoryManageUnitcStruct
 {
-    uint32_t __mallocPool[MALLOC_POOL_SIZE];                    // 采用32位，其目的是为了对齐
-    MALLOC_BLOCK_COUNT_SIZE __blocks[MALLOC_BLOCK_COUNT];       // 32位为一块，每一块
+    uint32_t _mallocPool[MALLOC_POOL_SIZE];                    // 采用32位，其目的是为了对齐
+    MALLOC_BLOCK_COUNT_SIZE _blocks[MALLOC_BLOCK_COUNT];       // 32位为一块，每一块
     MALLOC_BLOCK_COUNT_SIZE _usedBlockQuantity;
     int (*CallBack_Error)(enum MallocErrorEnum mallocError);
 };
 
 /* Public define -------------------------------------------------------------*/
 /* Public macro --------------------------------------------------------------*/
+#define FREE_NON_NULL(pointer)  {   if(pointer != NULL){Free(pointer);pointer=NULL;} }
+
 /* Public variables ----------------------------------------------------------*/
 extern struct MemoryManageUnitcStruct mmu;
 

@@ -10,53 +10,27 @@ extern struct TxQueueStruct debugTxQueue;
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 
-/*********************************************************************************************
 
-  * @brief  
-  * @param   
-  * @return 
-  * @remark 
-
-  ********************************************************************************************/
- void NB_OC_HandleBeforeNetting()
- {
-    NB_SendATCommandList(nbOcSet);
- } 
 
 /*********************************************************************************************
 
-  * @brief  
-  * @param   
-  * @return 
-  * @remark 
+    NB OC平台 数据接收处理
 
   ********************************************************************************************/
- void NB_OC_ReceiveHandle(char *message, uint16_t len)
+ void NB_OC_ReceiveHandle(struct RxUnitStruct *unit, void *param)
  {   
-    if (nb._process.last == Process_Start && strstr(message, "OK"))
-    {   NB_SetProcess(Process_Run);    }
+    struct NBSocketStruct *socket = (struct NBSocketStruct *)param;
    
-    // 接收到日期 -> 正式进入发送状态
-    char *location = strstr(message, "+CCLK");
-    if (location != NULL)
-    {
-        struct CalendarStruct calendar;
-        calendar.year = 2000 + (location[6] - 0x30) * 10 + location[7] - 0x30;
-        calendar.month = (location[9] - 0x30) * 10 + location[10] - 0x30;
-        calendar.day = (location[12] - 0x30) * 10 + location[13] - 0x30;
-        calendar.hour = (location[15] - 0x30) * 10 + location[16] - 0x30;
-        calendar.min = (location[18] - 0x30) * 10 + location[19] - 0x30;
-        calendar.sec = (location[21] - 0x30) * 10 + location[22] - 0x30;
-        //uint8_t timeZone = (location[24] - 0x30) * 10 + location[25] - 0x30;
-        TIMESTAMP = Calendar2TimeStamp(&calendar, 0);
-    }
+    if (nb._process.last == Process_Start && strstr((char *)(unit->message), "OK"))
+    {   PROCESS_CHANGE_WITH_TIME(nb._process, Process_Run, REALTIME);    }
+   
     
      // 接收到数据
-    if (strstr(message, "+NNMI") != NULL)
+    if (strstr((char *)(unit->message), "+NNMI") != NULL)
     {
         nb._errorCounter = 0;
 
-        char *tempPointer = (char *)message;
+        char *tempPointer = (char *)unit->message;
         bool isNeedCheck = false;
         for (uint8_t i = 0; i < 10; i++)
         {
@@ -74,9 +48,9 @@ extern struct TxQueueStruct debugTxQueue;
             }
             else
             {
-                msgStr = String_CutByChr(tempPointer, ',', '\r');
-                tempPointer = strstr(tempPointer, "\r");
-                isNeedCheck = true;
+//                msgStr = String_CutByChr(tempPointer, ',', '\r');
+//                tempPointer = strstr(tempPointer, "\r");
+//                isNeedCheck = true;
             }
     
             // 收到AAA000,则清除最后一条回复
@@ -88,7 +62,7 @@ extern struct TxQueueStruct debugTxQueue;
                 int count = HexString2Msg(&msg, msgStr + 10, 0);                    // 转换为字节数组格式
                 if(count > 0)
                 {   
-                    RxQueue_Add(nb.rxQueueApp, msg, count, true);        // 填充到接收缓冲当中
+                    RxQueue_Add(&(socket->rxQueueApp), msg, count, true);        // 填充到接收缓冲当中
                     
                     // 只有在抓换成功后，才回复确认
                     msgStr[1] = 0x33;
@@ -99,7 +73,7 @@ extern struct TxQueueStruct debugTxQueue;
                     if(response != NULL)
                     {
                         sprintf(response, "AT+NMGS=5,%s\r\n", msgStr);
-                        NB_StringTrans(response);
+                        NB_HalTransmit((uint8_t *)response, strlen(response), unit);
                         Free(response);
                     }
                 }
@@ -113,33 +87,32 @@ extern struct TxQueueStruct debugTxQueue;
  }
 /*********************************************************************************************
 
-  * @brief  NB_DataPackage
-  * @param  block
-  * @retval 无
-  * @remark -1 Malloc失败
+    NB OC平台数据打包
 
   ********************************************************************************************/
-int NB_OC_PacketPackage(struct TxBaseBlockStruct *block, struct PacketStruct *packet)//需要处理Malloc
+int NB_OC_PacketPackage(struct TxUnitStruct *unit, struct PacketStruct *packet, void *param)//需要处理Malloc
 {
+    struct NBSocketStruct *socket = (struct NBSocketStruct *)param;
+    
     /* 申请内存
        AT+NMGS= 8位
        长度+逗号 4位
        \r\n 2位      */
-    uint16_t totalLen = 40 + block->length * 4;
+    uint16_t totalLen = 40 + unit->length * 4;
     char *msg = (char *)Malloc(totalLen);
     memset(msg, 0, totalLen);
     if(msg == NULL)
     {   return -1;  }
     
-    if(block->length == 69)
+    if(unit->length == 69)
     {   totalLen = 1;   }
     
-    uint8_t prefix[3] = {1, (uint8_t)((block->length * 2) >> 8), (uint8_t)(block->length * 2)};
+    uint8_t prefix[3] = {1, (uint8_t)((unit->length * 2) >> 8), (uint8_t)(unit->length * 2)};
     
     /* 拼接指令协议 */
-    sprintf(msg, "AT+NMGS=%d,", block->length * 2 + 3);
+    sprintf(msg, "AT+NMGS=%d,", unit->length * 2 + 3);
     Msg2HexString(msg + strlen(msg) + 1, prefix, 3);                                
-    Msg2HexString(msg + strlen(msg) + 1, block->message, block->length);  // 填充报文
+    Msg2HexString(msg + strlen(msg) + 1, unit->message, unit->length);  // 填充报文
     strcat(msg, "\r\n");                                // 填充换行
 
     packet->data = (uint8_t *)msg;
@@ -147,75 +120,58 @@ int NB_OC_PacketPackage(struct TxBaseBlockStruct *block, struct PacketStruct *pa
     
     return 0;
 }
+
 /*********************************************************************************************
 
-  * @brief  
-  * @param   
-  * @return 
-  * @remark 
+    NB HTTP AT 接收处理
 
   ********************************************************************************************/
-void NB_Http_StartConnect()
- {
-    char *httpCreate = NULL;
-    httpCreate = (char *)Malloc(64);
-    memset(httpCreate, 0, 64);
-
-    sprintf(httpCreate, "AT+HTTPCREATE=\"http://%s:%s/\"\r\n", nb.host, nb.port);
-    NB_StringTrans(httpCreate);
-    Free(httpCreate);
- } 
-/*********************************************************************************************
-
-  * @brief  
-  * @param   
-  * @return 
-  * @remark 
-
-  ********************************************************************************************/
-void NB_HttpGet_ReceiveHandle(char *message, uint16_t len)
+void NB_Http_ReceiveHandle(struct RxUnitStruct *unit, void *param)
  {
    char *location = NULL, *temp = NULL;
-   cJSON *json = NULL;
+   struct NBSocketStruct *socket = (struct NBSocketStruct *)param;
+   struct HttpParamStruct *httpParam = (struct HttpParamStruct*)(socket->param);
+   int32_t temp32;
    
-     // 是否正常打开SOCKET
-    if (nb._process.last == Process_Start)
+   location = strstr((char *)(unit->message), "+HTTPDISCON:0");
+   if(location != NULL)
+   {    NB_ErrorHandle(NBError_ConnectError);  }
+
+    // 打开socket的处理
+    location = strstr((char *)(unit->message), "+HTTPCREATE");
+    if(location != NULL)
     {
-        if(strstr(message, "ERROR"))
-        {   NB_ErrorHandle(NBError_ConnectError);   }
-        else
-        {
-            location = strstr(message, "\r\n\r\nOK\r\n");
-            location -= 1;
-            if( *location >= 30 && *location <= 0x39)
-            {
-                nb.socketId = *location - 0x30;
-                NB_SetProcess(Process_Run);
-                PROCESS_CHANGE_WITH_TIME(nb.http.__process, Process_Init, REALTIME);
-            }
-            else
-            {   NB_ErrorHandle(NBError_ConnectError);  }
-        }
+        sscanf(location, "+HTTPCREATE:%d\r\nOK", &temp32);
+        socket->_socketId = temp32;
+        FLAG_SET(socket->_flag, NBSOCKET_FLAG_CREATED)
+        PROCESS_CHANGE(nb.socketCurrent->_process, Process_BeforeStart);
         return;
     }
-    
+   
+    // 发送过程中的处理问题
     if(nb._process.last == Process_Run)
     {
-        location = strstr(message, "OK");
+        location = strstr((char *)(unit->message), "OK");
         if(location != NULL)
         {
-            NB_SetProcess(Process_Run);
-            nb.http.__process.current = nb.http.__process.last;
-            switch(nb.http.__process.current)
+            switch(socket->_process.current)
             {
-            case Process_Init:
-                PROCESS_CHANGE_WITH_TIME(nb.http.__process, Process_Start, REALTIME);
+            case Process_BeforeStart:
+                httpParam->_counterConfig += 1;
+                if(httpParam->config[httpParam->_counterConfig] == NULL)
+                {   
+                    PROCESS_CHANGE_WITH_TIME(socket->_process, Process_Start, REALTIME);    
+                    httpParam->_counterConfig = 0;
+                }
                 break;
             case Process_Start:
-                PROCESS_CHANGE_WITH_TIME(nb.http.__process, Process_Run, REALTIME); 
+                PROCESS_CHANGE_WITH_TIME(socket->_process, Process_BeforeRun, REALTIME); 
+                break;
+            case Process_BeforeRun:
+                PROCESS_CHANGE_WITH_TIME(socket->_process, Process_Run, REALTIME);
                 break;
             case Process_Run:
-                PROCESS_CHANGE_WITH_TIME(nb.http.__process, Process_Wait, REALTIME);
+                PROCESS_CHANGE_WITH_TIME(socket->_process, Process_Wait, REALTIME);
                 break;
             }
         }        
@@ -223,49 +179,51 @@ void NB_HttpGet_ReceiveHandle(char *message, uint16_t len)
 
     
     // 获取到内容则为+HTTPNMIC，获取到头则为+HTTPNMIH
-    location = strstr(message, "+HTTPNMIC");
+    location = strstr((char *)(unit->message), "+HTTPNMIC");
     if (location != NULL)
     {
-        nb._errorCounter = 0;
-        location = strstr(message, "\r\n{");
-        location += 2;
-            
+        /* 查看当前内容的数量 */
+        sscanf(location, "+HTTPNMIC:%*d,%*d,%*d,%*d,%d\r\n", &temp32);
+        if(temp32 == 0)
+        {   return; }
+        
+        location = strstr(location, "\r\n");
+        
         /* 回复body提取可用字符串 */
         if (location != NULL)
         {                 
-            /* 找到换行符，将换行符改为结束符，再对报文进行转换 */
-            temp = strstr(location, "}\r\n\r\n");
-            if(temp != NULL)
-            {   temp[1] = '\0';   }
-            
-            RxQueue_Add(nb.rxQueueApp, location, strlen(location), false);
+            location += 2;
+            location[temp32] = 0;
+            if(temp32 > 500)
+            {   
+                int i=0;
+            }
+            RxQueue_Add(&(socket->rxQueueApp), (uint8_t *)location, temp32, false);
         }     
         else
         {   NB_ErrorHandle(NbError_TxFail);   }
-        return;
+        PROCESS_CHANGE_WITH_TIME(socket->_process, Process_Init, REALTIME);        // 重启发送
     }
  }
 /*********************************************************************************************
 
   * @brief  NB_DataPackage
-  * @param  block
+  * @param  unit
   * @retval 无
   * @remark 
 
   ********************************************************************************************/
-int NB_HttpGet_PacketPackage(struct TxBaseBlockStruct *block, struct PacketStruct *packet)//需要处理Malloc
+int NB_HttpGet_PacketPackage(struct TxUnitStruct *unit, struct PacketStruct *packet, void *param)
 {
-    /* 申请内存
-       AT+NMGS= 8位
-       长度+逗号 4位
-       \r\n 2位      */
-    uint16_t totalLen = 40 + block->length * 2;
+    struct NBSocketStruct *socket = (struct NBSocketStruct *)param;
+  
+    uint16_t totalLen = 40 + unit->length * 2;
     char *msg = (char *)Malloc(totalLen);
     memset(msg, 0, totalLen);
 
     /* 拼接指令协议 */
-    sprintf(msg, "AT+HTTPSEND=%d,0,/communication?message=", nb.socketId);
-    Msg2String(msg + strlen(msg) + 1, block->message, block->length);     // 填充报文
+    sprintf(msg, "AT+HTTPSEND=%d,0,/communication?unit->message=", socket->_socketId);
+    Msg2String(msg + strlen(msg) + 1, unit->message, unit->length);     // 填充报文
     strcat(msg, "\r\n");                                // 填充换行
 
     packet->data = (uint8_t *)msg;
@@ -275,150 +233,373 @@ int NB_HttpGet_PacketPackage(struct TxBaseBlockStruct *block, struct PacketStruc
 }
 /*********************************************************************************************
 
-  * @brief  NB_HttpPost_Transmit
-  * @param  block
-  * @retval 无
-  * @remark 
+    NB HTTP POST 发送
 
   ********************************************************************************************/
 #define SINGLE_TX_LENGTH    800
-//#define TRANS_TX_QUEUE  (nb.txQueueHal)
-//       
-#define TRANS_WITH_DEBUG(message, len)                      \
-    {                                                       \
-        debugTxQueue.CallBack_Transmit(message, len);       \
-        nb.txQueueHal->CallBack_Transmit(message, len);     \
-    }
-          
-#define TRANS_TX_QUEUE  (&debugTxQueue)
-bool NB_HttpPost_Transmit(struct TxBaseBlockStruct *txBlock)
+
+bool NB_Http_Transmit(struct TxUnitStruct *unit, void *param)
 {
-    char stringTemp[200];
+    struct NBSocketStruct *socket = (struct NBSocketStruct *)param;
+    struct HttpParamStruct *httpParam = (struct HttpParamStruct *)(socket->param);
+  
+    char stringTemp[50];
     
     /* 如果超了，则直接返回true */
-    if(txBlock->currentIndex >= txBlock->length)
+    if(unit->currentIndex >= unit->length)
     {   return true;    }
     
     int end = 0;
     
     /* 判断长度，确认新end的位置 */
-    if((txBlock->currentIndex + SINGLE_TX_LENGTH) > txBlock->length)
-    {   end = txBlock->length;  }
+    if((unit->currentIndex + SINGLE_TX_LENGTH) > unit->length)
+    {   end = unit->length;  }
     else
-    {   end = txBlock->currentIndex + SINGLE_TX_LENGTH; }
+    {   end = unit->currentIndex + SINGLE_TX_LENGTH; }
     
     /* 调整位置，前后不能有逗号 */
-    while(txBlock->message[end - 1] != ','
-         && txBlock->message[end - 1] != '}')
+    while(unit->message[end - 1] != ','
+         && unit->message[end - 1] != '}')
     {   end += 1;   }
     
-    switch(nb.http.__process.current)
+    switch(socket->_process.current)
     {
+    /* 启动连接 */
     case Process_Init:
-        sprintf(stringTemp, "AT+HTTPHEADER=%d,\"%s\"\r\n", nb.socketId, nb.http.header);
-        PROCESS_CHANGE_WITH_TIME(nb.http.__process, Process_Wait, REALTIME);
-        NB_StringTrans(stringTemp);
-        break;
-    case Process_Start:
-        
-        sprintf(stringTemp, "AT+HTTPCONTENT=%d,\"", nb.socketId);
-        TRANS_WITH_DEBUG(stringTemp, strlen(stringTemp));
-        
-        /*  判断是否为分批发送
-            1. 是分批发送，则按照id与总长度进行分批发送
-            2. 不是分批发送，则拆分数据进行发送(不与at指令前导合并) */
-        if(FLAG_IS_SET(txBlock->flag, TX_FLAG_IN_BATCHES))
+        /* 如果已经建立了, 则直接切换 */
+        if(FLAG_IS_SET(socket->_flag, NBSOCKET_FLAG_CREATED))
         {   
-            sprintf(stringTemp, "{'id':%d, 'messageType':'section', 'deviceId':'%s', 'totalLength':%d, 'contentLength': %d, 'start':%d, 'end':%d, 'content':\"", 
-                    txBlock->id, 
-                    DEVICE_ID,
-                    txBlock->length, 
-                    end - txBlock->currentIndex,
-                    txBlock->currentIndex, 
-                    end);
-            TRANS_WITH_DEBUG(stringTemp, strlen(stringTemp));
-            TRANS_WITH_DEBUG(txBlock->message + txBlock->currentIndex, end - txBlock->currentIndex); 
-            TRANS_WITH_DEBUG("\"}", 2);
+            PROCESS_CHANGE(socket->_process, Process_BeforeStart);  
+            break;
+        }
+        if(socket->port != NULL)
+        {   sprintf(stringTemp, "AT+HTTPCREATE=\"http://%s:%s/\"\r\n", socket->host, socket->port);    }
+        else
+        {   sprintf(stringTemp, "AT+HTTPCREATE=\"http://%s/\"\r\n", socket->host);    }
+        NB_HalTransmit((uint8_t *)stringTemp, strlen(stringTemp), socket);
+        break;
+   
+    /* 填写头部信息 */
+    case Process_BeforeStart:
+        if(httpParam->config != NULL
+           && httpParam->config[httpParam->_counterConfig] != NULL)
+        {
+            sprintf(stringTemp, httpParam->config[httpParam->_counterConfig], socket->_socketId);
+            NB_HalTransmit((uint8_t *)stringTemp, strlen(stringTemp), socket);
+            socket->_counterError = 0;
+            break;
         }
         else
-        {   TRANS_WITH_DEBUG(txBlock->message, txBlock->length );   }
+        {   PROCESS_CHANGE_WITH_TIME(socket->_process, Process_Start, REALTIME);  }
         
-        TRANS_WITH_DEBUG("\"\r\n", 3);
-        PROCESS_CHANGE_WITH_TIME(nb.http.__process, Process_Wait, REALTIME);
+    /* 填充内容 */
+    case Process_Start:
+        sprintf(stringTemp, "AT+HTTPHEADER=%d,\"", socket->_socketId);
+        NB_HalTransmit((uint8_t *)stringTemp, strlen(stringTemp), socket);
+        NB_HalTransmit((uint8_t *)(httpParam->header), strlen(httpParam->header), socket);
+        NB_HalTransmit("\\r\\n\"\r\n", 7, socket);
+        socket->_counterError = 0;
         break;
+    /**/ 
+    case Process_BeforeRun:
+        if(socket->methodId != 0)
+        {
+            sprintf(stringTemp, "AT+HTTPCONTENT=%d,\"", socket->_socketId);
+            NB_HalTransmit((uint8_t *)stringTemp, strlen(stringTemp), socket);
+            
+            /*  判断是否为分批发送
+                1. 是分批发送，则按照id与总长度进行分批发送
+                2. 不是分批发送，则拆分数据进行发送(不与at指令前导合并) */
+            if(FLAG_IS_SET(unit->flag, TX_FLAG_IN_BATCHES))
+            {   
+                sprintf(stringTemp, "{'id':%d, 'unit->messageType':'section', 'deviceId':'%s', 'totalLength':%d, 'contentLength': %d, 'start':%d, 'end':%d, 'content':\"", 
+                        unit->id, 
+                        nb._imei,
+                        unit->length, 
+                        end - unit->currentIndex,
+                        unit->currentIndex, 
+                        end);
+                NB_HalTransmit((uint8_t *)stringTemp, strlen(stringTemp), socket);
+                NB_HalTransmit(unit->message + unit->currentIndex, end - unit->currentIndex, socket); 
+                NB_HalTransmit("\"}", 2, socket);
+            }
+            else
+            {   NB_HalTransmit(unit->message, unit->length, socket);   }
+            
+            NB_HalTransmit("\"\r\n", 3, socket);
+            break;
+        }
+        else
+        {   PROCESS_CHANGE_WITH_TIME(socket->_process, Process_Run, REALTIME);    }
+      
+    /* 启动发送 */
     case Process_Run:
-        sprintf(stringTemp, "AT+HTTPSEND=%d,1,\"%s\"\r\n", nb.socketId, nb.http.url);
-        NB_StringTrans(stringTemp);
-        PROCESS_CHANGE_WITH_TIME(nb.http.__process, Process_Wait, REALTIME);
-        break;
-    case Process_Wait:
-        if((nb.http.__process.__time + 5) < REALTIME)
-        {   PROCESS_RETURN_WITH_TIME(nb.http.__process, REALTIME);  }
+        sprintf(stringTemp, "AT+HTTPSEND=%d,%d,\"", socket->_socketId, socket->methodId);
+        NB_HalTransmit((uint8_t *)stringTemp, strlen(stringTemp), socket);
+        NB_HalTransmit((uint8_t *)(httpParam->url), strlen(httpParam->url), socket);
+        NB_HalTransmit("\"\r\n", 3, socket);
         break;
     }
     
     return false;
 }
+
 /*********************************************************************************************
 
-  * @brief  
-  * @param   
-  * @return 
-  * @remark 
+    NB SOTA 接收处理
 
   ********************************************************************************************/
-void NB_HttpPost_ReceiveHandle(char *message, uint16_t len)
- {
-   char *location = NULL, *temp = NULL;
-   
-     // 是否正常打开SOCKET
-    if (nb._process.last == Process_Start)
+void NBSota_RxHandle(struct RxUnitStruct *unit, void *param)
+{   
+    struct NBSotaStruct *sota = (struct NBSotaStruct *)param;
+    cJSON *json, *data, *jsonTemp;
+    int32_t errorCode = 0, i, temp32;
+    char *errorInfo = NULL, *stringTemp;
+    
+    
+    /* 解析json */
+    if(sota->_process.current != Process_RunWait)
     {
-        if(strstr(message, "ERROR"))
-        {   NB_ErrorHandle(NBError_ConnectError);   }
-        else
+        json = cJSON_Parse((char *)unit->message);
+        if(json == NULL)
+        {   goto end;   }
+        jsonTemp = json->child;
+        
+        /* 获取错误代码与data */
+        while(jsonTemp != NULL)
         {
-            location = strstr(message, "\r\n\r\nOK\r\n");
-            location -= 1;
-            if( *location >= 30 && *location <= 0x39)
-            {
-                nb.socketId = *location - 0x30;
-                NB_SetProcess(Process_Run);
-                PROCESS_CHANGE(nb.http.__process, Process_Init);
-            }
-            else
-            {   NB_ErrorHandle(NBError_ConnectError);  }
+            if(strcmp(jsonTemp->string, "errno") == 0)
+            {   errorCode = jsonTemp->valueint;   }             
+            
+            if(strcmp(jsonTemp->string, "error") == 0)
+            {   errorInfo = jsonTemp->valuestring; }             
+            
+            if(strcmp(jsonTemp->string, "data") == 0)
+            {   data = jsonTemp->child; }  
+            
+            jsonTemp = jsonTemp->next;
         }
-        return;
+        
+        if(errorCode != 0)
+        {   goto end;   }
     }
-    
-    
-    // 获取到内容则为+HTTPNMIC，获取到头则为+HTTPNMIH
-    location = strstr(message, "+HTTPNMIC");
-    if (location != NULL)
+    else
     {
-        nb._errorCounter = 0;
-        location = strstr(message, "\n68");
-            
-        /* 回复body提取可用字符串 */
-        if (location != NULL)
+        TxQueue_FreeAll(&(sota->socket->txQueueApp));
+
+        /* 更新索引 */
+        if(sota->CallBack_UpdatePackage != NULL)
+        {   sota->CallBack_UpdatePackage(sota, unit->message, unit->length);    }
+        MD5Update(&(sota->md5), unit->message, unit->length);
+        sota->_currentIndex += unit->length;
+        if(sota->_currentIndex >= sota->_size)
         {   
-            location += 1;                 
-            
-            /* 找到换行符，将换行符改为结束符，再对报文进行转换 */
-            temp = strstr(location, "16\r\n");
-            if(temp != NULL)
-            {   temp[2] = '\0';   }
-            
-            uint8_t *packet = NULL;
-            int count = String2Msg(&packet, location, 0);
-            if (count > 0)
-            {   RxQueue_Add(nb.rxQueueApp, packet, count, true);     }
-        }     
+            PROCESS_CHANGE(sota->_process, Process_BeforeFinish);   
+            MD5Final(&(sota->md5), sota->md5Calculate);
+        }
         else
-        {   NB_ErrorHandle(NbError_TxFail);   }
-        return;
+        {   PROCESS_CHANGE(sota->_process, Process_Run);    }
     }
     
+    /* 根据回复处理不同的 */
+    switch(sota->_process.current)
+    {
+      // 上报版本
+    case Process_Init:
+        TxQueue_FreeAll(&(sota->socket->txQueueApp));
+        FREE_NON_NULL(sota->httpParam.url);
+        sota->socket->methodId = 0;         // GET
+        
+        /* url赋值 */
+        sota->httpParam.url = (char *)Malloc(256);
+        memset(sota->httpParam.url, 0, 256);
+        sprintf(sota->httpParam.url, "/ota/south/check?dev_id=%s&manuf=100&model=10001&type=2&version=111&cdn=true", sota->deviceId);
+        
+        TxQueue_Add(&(sota->socket->txQueueApp), (uint8_t*)(sota->httpParam.url), strlen(sota->httpParam.url), TX_MULTI_MC | TX_FLAG_IS_MALLOC);
+        PROCESS_CHANGE(sota->_process, Process_Start);
+        break;
+        
+    // 查看更新任务
+    case Process_Start:
+        TxQueue_FreeAll(&(sota->socket->txQueueApp));
+        FREE_NON_NULL(sota->httpParam.url);
+        sota->socket->methodId = 0;                     // GET
+        
+        /* 读取token和size */
+        while(data != NULL)
+        {
+            // 获取token
+            if(strcmp(data->string, "token") == 0)
+            {   
+                sota->_token = Malloc(32);
+                if(sota->_token == NULL)
+                {   goto end;   }
+                memset(sota->_token, 0, 32);
+                memcpy(sota->_token, data->valuestring, strlen(data->valuestring));  
+            }         
+            
+            // 获取宽度
+            if(strcmp(data->string, "size") == 0)
+            {   sota->_size = data->valueint;   }
+            
+            // 获取md5
+            if(strcmp(data->string, "md5") == 0)
+            {    
+                stringTemp = data->valuestring;
+                
+                for(i=0; i<16; i++)
+                {  
+                    sscanf(stringTemp, "%02x", &temp32);
+                    sota->md5Package[i] = temp32;
+                    stringTemp += 2;
+                }
+            }
+            
+            // 获取版本
+            if(strcmp(data->string, "version") == 0)
+            {   sprintf(sota->version, "%d", data->valuestring);    }
+            
+            data = data->next;
+        }
+        
+        /* url赋值 */
+        sota->httpParam.url = (char *)Malloc(128);
+        memset(sota->httpParam.url, 0, 128);
+        sprintf(sota->httpParam.url, "/ota/south/download/%s/check/?dev_id=%s", sota->_token, sota->deviceId);
+        
+        TxQueue_Add(&(sota->socket->txQueueApp), (uint8_t*)(sota->httpParam.url), strlen(sota->httpParam.url), TX_MULTI_MC | TX_FLAG_IS_MALLOC);
+        PROCESS_CHANGE(sota->_process, Process_Run);
+        break;
+        
+    /* 开始下载 */    
+    case Process_Run:
+        TxQueue_FreeAll(&(sota->socket->txQueueApp));
+        FREE_NON_NULL(sota->httpParam.url);
+        FREE_NON_NULL(sota->httpParam.header);
+        sota->socket->methodId = 0;                     // GET
+        
+        /* 重置url和header准备赋值 */
+        sota->httpParam.url = (char *)Malloc(128);
+        sota->httpParam.header = (char *)Malloc(256);
+        if(sota->httpParam.url == NULL
+           || sota->httpParam.header == NULL)
+        {   goto end;   }
+        
+        memset(sota->httpParam.url, 0, 128);
+        memset(sota->httpParam.url, 0, 256);
+        
+        
+        /* 填充url与header */
+        sprintf(sota->httpParam.header, 
+                "Authorization: %s\\r\\n%s\\r\\nRange:%d-%d",
+                sota->authorization,
+                "Content-Type: application/json",
+                sota->_currentIndex,
+                sota->_currentIndex + sota->unitSize - 1);
+        sprintf(sota->httpParam.url, "/ota/south/download/%s", sota->_token);
+        
+        TxQueue_Add(&(sota->socket->txQueueApp), (uint8_t*)(sota->httpParam.url), strlen(sota->httpParam.url), TX_MULTI_MC | TX_FLAG_IS_MALLOC);
+        PROCESS_CHANGE(sota->_process, Process_RunWait);
+        break;    
+        
+    /* 接收完成, 发送确认包 */
+    case Process_BeforeFinish:
+        TxQueue_FreeAll(&(sota->socket->txQueueApp));
+        FREE_NON_NULL(sota->httpParam.url);
+        FREE_NON_NULL(sota->httpParam.header);
+        sota->socket->methodId = 1;                     // POST
+        
+        /* 重置url和header准备赋值 */
+        sota->httpParam.url = (char *)Malloc(128);
+        sota->httpParam.header = (char *)Malloc(256);
+        stringTemp = (char *)Malloc(32);
+        if(sota->httpParam.url == NULL
+           || sota->httpParam.header == NULL
+           || stringTemp == NULL)
+        {   goto end;   }
+        
+        memset(sota->httpParam.url, 0, 128);
+        memset(sota->httpParam.url, 0, 256);
+        memset(stringTemp, 0, 32);
+        
+        /* 填充url与header */
+        sprintf(sota->httpParam.header, 
+                "Authorization: %s\\r\\n%s",
+                sota->authorization,
+                "Content-Type: application/json");
+        sprintf(sota->httpParam.url, "/ota/south/report?dev_id=%s&token=%s", sota->deviceId, sota->_token);
+        sprintf(stringTemp, "{\"result\": 101}");
+        TxQueue_Add(&(sota->socket->txQueueApp), (uint8_t*)stringTemp, strlen(stringTemp), TX_MULTI_MC | TX_FLAG_IS_MALLOC);
+        PROCESS_CHANGE(sota->_process, Process_Finish);
+        break;
+        
+    /* 整体流程结束 */
+    case Process_Finish:
+        TxQueue_FreeAll(&(sota->socket->txQueueApp));
+        stringTemp = (char *)Malloc(32);
+        memset(stringTemp, 0, 32);
+        sprintf(stringTemp, "{\"result\": 201}");
+        TxQueue_Add(&(sota->socket->txQueueApp), (uint8_t*)stringTemp, strlen(stringTemp), TX_MULTI_MC | TX_FLAG_IS_MALLOC);
+        PROCESS_CHANGE(sota->_process, Process_Lock);
+        break;
+        
+    case Process_Lock:
+        TxQueue_FreeAll(&(sota->socket->txQueueApp));
+        goto end;
+        break;
+    }
+    
+    return;
+    
+end:
+    TxQueue_FreeAll(&(sota->socket->txQueueApp));
+    if(json != NULL)
+    {   cJSON_Delete(json); }
+    FREE_NON_NULL(sota->httpParam.header);
+    FREE_NON_NULL(sota->httpParam.url);
+}
+/*********************************************************************************************
 
- }
+    NB SOTA 启动发送
+
+  ********************************************************************************************/
+int NBSota_Start(struct NBSotaStruct *sota)
+{
+    char *stringTemp = (char *)Malloc(64);
+    sota->httpParam.header = (char *)Malloc(256);
+    sota->httpParam.url = (char *)Malloc(128);
+    
+    /* 查看内存申请 */
+    if(stringTemp == NULL
+       || sota->httpParam.header == NULL
+       || sota->httpParam.url == NULL)
+    {   goto end;   }
+    
+    MD5Init(&(sota->md5));
+    
+    memset(stringTemp, 0, 64);
+    memset(sota->httpParam.header, 0, 256);
+    memset(sota->httpParam.url, 0, 128);
+    
+    if(sota->version != NULL)
+    {
+        memset(stringTemp, 0 , 64);
+      
+        sprintf(stringTemp, "{\"s_version\":\"%s\"}", sota->version);
+        TxQueue_Add(&(sota->socket->txQueueApp), (uint8_t*)stringTemp, strlen(stringTemp), TX_MULTI_MC | TX_FLAG_IS_MALLOC);
+        
+        sota->socket->methodId = 1;         // POST
+        sprintf(sota->httpParam.header, "Authorization: %s\\r\\n%s", sota->authorization, "Content-Type: application/json");
+        sprintf(sota->httpParam.url, "/ota/device/version?dev_id=%s", sota->deviceId);          
+        
+        PROCESS_CHANGE(sota->_process, Process_Init);
+        sota->_currentIndex = 0;
+        return 0;
+    }
+    
+end:
+    FREE_NON_NULL(stringTemp);
+    FREE_NON_NULL(sota->httpParam.header);
+    FREE_NON_NULL(sota->httpParam.url);
+    return -1;
+}

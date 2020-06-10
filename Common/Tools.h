@@ -10,8 +10,9 @@ struct LogStruct
 {
     struct CalendarStruct *calendar;
     int flag;
+    void *param;
     
-    bool (*CallBack_Transmit)(uint8_t *, uint16_t);
+    bool (*CallBack_Transmit)(uint8_t *, uint16_t, void *);
 };
 /* Private define ------------------------------------------------------------*/
 /* Private macro --------------------------------------------------------------*/

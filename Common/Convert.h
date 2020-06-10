@@ -8,12 +8,12 @@
 /* Public define ------------------------------------------------------------*/
 struct CalendarStruct
 {
-    uint16_t year;
-    uint8_t month;
-    uint8_t day;
-    uint8_t hour;
-    uint8_t min;
-    uint8_t sec;
+    int32_t year;
+    int32_t month;
+    int32_t day;
+    int32_t hour;
+    int32_t min;
+    int32_t sec;
     uint32_t numOfDay;
 };
 /* Public macro --------------------------------------------------------------*/

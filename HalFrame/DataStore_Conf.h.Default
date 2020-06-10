@@ -1,0 +1,19 @@
+#ifndef _DATASTORE_CONF_H_
+#define _DATASTORE_CONF_H_
+
+/* Includes ----------------------------------------------------------*/
+#include "HardWare/HardWare.h"
+/* define ------------------------------------------------------------*/
+/* typedef -----------------------------------------------------------*/
+/* macro -------------------------------------------------------------*/
+/* variables ---------------------------------------------------------*/
+#define DATA_STORE_SIZE     2   
+#define DATA_STORE_START_ADDRESS    0x08080000
+
+/* function prototypes -----------------------------------------------*/
+
+// uint32_t DATA_STORE_CRC(uint32_t address, uint16_t length)
+#define DATA_STORE_CRC          DataStore_Crc
+// int DATA_STORE_HAL_WRITE(uint32_t dstAddress, uint32_t srcAddress, uint16_t length)
+#define DATA_STORE_HAL_WRITE    DataEeprom_Write
+#endif

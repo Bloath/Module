@@ -11,7 +11,7 @@ struct Esp8266Struct esp8266;
 void ESP8266_SendData(uint8_t *data, uint16_t length);
 void ESP8266_SendString(const char *string);
 void ESP8266_ErrorHandle(enum ESP8266_Error errorType);
-bool ESP8266_HttpTransmit(uint8_t *message, uint16_t length);
+bool ESP8266_HttpTransmit(uint8_t *message, uint16_t length, void *param);
 void ESP8266_ResponseHandle(uint8_t *message, uint16_t length);
 
 /* Private functions ---------------------------------------------------------*/
@@ -177,7 +177,7 @@ void ESP8266_Handle()
   * @retval 基于Http的短连接
 
   ********************************************************************************************/
-bool ESP8266_HttpTransmit(uint8_t *message, uint16_t length)
+bool ESP8266_HttpTransmit(uint8_t *message, uint16_t length, void *param)
 {
     static uint32_t time = 0;
     char cmdPacket[50] = {0};
@@ -268,13 +268,13 @@ bool ESP8266_HttpTransmit(uint8_t *message, uint16_t length)
 /*********************************************************************************************
 
   * @brief  ESP8266的接收处理函数
-  * @param  rxBlock：接收的块
+  * @param  rxUnit：接收的块
   * @retval 
 
   ********************************************************************************************/
-void ESP8266_RxMsgHandle(struct RxBaseBlockStruct *rxBlock)
+void ESP8266_RxMsgHandle(struct RxUnitStruct *rxUnit, void *param)
 {
-    char *message = (char *)(rxBlock->message);
+    char *message = (char *)(rxUnit->message);
     
     if (strstr(message, "SPI Mode") != NULL)
     {

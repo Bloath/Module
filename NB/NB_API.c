@@ -5,7 +5,8 @@
 /* Private define -------------------------------------------------------------*/
 #define NB_HTTP_HEADER  ""
 
-/* Private macro --------------------------------------------------------------*/
+/* Private macro --------------------------------------------------------------*/ 
+#define NB_AT_TRANSMIT(string)  NB_HalTransmit(string ,strlen(string), NULL)
 /* Private typedef ------------------------------------------------------------*/
 /* Private variables ----------------------------------------------------------*/
 struct NBStruct nb;
@@ -51,20 +52,91 @@ DATA_PREFIX char *nbReadSim[] = {
 };
 
 /* Private function prototypes ------------------------------------------------*/
-void NB_StringTrans(const char *string);
 void NB_ErrorHandle(enum NbErrorEnum error);
-void NB_RxHandle(struct RxBaseBlockStruct *rxBlock);
+void NB_RxHandle(struct RxUnitStruct *unit, void *param);
+void NB_HalTransmit(uint8_t *message, uint16_t length, void *param);
 
 /*********************************************************************************************
 
-  * @brief  NB改变流程
+  * @brief  添加新的套接字
+  * @param  socket：套接字指针 
+  * @retval 
 
-  ********************************************************************************************/    
-void NB_SetProcess(enum ProcessEnum process)
-{
-    PROCESS_CHANGE(nb._process, process);
-    nb.__time = REALTIME;
+  ********************************************************************************************/   
+void NB_AddNewSocket(struct NBSocketStruct *socket)      
+{           
+    struct NBSocketStruct *socketTemp;
+    if(nb.sockets == NULL)
+    {   nb.sockets = socket;    }
+    else
+    {
+        socketTemp = nb.sockets;
+        while(true)
+        {
+            if(socketTemp->next == NULL)
+            {   
+                socketTemp->next = socket;  
+                break;
+            }
+            else
+            {   socketTemp = socketTemp->next;  }
+        }
+    }
 }
+/*********************************************************************************************
+
+  * @brief  添加新的套接字
+  * @param  id：套接字指针 
+  * @retval 符合要求的套接字指针
+
+  ********************************************************************************************/   
+struct NBSocketStruct* NB_FindSocketById(int8_t id)      
+{           
+    struct NBSocketStruct *socketTemp;
+    socketTemp = nb.sockets;
+    while(true)
+    {
+        if(socketTemp == NULL)
+        {   break;  }
+        
+        if(socketTemp->_socketId == id)
+        {   return socketTemp;  }
+      
+        socketTemp = socketTemp->next; 
+    }
+    
+    return NULL;
+}
+
+/*********************************************************************************************
+
+  * @brief  nb 套接字中是否空闲
+  * @param  *socket: 存储有任务的套接字
+  * @retval 
+
+  ********************************************************************************************/   
+bool NB_SocketsIsIdle(struct NBSocketStruct **socket)      
+{           
+    struct NBSocketStruct *socketTemp;
+    socketTemp = nb.sockets;
+    while(true)
+    {
+        if(socketTemp == NULL)
+        {   break;  }
+        
+        if(socketTemp->txQueueApp._usedBlockQuantity != 0)
+        {   
+            if(socket != NULL)
+            {   *socket = socketTemp;   }
+            return false;  
+        }
+      
+        socketTemp = socketTemp->next; 
+    }
+    
+    return true;
+}
+
 /*********************************************************************************************
 
   * @brief  发送命令列表
@@ -75,9 +147,26 @@ void NB_SetProcess(enum ProcessEnum process)
 void NB_SendATCommandList(char **list)      
 {                                   
     nb.cmdList = list;              
-    NB_SetProcess(Process_OrderAt); 
-    nb.__orderAt.index = 0;
+    PROCESS_CHANGE_WITH_TIME(nb._process, Process_OrderAt, REALTIME); 
+    nb._orderAT.index = 0;
 }
+/*********************************************************************************************
+
+    NB 发送数据
+
+  ********************************************************************************************/    
+void NB_HalTransmit(uint8_t *message, uint16_t length, void *param)
+{
+    if(param != NULL
+       && nb._process.current == Process_Run)
+    {   
+        PROCESS_CHANGE_WITH_TIME(nb._process, Process_RunWait, REALTIME);   
+        nb.socketCurrent = (struct NBSocketStruct *)param;
+    }
+    
+    nb.CallBack_Transmit(message, length, param);
+}
+
 /*********************************************************************************************
 
   * @brief  NB 启动电源
@@ -87,8 +176,9 @@ void NB_PowerOn()
 {
     /* 有数据时且WIFI电源为切断时，开启WIFI电源，重置运行流程 */    
     NB_POWER_ON();
-    NB_SetProcess(Process_Reset);
+    PROCESS_CHANGE_WITH_TIME(nb._process, Process_Reset, REALTIME);
 }
+
 /*********************************************************************************************
 
   * @brief  NB 启动电源
@@ -120,90 +210,70 @@ bool NB_IsIdle()
   ********************************************************************************************/
 void NB_Handle()
 {   
+    struct NBSocketStruct *nbSocketTemp;
+  
     switch(nb._process.current)
     {
     /* 上电先查看SIM卡信息，之后才会有不同的处理方式 */
     case Process_Init:
-        nb.txQueueHal->interval = NB_HAL_TX_INTERVAL;
-        nb.txQueueHal->maxTxCount = NB_HAL_RETX_COUNT;
-        nb.txQueueApp->interval = NB_APP_TX_INTERVAL;                   
-        
-        if(nb.sim == Unknown)
+      
+        if(nb._sim == Unknown)
         {   NB_SendATCommandList(nbReadSim);  }
         else
-        {   NB_SetProcess(Process_Idle);    }
+        {   PROCESS_CHANGE_WITH_TIME(nb._process, Process_Idle, REALTIME);    }
         break;
    
     /* 空闲状态，没什么事就进入处理 */ 
     case Process_Idle:
-        switch(nb.sim)
-        {
-        case Unknown:
-            break;
-        case ChinaMobile:
-            nb.CallBack_StartConenct = NB_Http_StartConnect;                                
-            nb.CallBack_RxSecondaryHandle = NB_HttpGet_ReceiveHandle;
-            nb.txQueueApp->CallBack_PackagBeforeTransmit = NB_HttpGet_PacketPackage;
-            break;
-        case ChinaTelecom:
-            nb.CallBack_HandleBeforeNetting = NB_OC_HandleBeforeNetting;
-            nb.CallBack_RxSecondaryHandle = NB_OC_ReceiveHandle;
-            nb.txQueueApp->CallBack_PackagBeforeTransmit = NB_OC_PacketPackage;
-            break;
-        }
-      
-        if(nb.CallBack_HandleBeforeNetting != NULL)
-        {   nb.CallBack_HandleBeforeNetting(); }
-        else
-        {   NB_SendATCommandList(nbConfiguration);  }               // 进入连接处理
+        NB_SendATCommandList(nbConfiguration);
         break;
 
     /* 按顺序发送AT指令，当发送完成后切换到等待状态
      根据接收到的AT中包含的OK或者ERROR进行下一步的判断*/
     case Process_OrderAt:
-        NB_StringTrans((const char *)nb.cmdList[nb.__orderAt.index]);
-        nb.__orderAt.isGetOk = false;
-        nb.__orderAt.isGetError = false;
-        NB_SetProcess(Process_OrderAtWait);
+        NB_AT_TRANSMIT(nb.cmdList[nb._orderAT.index]);
+        nb._orderAT.isGetOk = false;
+        nb._orderAT.isGetError = false;
+        PROCESS_CHANGE_WITH_TIME(nb._process, Process_OrderAtWait, REALTIME);
         break;
 
     /* 等待3s如果没有回复则重发命令 
      收到OK，则根据当前的索引进行下一步的操作，默认为继续发下一个AT指令
      收到错误，则编写对应的错误处理 */
     case Process_OrderAtWait:
-        if ((nb.__time + 5) < REALTIME)
+        if ((nb._process.__time + 5) < REALTIME)
         {   
-            NB_SetProcess(Process_OrderAt);   
-            nb.__orderAt.errorCounter ++;
-            if(nb.__orderAt.errorCounter > 5)
+            PROCESS_CHANGE_WITH_TIME(nb._process, Process_OrderAt, REALTIME);
+            nb._orderAT.errorCounter ++;
+            if(nb._orderAT.errorCounter > 5)
             {   NB_ErrorHandle(NbError_AtError);    }
         }
         else
         {
             /* AT指令发送成功 */
-            if (nb.__orderAt.isGetOk == true)
+            if (nb._orderAT.isGetOk == true)
             {
-                nb.__orderAt.index++;                       // AT指令索引+1
+                nb._orderAT.index++;                       // AT指令索引+1
                 
                 /* 如果发现发送到末尾，则进入处理部分 */
-                if(nb.cmdList[nb.__orderAt.index] != NULL)
-                {   NB_SetProcess(Process_OrderAt); }
+                if(nb.cmdList[nb._orderAT.index] != NULL)
+                {    PROCESS_CHANGE_WITH_TIME(nb._process, Process_OrderAt, REALTIME); }
                 else
                 {   
                     if(nb.cmdList == nbConfiguration)        // 配置参数发送完成 => 进入查询附着状态
                     {   
-                        NB_SetProcess(Process_Wait);    
-                        nb.__startConnectTime = REALTIME;
+                        PROCESS_CHANGE_WITH_TIME(nb._process, Process_Wait, REALTIME);
+                        nb._startConnectTime = REALTIME;
                     }  
                     else if (nb.cmdList == nbQuery)
-                    {   NB_SetProcess(Process_Start);   }   // 查询参数发送完成 => 进入准备发送状态
+                    {   PROCESS_CHANGE_WITH_TIME(nb._process, Process_Start, REALTIME);   }   // 查询参数发送完成 => 进入准备发送状态
                     else if (nb.cmdList == nbSetBand)
-                    {   NB_SetProcess(Process_Reset);   }
+                    {   PROCESS_CHANGE_WITH_TIME(nb._process, Process_Reset, REALTIME);   }
                     else
                     {   NB_SendATCommandList(nbConfiguration);  }   // 其他的则直接进入连接状态部分，有可能有的在初始化部分要处理
                 }
             }
-            else if (nb.__orderAt.isGetError == true)
+            else if (nb._orderAT.isGetError == true)
             {}
         }
         break;
@@ -211,62 +281,68 @@ void NB_Handle()
     /* 等待连接 */
     case Process_Wait:
         // 每5s发送一次查询连接
-        if ((nb.__time + 2) < REALTIME)
+        if ((nb._process.__time + 2) < REALTIME)
         {
-            nb.__time = REALTIME;
-            NB_StringTrans("AT+CGATT?\r\n");
+            nb._process.__time = REALTIME;
+            NB_AT_TRANSMIT("AT+CGATT?\r\n");
         }
 
         // 长时间之后未连接处理
-        if ((nb.__startConnectTime + 50) < REALTIME)
+        if ((nb._startConnectTime + 50) < REALTIME)
         {   NB_ErrorHandle(NbError_AttTimeout); }
         break;
 
     /* 启动连接 */
     case Process_Start:
-        if(nb.CallBack_StartConenct != NULL)
-        {   
-            nb.CallBack_StartConenct(); 
-            NB_SetProcess(Process_Wait);
-        }
-        else
-        {   NB_SetProcess(Process_Run);    }
+        PROCESS_CHANGE_WITH_TIME(nb._process, Process_Run, REALTIME);
         break;
         
     /* 开始工作部分，对于NB来说，有数据直接发送即可，等待回复 */
     case Process_Run:
-        if((nb._lastId = TxQueue_Handle(nb.txQueueApp)) >= 0)
+        if(nb._isTransmitting == true)
         {
-            nb.__time = REALTIME;
-            nb._isTransmitting = true;
-            NB_SetProcess(Process_RunWait); 
+            /* 查看是否有需要发送的数据 */
+            if(NB_SocketsIsIdle(NULL) == true)
+            {
+                if ((nb._process.__time + 2) < REALTIME)
+                {   nb._isTransmitting = false; }
+            }
+            /* 有需要发送的, 则进行处理, 在进行硬件发送时, 退出到等待模式 */
+            else
+            {
+                nbSocketTemp = nb.sockets;
+                while(true)
+                {
+                    TxQueue_Handle(&(nbSocketTemp->txQueueApp));
+                    if(nb._process.current != Process_Run)
+                    {   break;  }
+                    nbSocketTemp = nbSocketTemp->next;
+                    if(nbSocketTemp == NULL)
+                    {   break;  }
+                }
+            }
         }
-
-        if (nb._isTransmitting == true 
-            && nb.txQueueApp->_usedBlockQuantity == 0 
-            && nb.rxQueueApp->_usedBlockQuantity == 0)
+        else
         {
-            // 延迟2s再进入休眠
-            if ((nb.__time + 2) < REALTIME)
-            {   nb._isTransmitting = false; }
+            nb._process.__time = REALTIME;
+            nb._isTransmitting = true;
         }
         break;
     
     /* 发送等待部分，等待3s发送下一条 */
     case Process_RunWait:
-        if ((nb.__time + 3) < REALTIME)
-        {   NB_SetProcess(Process_Run);  }
+        if ((nb._process.__time + 3) < REALTIME)
+        {   PROCESS_CHANGE_WITH_TIME(nb._process, Process_Run, REALTIME);  }
         break;
         
     case Process_Reset:
-        NB_StringTrans("AT+NRB\r\n");
-        NB_StringTrans("AT+NRB\r\n");
-        NB_StringTrans("AT+NRB\r\n");
-        NB_SetProcess(Process_ResetWait);
+        NB_AT_TRANSMIT("AT+NRB\r\n");
+        NB_AT_TRANSMIT("AT+NRB\r\n");
+        PROCESS_CHANGE_WITH_TIME(nb._process, Process_ResetWait, REALTIME);
         break;
 
     case Process_ResetWait:
-        if((nb.__time + 10) < REALTIME)
+        if((nb._process.__time + 10) < REALTIME)
         {   NB_ErrorHandle(NbError_AtError);    }
         break;
     }
@@ -274,29 +350,30 @@ void NB_Handle()
 /*********************************************************************************************
 
   * @brief  NB接收部分处理
-  * @param  rxBlock块
+  * @param  unit块
   * @retval 无
   * @remark 
 
   ********************************************************************************************/
-void NB_RxHandle(struct RxBaseBlockStruct *rxBlock)
+void NB_RxHandle(struct RxUnitStruct *unit, void *param)
 {
-    char *message = (char *)(rxBlock->message);
+    char *message = (char *)(unit->message);
     char *location = NULL, *temp = NULL;
     struct CalendarStruct calendarTemp = {0};
+    int32_t temp32 = 0;
 
 
     if (nb.cmdList == nbReadSim && (location = strstr(message, "460")) != NULL)
     {   
         if(location[4] == '0' || location[4] == '2' || location[4] == '4' || location[4] == '7')
         {   
-            nb.sim = ChinaMobile;  
+            nb._sim = ChinaMobile;  
             nbSetBand[2][9] = '8';
             NB_SendATCommandList(nbSetBand);
         }
         else if(location[4] == '3' || location[4] == '5' || (location[3] == '1' && location[4] == '1'))
         {   
-            nb.sim = ChinaTelecom;  
+            nb._sim = ChinaTelecom;  
             nbSetBand[2][9] = '5';
             NB_SendATCommandList(nbSetBand);
         }
@@ -308,16 +385,18 @@ void NB_RxHandle(struct RxBaseBlockStruct *rxBlock)
     {
         if (strstr(message, "OK") != NULL)
         {   
-            nb.__orderAt.isGetOk = true;  
-            nb.__orderAt.errorCounter = 0;
+            nb._orderAT.isGetOk = true;  
+            nb._orderAT.errorCounter = 0;
+            return;
         }
 
         if (strstr(message, "ERROR") != NULL)
         {   
-            nb.__orderAt.isGetError = true;   
-            nb.__orderAt.errorCounter ++;
-            if(nb.__orderAt.errorCounter > 5)
+            nb._orderAT.isGetError = true;   
+            nb._orderAT.errorCounter ++;
+            if(nb._orderAT.errorCounter > 5)
             {   NB_ErrorHandle(NbError_AtError);    }
+            return;
         }
     }
     
@@ -325,10 +404,10 @@ void NB_RxHandle(struct RxBaseBlockStruct *rxBlock)
     location = strstr(message, "+CGSN:");
     if (location != NULL)
     {
-        if(nb.imei[0] == 0)
+        if(nb._imei[0] == 0)
         {   
-            memcpy(nb.imei, location + 6, 15);
-            nb.imei[15] = '\0';
+            memcpy(nb._imei, location + 6, 15);
+            nb._imei[15] = '\0';
             if(nb.CallBack_GetImei != NULL)
             {   nb.CallBack_GetImei();  }
         }
@@ -346,33 +425,17 @@ void NB_RxHandle(struct RxBaseBlockStruct *rxBlock)
         return;
     }
 
+    // 同步NB时间 
     location = strstr(message, "+CCLK:");
     if (location != NULL && nb.CallBack_TimeUpdate != NULL)
     {
         location += 6;                          // 跳过cclk
-        
-        location[2] = '\0';
-        calendarTemp.year = 2000 + NumberString2Uint(location);
-        location += 3;
-      
-        location[2] = '\0';
-        calendarTemp.month = NumberString2Uint(location);
-        location += 3;
-        
-        location[2] = '\0';
-        calendarTemp.day = NumberString2Uint(location);
-        location += 3;
-   
-        location[2] = '\0';
-        calendarTemp.hour = NumberString2Uint(location);
-        location += 3;
-        
-        location[2] = '\0';
-        calendarTemp.min = NumberString2Uint(location);
-        location += 3;
-        
-        location[2] = '\0';
-        calendarTemp.sec = NumberString2Uint(location);
+
+        sscanf(location, 
+              "%02d/%02d/%02d,%02d:%02d:%02d", 
+              &temp32, &calendarTemp.month, &calendarTemp.day,
+              &calendarTemp.hour, &calendarTemp.min, &calendarTemp.sec);
+        calendarTemp.year = 2000 + temp32;
         
         nb.CallBack_TimeUpdate(Calendar2TimeStamp(&calendarTemp, 0));
         return;
@@ -382,23 +445,19 @@ void NB_RxHandle(struct RxBaseBlockStruct *rxBlock)
     location = strstr(message, "+CSQ");
     if (location != NULL)
     {
-        temp = String_CutByChr(location, ':', ','); // 将信号强度部分裁剪出来
-        uint32_t temp32u = NumberString2Uint(temp); // 转换为数字
-
-        // 0-2 微弱信号 2-10一般 11-31较强 99收不到
-        nb._signal = temp32u;
-        Free(temp);
+        sscanf(location, "+CSQ:%d,", &temp32);
+        nb._signal = temp32;
         return;
     }
     
     // 重启完成
     if (strstr(message, "REBOOT_") != NULL && nb._process.current == Process_ResetWait)
     {
-        NB_SetProcess(Process_Init);   
+        PROCESS_CHANGE_WITH_TIME(nb._process, Process_Init, REALTIME);   
         return;
     }
     
-    /* 发送过程中失败的问题 */
+    // 发送过程中失败的问题
     if(nb._process.current == Process_Run || nb._process.current == Process_RunWait)
     {
         if(strstr(message, "ERR"))
@@ -412,23 +471,15 @@ void NB_RxHandle(struct RxBaseBlockStruct *rxBlock)
         }
     }
     
-    // 针对不同应用的接收处理部分
-    if(nb.CallBack_RxSecondaryHandle != NULL)
-    {   nb.CallBack_RxSecondaryHandle(message, rxBlock->length); }
+   // 剩下的交给当前socket的接收处理
+    if(nb.socketCurrent != NULL
+       && nb.socketCurrent->CallBack_SocketRxATCommandHandle != NULL)
+    {   
+        nb.socketCurrent->CallBack_SocketRxATCommandHandle(unit, nb.socketCurrent);    
+        PROCESS_CHANGE_WITH_TIME(nb._process, Process_Run, REALTIME);
+    }
 }
 
-/*********************************************************************************************
-
-  * @brief  NB 字符串发送
-  * @param  string：字符串
-  * @retval 无
-  * @remark 
-
-  ********************************************************************************************/
-void NB_StringTrans(const char *string)
-{
-    TxQueue_Add(nb.txQueueHal, (uint8_t *)string, strlen(string), TX_ONCE_AC);
-}
 /*********************************************************************************************
 
   * @brief  NB_ErrorHandle
@@ -443,13 +494,13 @@ void NB_ErrorHandle(enum NbErrorEnum error)
     {
     case NbError_AttTimeout:        // 附着失败
     case NbError_AtError:
-        nb.__orderAt.errorCounter = 0;
+        nb._orderAT.errorCounter = 0;
     case NBError_ConnectError:
-        NB_SetProcess(Process_Lock);
+        PROCESS_CHANGE_WITH_TIME(nb._process, Process_Lock, REALTIME);
         break;
         
     case NbError_NeedReset:
-        NB_SetProcess(Process_Init);
+        PROCESS_CHANGE_WITH_TIME(nb._process, Process_Init, REALTIME);
         nb._errorCounter = 0;
     case NbError_TxFail:
     default:

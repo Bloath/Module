@@ -5,6 +5,7 @@
 #include "Dps310.h"
 #include "Hsppad14xa.h"
 #include "Infrare.h"
+#include "W25Qx.h"
 
 /* Public typedef ------------------------------------------------------------*/
 /* Public define -------------------------------------------------------------*/

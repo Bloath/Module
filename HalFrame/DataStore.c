@@ -88,7 +88,6 @@ int DataStore_Restore(struct DataStoreStruct *dataStore)
 {
     uint8_t *tempArray = NULL;
     uint32_t crc = 0, tempAddress;
-    int result = 0;
     
     /* 1. 检查读写回调函数是否为空 */
     if(dataStore->CallBack_HalRead == NULL)
