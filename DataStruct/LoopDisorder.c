@@ -146,6 +146,45 @@ void LoopCache_HandleAll(struct LoopCacheStruct *loopCache, void (*DataHandle)(v
 }
 /*********************************************************************************************
 
+  * @brief  LoopCache_FindSimilar
+  * @dcpt   查找loop中相近的数据
+  * @param  loopCache：循环控制指针
+            IsSimilar：数据处理函数
+            param: 参数
+            result: 结果
+  * @remark 返回索引
+
+  ********************************************************************************************/
+int LoopCache_FindSimilar(struct LoopCacheStruct *loopCache, bool (*IsSimilar)(void *current, void *contrast, void *param), void *param, void **result)
+{
+    int i=0, j=0, countSimilar = 0, max = -1, index = -1; 
+    
+    for(i=0; i<loopCache->unitCount; i++)
+    {
+        countSimilar = 0;
+        for(j=0; j<loopCache->unitCount; j++)
+        {
+            if(i == j)
+            {   continue;   }
+            
+            if(IsSimilar(CACHE_GET(loopCache, i), CACHE_GET(loopCache, j), param) == true)
+            {   countSimilar += 1;  }
+            
+            if(countSimilar > max)
+            {
+                max = countSimilar;
+                index = i;  
+            }
+        }
+    }
+    
+    if(max != -1)
+    {   *result = CACHE_GET(loopCache, index);  }
+    
+    return max;
+}
+/*********************************************************************************************
+
   * @brief  DisorderCache_Append
   * @dcpt   在循环队列中找到空闲部分后插入
   * @param  disorderCache：无序缓存控制指针

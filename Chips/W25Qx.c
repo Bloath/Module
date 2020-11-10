@@ -18,16 +18,15 @@ int W25Q_ReceiveCmdArray(struct W25QStruct *w25q, uint8_t *cmd, uint16_t cmdLeng
 int W25Q_Init(struct W25QStruct *w25q)
 {
     uint8_t  cmd[4]={0}, i=0;
-    int result = 0;
     struct W25QIndexStruct indexTemp = {0};
   
     /* 读取并验证设备编号 */
     cmd[0] = 0x90;
-    if((result = W25Q_ReceiveCmdArray(w25q, cmd, 4, w25q->deviceId, 2)) != 0)
-    {   return -1;  }
+    if(W25Q_ReceiveCmdArray(w25q, cmd, 4, w25q->deviceId, 2) != ERR_SUCCESS)
+    {   return ERR_HAL_FAULT;  }
     
     if(w25q->deviceId[0] != 0xEF)
-    {   return -2;  }
+    {   return ERR_VERIFICATION;  }
     
     /* 获取索引个数 */
     for(i=0; i<16; i++)
@@ -38,7 +37,7 @@ int W25Q_Init(struct W25QStruct *w25q)
     
     w25q->indexCount = i;
     
-    return 0;
+    return ERR_SUCCESS;
 }
 
 /*********************************************************************************************
@@ -53,7 +52,7 @@ struct W25QIndexStruct* W25Q_GetIndexWithMalloc(struct W25QStruct *w25q, uint16_
     W25Q_Read(w25q, pageIndex * W25Q_PAGE_SIZE, (uint8_t *)index, sizeof(struct W25QIndexStruct));
     
     /* 查看固定的数字是否为0 */
-    if(index->fixedZero != 0)
+    if(index->fixed != 0)
     {   goto end;   }
     
     /* 查看crc是否准确 */
@@ -72,20 +71,56 @@ end:
   ********************************************************************************************/
 int W25Q_GetIndex(struct W25QStruct *w25q, uint16_t pageIndex, struct W25QIndexStruct *index)
 {
-    int result = 0;
-    
     if(W25Q_Read(w25q, pageIndex * W25Q_PAGE_SIZE, (uint8_t *)index, sizeof(struct W25QIndexStruct)) != 0)
-    {   return -1;  }
+    {   return ERR_HAL_FAULT;  }
     
     /* 查看固定的数字是否为0 */
-    if(index->fixedZero != 0)
-    {   return -2;   }
+    if(index->fixed != 0xAABBCCDD)
+    {   return ERR_FORMAT;   }
     
     /* 查看crc是否准确 */
     if(index->crc32 != Crc32(index, sizeof(struct W25QIndexStruct) - 4, 0))
-    {   return -3;   }
+    {   return ERR_VERIFICATION;   }
     
-    return 0;
+    return ERR_SUCCESS;
+}
+
+/*********************************************************************************************
+ 
+    索引所指文件检查, -1: 读取错误, -2: md5错误
+ 
+  ********************************************************************************************/
+int W25Q_FileCheck(struct W25QStruct *w25q, struct W25QIndexStruct *index)
+{
+    #define OPERATION_COUNT 256
+    int i = 0, count = 0, result;
+    uint8_t *temp8uArray = (uint8_t *)Malloc(OPERATION_COUNT);
+    memset(temp8uArray, 0, OPERATION_COUNT);
+    struct MD5Struct md5;
+    char md5Digest[16];
+    
+    MD5Init(&md5);
+    
+    for(i=0; i<index->totalSize; )
+    { 
+        /* 根据总长度, 读取页数据 */
+        count = ((index->totalSize - i) >= OPERATION_COUNT)? OPERATION_COUNT: (index->totalSize - i); 
+        if((result = W25Q_Read(w25q, index->sectorIndex[0] * 4096 + i, temp8uArray, count)) < 0)          
+        {   return ERR_HAL_FAULT;  }
+        
+        i += count;
+        MD5Update(&md5, temp8uArray, count);
+    }
+    
+    MD5Final(&md5, md5Digest);
+    
+    for(i=0; i<16; i++)
+    {
+        if(index->md5[i] != md5Digest[i])
+        {   return ERR_VERIFICATION;  }
+    }
+    
+    return ERR_SUCCESS;
 }
 
 /*********************************************************************************************
@@ -96,8 +131,8 @@ int W25Q_GetIndex(struct W25QStruct *w25q, uint16_t pageIndex, struct W25QIndexS
 int W25Q_WriteIndex(struct W25QStruct *w25q, uint16_t pageIndex, struct W25QIndexStruct *index)
 {
     // 计算crc
+    index->fixed = 0xAABBCCDD;
     index->crc32 = Crc32(index, sizeof(struct W25QIndexStruct) - 4, 0);
-    index->fixedZero = 0;
     
     return W25Q_WritePage(w25q, pageIndex * W25Q_PAGE_SIZE, (uint8_t *)index, sizeof(struct W25QIndexStruct));
 }
@@ -110,8 +145,10 @@ int W25Q_WriteIndex(struct W25QStruct *w25q, uint16_t pageIndex, struct W25QInde
   ********************************************************************************************/
 int W25Q_WritePage(struct W25QStruct *w25q, uint32_t address, uint8_t *data, uint16_t length)
 {
-    uint8_t cmd[4], *p = (uint8_t*)&address, status;
-    int result = 0;
+    uint8_t cmd[4], *p = (uint8_t*)&address, status, *tempArray;
+    uint32_t crc32 = Crc32(data, length, 0xaabbccdd), crc32Temp = 0;
+    int result = ERR_SUCCESS;
+    uint32_t _time = 0;
     
     W25Q_SendCmd(w25q, 0x06);               // Write Enable
     
@@ -121,18 +158,38 @@ int W25Q_WritePage(struct W25QStruct *w25q, uint32_t address, uint8_t *data, uin
     cmd[3] = p[0];
   
     w25q->CallBack_CSControl(true);
-    result = w25q->CallBack_SpiWrite(cmd, 4);
-    result = w25q->CallBack_SpiWrite(data, length);
+    if((result = w25q->CallBack_SpiWrite(cmd, 4)) != ERR_SUCCESS)
+    {   goto end;   }
+    if((result = w25q->CallBack_SpiWrite(data, length)) != ERR_SUCCESS)
+    {   goto end;   }
     w25q->CallBack_CSControl(false);
     
+    _time = REALTIME;
     while(true)
     {
         result = W25Q_ReceiveCmd(w25q, 0x05, &status, 1);
         if(FLAG_IS_CLR(status, W25Q_STATUS_BUSY))
         {   break;  }
+        if((_time + 5) < REALTIME)
+        {   result = ERR_TIMEOUT;   }
     }
-    
+end:
     W25Q_SendCmd(w25q, 0x04);                // Write Disable
+    
+    if(result == ERR_SUCCESS)
+    {
+        tempArray = (uint8_t *)Malloc(length);
+        if(tempArray != NULL)
+        {
+            W25Q_Read(w25q, address, tempArray, length);
+            crc32Temp = Crc32(tempArray, length, 0xaabbccdd);
+            if(crc32Temp != crc32)
+            {   result = ERR_NO_EFFECT; }
+            Free(tempArray);
+        }
+        
+    }
+
     
     return result;
 }
@@ -143,17 +200,23 @@ int W25Q_WritePage(struct W25QStruct *w25q, uint32_t address, uint8_t *data, uin
   ********************************************************************************************/
 int W25Q_Write(struct W25QStruct *w25q, uint32_t address, uint8_t *data, uint16_t length)
 {
-    uint32_t pageCount = 0, i=0 ,temp32 = length % 256;
+    int32_t remainCount = length, pageCount = 0;
+    int result = 0;
     
-    if(temp32 == 0)
-    {   pageCount = length >> 8;    }
-    else
-    {   pageCount = length >> 8 + 1;    }
+    while(true)
+    {
+        if(remainCount > 0)
+        {
+            if((result = W25Q_WritePage(w25q, address + pageCount * 256, data + pageCount * 256, (remainCount >= 256)? 256:remainCount)) != ERR_SUCCESS)
+            {   return result;  }
+            pageCount += 1;
+            remainCount -= 256;
+        }
+        else
+        {   break;  }
+    }
     
-    for(i=0; i<pageCount; i++)
-    {   W25Q_WritePage(w25q, address + i * 256, data + i * 256, (i == (pageCount - 1))? temp32:256);    } 
-    
-    return 0;
+    return ERR_SUCCESS;
 }
 
 /*********************************************************************************************
@@ -164,7 +227,7 @@ int W25Q_Write(struct W25QStruct *w25q, uint32_t address, uint8_t *data, uint16_
 int W25Q_Erase(struct W25QStruct *w25q, enum W25QEarseType earseType, uint32_t address)
 {
     uint8_t cmd[4], *p = (uint8_t*)&address, status;
-    int result = 0;
+    int result = ERR_SUCCESS;
     
     W25Q_SendCmd(w25q, 0x06);               // Write Enable
     
@@ -213,7 +276,7 @@ int W25Q_Erase(struct W25QStruct *w25q, enum W25QEarseType earseType, uint32_t a
 int W25Q_Read(struct W25QStruct *w25q, uint32_t address, uint8_t *data, uint16_t length)
 {
     uint8_t cmd[4], *p = (uint8_t*)&address;
-    int result = 0;
+    int result = ERR_SUCCESS;
     
     cmd[0] = 0x03;
     cmd[1] = p[2];
@@ -235,7 +298,7 @@ int W25Q_Read(struct W25QStruct *w25q, uint32_t address, uint8_t *data, uint16_t
   ********************************************************************************************/
 int W25Q_SendCmd(struct W25QStruct *w25q, uint8_t cmd)
 {
-    int result = 0;
+    int result = ERR_SUCCESS;
     w25q->CallBack_CSControl(true);
     result = w25q->CallBack_SpiWrite(&cmd, 1);
     w25q->CallBack_CSControl(false);
@@ -244,7 +307,7 @@ int W25Q_SendCmd(struct W25QStruct *w25q, uint8_t cmd)
 }
 int W25Q_SendCmdWithContent(struct W25QStruct *w25q, uint8_t cmd, uint8_t *content, uint16_t length)
 {
-    int result=0;
+    int result = ERR_SUCCESS;
     w25q->CallBack_CSControl(true);
     result = w25q->CallBack_SpiWrite(&cmd, 1);
     result = w25q->CallBack_SpiWrite(content, length);
@@ -259,7 +322,7 @@ int W25Q_SendCmdWithContent(struct W25QStruct *w25q, uint8_t cmd, uint8_t *conte
   ********************************************************************************************/
 int W25Q_ReceiveCmd(struct W25QStruct *w25q, uint8_t cmd, uint8_t *rx, uint16_t length)
 {
-    int result=0;
+    int result = ERR_SUCCESS;
     w25q->CallBack_CSControl(true);
     result = w25q->CallBack_SpiWrite(&cmd, 1);
     result = w25q->CallBack_SpiRead(rx, length);
@@ -268,7 +331,7 @@ int W25Q_ReceiveCmd(struct W25QStruct *w25q, uint8_t cmd, uint8_t *rx, uint16_t 
 }
 int W25Q_ReceiveCmdArray(struct W25QStruct *w25q, uint8_t *cmd, uint16_t cmdLength, uint8_t *rx, uint16_t length)
 {
-    int result=0;
+    int result = ERR_SUCCESS;
     w25q->CallBack_CSControl(true);
     result = w25q->CallBack_SpiWrite(cmd, cmdLength);
     result = w25q->CallBack_SpiRead(rx, length);

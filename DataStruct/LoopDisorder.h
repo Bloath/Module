@@ -10,7 +10,7 @@
 #define CACHE_INIT_DYNAMIC(loop, record)    {(loop)->data=record; (loop)->unitSize=sizeof(record[0]); (loop)->unitCount=sizeof(record) / (loop)->unitSize; (loop)->__counter = 0;}
 #define CACHE_GET(cache, i) ((void *)((uint32_t)((cache)->data) + (cache)->unitSize * i))
 #define CACHE_FOREACH(cache, cacheBlock)    for(cacheBlock=(cache)->data; (uint32_t)cacheBlock < (uint32_t)((cache)->data) + (cache)->unitSize * (cache)->unitCount; cacheBlock += (cache)->unitSize)
-
+#define LOOPCACHE_COUNT(cache)  (((cache)->_isFull == true)? (cache)->unitCount : (cache)->_currentIndex)
 #define DisorderCache_IsIndexAvaliable(cache, i)    (((cache)->__usedFlag & ((uint32_t)1L << i)) != 0)
 /* typedef ------------------------------------------------------------*/
 struct LoopCacheStruct
@@ -43,6 +43,7 @@ void LoopCache_ClearNull(struct LoopCacheStruct *loopCache, bool (*nullCondition
 void LoopCache_Clear(struct LoopCacheStruct *loopCache);          
 int LoopCache_Handle(struct LoopCacheStruct *loopCache, void (*DataHandle)(void *data, void *param), void *param);
 void LoopCache_HandleAll(struct LoopCacheStruct *loopCache, void (*DataHandle)(void *data, void *param), void *param);
+int LoopCache_FindSimilar(struct LoopCacheStruct *loopCache, bool (*IsSimilar)(void *current, void *contrast, void *param), void *param, void **result);
 
 /*****************************无序缓存*****************************/
 void DisorderCache_Init(struct DisorderCacheStruct *disorderCache, void *data, uint8_t unitSize, uint8_t unitCount);          // 初始化

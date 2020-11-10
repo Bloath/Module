@@ -16,18 +16,6 @@ enum SimTypeEnum
     ChinaTelecom,
 };
 
-enum NbErrorEnum
-{
-    NbError_WeakSignal = 0,
-    NbError_ReadSimError,           // 读取SIM卡错误，等待下次连接
-    NbError_AttTimeout,             // 网络附着超时，等待下次连接
-    NBError_ConnectError,           // 连接错误，例如打开HTTP/TCP/UDP
-    NbError_NoRegister,
-    NbError_TxFail,
-    NbError_NeedReset,
-    NbError_AtError,
-    NbError_PowerDown
-};
 
 struct OrderATCmdStruct
 {
@@ -60,31 +48,33 @@ struct NBSocketStruct
     struct TxQueueStruct txQueueApp;                    // 业务层 发送队列
     struct RxQueueStruct rxQueueApp;                    // 业务层 接收队列，拆包后填充至该队列    
     
-    void (*CallBack_SocketRxATCommandHandle)(struct RxUnitStruct *, void *);    // socket接收AT指令处理
-    void (*CallBack_ErrorHandle)(int id);               // 错误处理
+     void (*CallBack_ErrorHandle)(struct NBSocketStruct *socket, int code);               // 错误处理
 };
 
 struct NBSotaStruct
 {
     struct ProcessStruct _process;
     
-    char *_token;
+    char _token[32];
     char *authorization;
-    char *deviceId;
     void *param;
-    char version[32];
+    char *versionLast;
+    char versionNew[16];
+    char deviceId[16];
     uint32_t _size;
     uint32_t _currentIndex;
     uint16_t unitSize;
+    int16_t _result;
     struct HttpParamStruct httpParam;
-    struct NBSocketStruct *socket;
-    struct MD5Struct md5;
+    struct HttpParamStruct httpParamIdCheck;
+    struct NBSocketStruct socket;
+    struct NBSocketStruct socketIdCheck;
     char md5Package[16];
-    char md5Calculate[16];
     
-    void (*CallBack_ErrorHandle)(struct NBSotaStruct *sota, int32_t errorCode , char *errorInfo);
     void (*CallBack_UpdatePackage)(struct NBSotaStruct *sota, uint8_t *package, int32_t size);
+    int (*CallBack_DownloadFinish)(struct NBSotaStruct *sota);
     void (*CallBack_Finish)(struct NBSotaStruct *sota);
+    
 };
 
 struct NBStruct
@@ -106,24 +96,24 @@ struct NBStruct
     struct RxQueueStruct *rxQueueHal;                   // 硬件层 接收队列
     
     void (*CallBack_Transmit)(uint8_t *message, uint16_t length, void *param);  // 发送回调, 一问一答, 无需队列
-    void (*CallBack_TxError)(enum NbErrorEnum);                                 // 错误处理
+    void (*CallBack_ErrorHandle)(int errCode);                                 // 错误处理
     void (*CallBack_TimeUpdate)(uint32_t timeStamp);                            // 硬件层 获取新时间
     void (*CallBack_GetImei)();                                                 // 获取IMEI
 };
 
 /* Public variables ----------------------------------------------------------*/
 extern struct NBStruct nb;
+extern char *nbConfiguration[];
 /* Public function prototypes ------------------------------------------------*/
 void NB_Handle();
 bool NB_IsIdle();
 void NB_RxHandle(struct RxUnitStruct *rxBlock, void *param);     
 void NB_HalTransmit(uint8_t *message, uint16_t length, void *param);
-void NB_ErrorHandle(enum NbErrorEnum error);
 void NB_PowerOn();
 void NB_PowerOff();
 void NB_SendATCommandList(char **list);
 void NB_AddNewSocket(struct NBSocketStruct *socket);
 struct NBSocketStruct* NB_FindSocketById(int8_t id);
 bool NB_SocketsIsIdle(struct NBSocketStruct **socket);
-
+void NB_SocketLoopHandle(void (*handleFunc)(struct NBSocketStruct *, void *param), void *param);
 #endif

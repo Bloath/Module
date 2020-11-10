@@ -157,7 +157,7 @@ void Dps310_DataConvert(struct Dps310Struct *dps310, uint32_t pressureOrigin, ui
     double Praw_sc = (double)((int32_t)pressureOrigin) / dps310->coef.pressFactor;   // 这个数值是根据oversampling rate来确定的
     double Traw_sc = (double)((int32_t)temperatureOrigin) / dps310->coef.tempFactor; // 这个数值是根据oversampling rate来确定的
 
-    *temperature = (int16_t)((dps310->coef.C0 / 2 + Traw_sc * dps310->coef.C1) * 10);
+    *temperature = (int16_t)((dps310->coef.C0 / 2 + Traw_sc * dps310->coef.C1) * 100);
 
     *pressure = (uint32_t)((dps310->coef.C00 + (((dps310->coef.C20 + Praw_sc * dps310->coef.C30) * Praw_sc + dps310->coef.C10) * Praw_sc) + ((Traw_sc * dps310->coef.C01)) + ((dps310->coef.C11 + Praw_sc * dps310->coef.C21) * Traw_sc * Praw_sc)) * 10);
 }
@@ -207,7 +207,7 @@ int Dps310_SyncRead(struct Dps310Struct *dps310, uint32_t timeOut)
         }
     } while (1);
 
-    Dps310_DataConvert(dps310, dps310->data->pressureOrigin, dps310->data->temperatureOrigin, &(dps310->data->pressureEx1), &(dps310->data->temperatureEx1));
+    Dps310_DataConvert(dps310, dps310->data->pressureOrigin, dps310->data->temperatureOrigin, &(dps310->data->pressureEx1), &(dps310->data->temperatureEx2));
     
     if(dps310->CallBack_ReadData != NULL)
     {   dps310->CallBack_ReadData(dps310);    }
@@ -276,7 +276,7 @@ void Dps310_AsynRead(struct Dps310Struct *dps310, uint32_t timeOut)
         break;
 
     case Process_Finish:    // 完成操作
-         Dps310_DataConvert(dps310, dps310->data->pressureOrigin, dps310->data->temperatureOrigin, &(dps310->data->pressureEx1), &(dps310->data->temperatureEx1));
+         Dps310_DataConvert(dps310, dps310->data->pressureOrigin, dps310->data->temperatureOrigin, &(dps310->data->pressureEx1), &(dps310->data->temperatureEx2));
         if(dps310->CallBack_ReadData != NULL)
         {   dps310->CallBack_ReadData(dps310);    }
         PROCESS_CHANGE_WITH_TIME(dps310->data->_process, Process_Idle, SYSTIME);
@@ -299,6 +299,7 @@ int Dps310_BackgroudRead(struct Dps310Struct *dps310)
     uint8_t status = 0;
     uint32_t temp32u = 0;
     int result = 0;
+    int32_t temp32;
     
     do
     {
@@ -330,9 +331,10 @@ int Dps310_BackgroudRead(struct Dps310Struct *dps310)
             Dps310_DataConvert(dps310, 
                                dps310->fifo->origin[i], 
                                dps310->fifo->lastTemperatureOrigin, 
-                               dps310->fifo->pressureEx1List + dps310->fifo->pCount, 
-                               &(dps310->fifo->temperatureEx1));  // 数据转换
-            dps310->fifo->pCount ++;
+                               &temp32,
+                               &(dps310->fifo->temperatureEx2));  // 数据转换
+            if(temp32 < 12000000)
+            {   dps310->fifo->pressureEx1List[dps310->fifo->pCount++] = temp32; }
         }
         else
         {   dps310->fifo->lastTemperatureOrigin = dps310->fifo->origin[i];  }

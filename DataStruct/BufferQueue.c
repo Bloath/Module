@@ -24,7 +24,7 @@ int ReceiveSingleByte(uint8_t data, struct RxBufferStruct *rxBuffer)
     rxBuffer->_buffer[rxBuffer->count] = data; //填入缓冲
     rxBuffer->count++;                        //计数器递增
     if (rxBuffer->count >= rxBuffer->length)
-    {   return -1;  }
+    {   return ERR_OVER_THRESHOLD;  }
 
     return rxBuffer->count;
 }
@@ -48,7 +48,7 @@ int RxQueue_Add(struct RxQueueStruct *rxQueue, uint8_t *packet, uint16_t Len, bo
     uint8_t i = 0;
 
     if (Len == 0)
-    {   return -2;  }
+    {   return ERR_IS_ZERO;  }
 
     /* 找到空闲缓冲，填入 */
     for (i = 0; i < UNIT_COUNT; i++)
@@ -59,9 +59,9 @@ int RxQueue_Add(struct RxQueueStruct *rxQueue, uint8_t *packet, uint16_t Len, bo
             if (isMalloc == false)
             {
                 rxQueue->_rxUnits[i].message = (uint8_t *)Malloc((Len + 1) * sizeof(uint8_t)); //根据缓冲长度申请内存，多一个字节，用于填写字符串停止符
-                memset(rxQueue->_rxUnits[i].message, 0, (Len + 1) * sizeof(uint8_t));
                 if(rxQueue->_rxUnits[i].message == NULL)
-                {   return -3;   }
+                {   return ERR_ALLOC_FAILED;   }
+                memset(rxQueue->_rxUnits[i].message, 0, (Len + 1) * sizeof(uint8_t));
                 memcpy(rxQueue->_rxUnits[i].message, packet, Len);
             }
             else
@@ -82,7 +82,7 @@ int RxQueue_Add(struct RxQueueStruct *rxQueue, uint8_t *packet, uint16_t Len, bo
     if (isMalloc == true)
     {   Free(packet);  }
 
-    return -1;
+    return ERR_NO_TASK;
 }
 
 /*********************************************************************************************
@@ -140,15 +140,15 @@ int TxQueue_Handle(struct TxQueueStruct *txQueue)
     enum BlockFreeMethodEnum freeMethod;
     struct PacketStruct packet;
     uint8_t i = 0;
-    int result = -1;
+    int result = ERR_NO_TASK;
     
     /* 没有则直接退出 */
     if (txQueue->_usedBlockQuantity == 0)
-    {   return -2; }
+    {   return ERR_NO_TASK; }
     
     /* 发送间隔 txQueue->interval */
     if ((txQueue->_time + txQueue->interval) > SYSTIME)
-    {   return result; }
+    {   return ERR_IN_DELAY; }
     else
     {   txQueue->_time = SYSTIME;  }
 
@@ -303,7 +303,7 @@ int TxQueue_Add(struct TxQueueStruct *txQueue, uint8_t *message, uint16_t length
                 txQueue->_txUnits[i].message = (uint8_t *)Malloc(length * sizeof(uint8_t));
                 memset(txQueue->_txUnits[i].message, 0, length * sizeof(uint8_t));
                 if(txQueue->_txUnits[i].message == NULL)
-                {   return -3 ;  }
+                {   return ERR_ALLOC_FAILED ;  }
                 memcpy(txQueue->_txUnits[i].message, message, length);
             }
             else
@@ -332,7 +332,7 @@ int TxQueue_Add(struct TxQueueStruct *txQueue, uint8_t *message, uint16_t length
     if ((mode | TX_FLAG_IS_MALLOC) != 0)
     {   Free(message);  }
 
-    return -1;
+    return ERR_NO_TASK;
 }
 /*********************************************************************************************
 

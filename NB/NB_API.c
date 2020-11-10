@@ -52,10 +52,11 @@ DATA_PREFIX char *nbReadSim[] = {
 };
 
 /* Private function prototypes ------------------------------------------------*/
-void NB_ErrorHandle(enum NbErrorEnum error);
 void NB_RxHandle(struct RxUnitStruct *unit, void *param);
 void NB_HalTransmit(uint8_t *message, uint16_t length, void *param);
-
+void NB_SocketLoopHandle(void (*handleFunc)(struct NBSocketStruct *, void *), void *param);
+void NBSocket_ErrorHandleById(struct NBSocketStruct *socket, void *param);
+void NBSocket_Reset(struct NBSocketStruct *socket, void *param);
 /*********************************************************************************************
 
   * @brief  添加新的套接字
@@ -177,6 +178,7 @@ void NB_PowerOn()
     /* 有数据时且WIFI电源为切断时，开启WIFI电源，重置运行流程 */    
     NB_POWER_ON();
     PROCESS_CHANGE_WITH_TIME(nb._process, Process_Reset, REALTIME);
+    NB_SocketLoopHandle(NBSocket_Reset, NULL);
 }
 
 /*********************************************************************************************
@@ -246,7 +248,12 @@ void NB_Handle()
             PROCESS_CHANGE_WITH_TIME(nb._process, Process_OrderAt, REALTIME);
             nb._orderAT.errorCounter ++;
             if(nb._orderAT.errorCounter > 5)
-            {   NB_ErrorHandle(NbError_AtError);    }
+            {   
+                nb._orderAT.errorCounter = 0;
+                PROCESS_CHANGE_WITH_TIME(nb._process, Process_Lock, REALTIME);    
+                if(nb.CallBack_ErrorHandle != NULL)
+                {   nb.CallBack_ErrorHandle(ERR_CON_TIMEOUT); }
+            }
         }
         else
         {
@@ -289,7 +296,11 @@ void NB_Handle()
 
         // 长时间之后未连接处理
         if ((nb._startConnectTime + 50) < REALTIME)
-        {   NB_ErrorHandle(NbError_AttTimeout); }
+        {   
+            PROCESS_CHANGE_WITH_TIME(nb._process, Process_Lock, REALTIME);    
+            if(nb.CallBack_ErrorHandle != NULL)
+            {   nb.CallBack_ErrorHandle(ERR_CON_INIT); }
+        }
         break;
 
     /* 启动连接 */
@@ -313,12 +324,16 @@ void NB_Handle()
                 nbSocketTemp = nb.sockets;
                 while(true)
                 {
-                    TxQueue_Handle(&(nbSocketTemp->txQueueApp));
-                    if(nb._process.current != Process_Run)
-                    {   break;  }
-                    nbSocketTemp = nbSocketTemp->next;
                     if(nbSocketTemp == NULL)
                     {   break;  }
+                    if(nbSocketTemp->txQueueApp._usedBlockQuantity != 0)
+                    {   
+                        TxQueue_Handle(&(nbSocketTemp->txQueueApp));    
+                        break;
+                    }
+//                    if(nb._process.current != Process_Run)
+//                    {   break;  }
+                    nbSocketTemp = nbSocketTemp->next;
                 }
             }
         }
@@ -332,7 +347,10 @@ void NB_Handle()
     /* 发送等待部分，等待3s发送下一条 */
     case Process_RunWait:
         if ((nb._process.__time + 3) < REALTIME)
-        {   PROCESS_CHANGE_WITH_TIME(nb._process, Process_Run, REALTIME);  }
+        {   
+            PROCESS_CHANGE_WITH_TIME(nb._process, Process_Run, REALTIME);  
+            nb.socketCurrent->_counterError += 1;
+        }
         break;
         
     case Process_Reset:
@@ -343,7 +361,11 @@ void NB_Handle()
 
     case Process_ResetWait:
         if((nb._process.__time + 10) < REALTIME)
-        {   NB_ErrorHandle(NbError_AtError);    }
+        {   
+            PROCESS_CHANGE_WITH_TIME(nb._process, Process_Lock, REALTIME);
+            if(nb.CallBack_ErrorHandle != NULL)
+            {   nb.CallBack_ErrorHandle(ERR_NO_RESPONSE); }    
+        }
         break;
     }
 }
@@ -355,6 +377,10 @@ void NB_Handle()
   * @remark 
 
   ********************************************************************************************/
+
+int NB_Http_ReceiveHandle(struct RxUnitStruct *unit, void *param);
+
+
 void NB_RxHandle(struct RxUnitStruct *unit, void *param)
 {
     char *message = (char *)(unit->message);
@@ -387,7 +413,6 @@ void NB_RxHandle(struct RxUnitStruct *unit, void *param)
         {   
             nb._orderAT.isGetOk = true;  
             nb._orderAT.errorCounter = 0;
-            return;
         }
 
         if (strstr(message, "ERROR") != NULL)
@@ -395,8 +420,12 @@ void NB_RxHandle(struct RxUnitStruct *unit, void *param)
             nb._orderAT.isGetError = true;   
             nb._orderAT.errorCounter ++;
             if(nb._orderAT.errorCounter > 5)
-            {   NB_ErrorHandle(NbError_AtError);    }
-            return;
+            {   
+                nb._orderAT.errorCounter = 0;
+                PROCESS_CHANGE_WITH_TIME(nb._process, Process_Lock, REALTIME);
+                if(nb.CallBack_ErrorHandle != NULL)
+                {   nb.CallBack_ErrorHandle(ERR_CON_INIT); }    
+            }
         }
     }
     
@@ -457,55 +486,211 @@ void NB_RxHandle(struct RxUnitStruct *unit, void *param)
         return;
     }
     
+    
+    
     // 发送过程中失败的问题
     if(nb._process.current == Process_Run || nb._process.current == Process_RunWait)
-    {
-        if(strstr(message, "ERR"))
-        {   
+    {  
+        if((location = strstr(message, "HTTPERR")) != NULL
+           && *(location - 1) == '\n')
+        {
+            sscanf(message, "+HTTPERR:%d,", &temp32);
+            NB_SocketLoopHandle(NBSocket_ErrorHandleById, &temp32);
+        }
+        else if((location = strstr(message, "+CME ERROR")) != NULL
+                && *(location - 1) == '\n')
+        {
             nb._errorCounter++;
             if(nb._errorCounter > 5)
             {   
                 nb._errorCounter = 0;
-                NB_ErrorHandle(NbError_TxFail); 
+                PROCESS_CHANGE_WITH_TIME(nb._process, Process_Lock, REALTIME);
+                if(nb.CallBack_ErrorHandle != NULL)
+                {   nb.CallBack_ErrorHandle(ERR_CON_TX); }   
             }
         }
-    }
-    
-   // 剩下的交给当前socket的接收处理
-    if(nb.socketCurrent != NULL
-       && nb.socketCurrent->CallBack_SocketRxATCommandHandle != NULL)
-    {   
-        nb.socketCurrent->CallBack_SocketRxATCommandHandle(unit, nb.socketCurrent);    
+        else
+        {   
+            // HTTP 接收处理部分
+            if(NB_Http_ReceiveHandle(unit, param) != ERR_NO_TASK)
+            {   return; }
+        }
+        
         PROCESS_CHANGE_WITH_TIME(nb._process, Process_Run, REALTIME);
     }
 }
 
 /*********************************************************************************************
 
-  * @brief  NB_ErrorHandle
-  * @param  
-  * @retval 
-  * @remark NB错误处理
+    NB HTTP AT 接收处理
 
   ********************************************************************************************/
-void NB_ErrorHandle(enum NbErrorEnum error)
-{
-    switch(error)
+int NB_Http_ReceiveHandle(struct RxUnitStruct *unit, void *param)
+ {
+   char *location = NULL, *temp = NULL;
+   struct NBSocketStruct *nbSocketTemp;
+   struct HttpParamStruct *httpParam = (struct HttpParamStruct *)(nb.socketCurrent->param);
+   int32_t temp32, socketId = -1;
+   
+   location = strstr((char *)(unit->message), "+HTTPDISCON:0");
+   if(location != NULL)
+   {    
+        sscanf(location, "+HTTPDISCON:%d", &socketId);
+        nbSocketTemp = nb.sockets;
+
+        /* 根据socketId发到不同的socket中 */
+        while(true)
+        {
+            if(nbSocketTemp == NULL)
+            {   break;  }
+            if(nbSocketTemp->_socketId == socketId)
+            {
+                if(nbSocketTemp->CallBack_ErrorHandle != NULL)
+                {   nbSocketTemp->CallBack_ErrorHandle(nbSocketTemp, ERR_CON_CLOSE); }  
+                break;
+            }
+            nbSocketTemp = nbSocketTemp->next;
+        }
+        return ERR_SUCCESS;
+   }
+
+    // 打开socket的处理
+    location = strstr((char *)(unit->message), "+HTTPCREATE");
+    if(location != NULL
+       && nb.socketCurrent != NULL
+       && nb.socketCurrent->_process.current == Process_Init)
     {
-    case NbError_AttTimeout:        // 附着失败
-    case NbError_AtError:
-        nb._orderAT.errorCounter = 0;
-    case NBError_ConnectError:
-        PROCESS_CHANGE_WITH_TIME(nb._process, Process_Lock, REALTIME);
-        break;
-        
-    case NbError_NeedReset:
-        PROCESS_CHANGE_WITH_TIME(nb._process, Process_Init, REALTIME);
-        nb._errorCounter = 0;
-    case NbError_TxFail:
-    default:
-        break;
+        sscanf(location, "+HTTPCREATE:%d\r\nOK", &temp32);
+        if(nb.socketCurrent != NULL)
+        {
+            nb.socketCurrent->_socketId = temp32;
+            FLAG_SET(nb.socketCurrent->_flag, NBSOCKET_FLAG_CREATED);
+        }
+        PROCESS_CHANGE_WITH_TIME(nb.socketCurrent->_process, Process_BeforeStart, REALTIME);
+        return ERR_SUCCESS;
     }
-    if(nb.CallBack_TxError != NULL)
-    {   nb.CallBack_TxError(error); }
+   
+    // 发送过程中的处理问题
+    if(nb._process.last == Process_Run
+       && nb.socketCurrent != NULL)
+    {
+        location = strstr((char *)(unit->message), "OK");
+        if(location != NULL)
+        {
+            switch(nb.socketCurrent->_process.current)
+            {
+            case Process_BeforeStart:
+                httpParam->_counterConfig += 1;
+                if(httpParam->config[httpParam->_counterConfig] == NULL)
+                {   
+                    PROCESS_CHANGE_WITH_TIME(nb.socketCurrent->_process, Process_Start, REALTIME);    
+                    httpParam->_counterConfig = 0;
+                }
+                break;
+            case Process_Start:
+                PROCESS_CHANGE_WITH_TIME(nb.socketCurrent->_process, Process_BeforeRun, REALTIME); 
+                break;
+            case Process_BeforeRun:
+                PROCESS_CHANGE_WITH_TIME(nb.socketCurrent->_process, Process_Run, REALTIME);
+                break;
+            case Process_Run:
+                PROCESS_CHANGE_WITH_TIME(nb.socketCurrent->_process, Process_Wait, REALTIME);
+                break;
+            }
+        }        
+    }
+
+    
+    // 获取到内容则为+HTTPNMIC，获取到头则为+HTTPNMIH
+    location = strstr((char *)(unit->message), "+HTTPNMIC");
+    if (location != NULL)
+    {
+        /* 查看当前内容的数量 */
+        socketId = -1;
+        sscanf(location, "+HTTPNMIC:%d,%*d,%*d,%*d,%d\r\n", &socketId, &temp32);
+        if(temp32 == 0)
+        {   return ERR_SUCCESS; }
+        
+        location = strstr(location, "\r\n");
+        
+        /* 回复body提取可用字符串 */
+        if (location != NULL)
+        {                 
+            location += 2;
+            location[temp32] = 0;
+            nbSocketTemp = nb.sockets;
+            
+            /* 根据socketId发到不同的socket中 */
+            while(true)
+            {
+                if(nbSocketTemp == NULL)
+                {   break;  }
+                if(nbSocketTemp->_socketId == socketId)
+                {
+                    if(RxQueue_Add(&(nbSocketTemp->rxQueueApp), (uint8_t *)location, temp32, false) < 0)
+                    {
+                        if(nbSocketTemp->CallBack_ErrorHandle != NULL)
+                        {   nbSocketTemp->CallBack_ErrorHandle(nbSocketTemp, ERR_ALLOC_FAILED); }  
+                    }
+                    break;
+                }
+                nbSocketTemp = nbSocketTemp->next;
+            }
+        }     
+        PROCESS_CHANGE_WITH_TIME(nbSocketTemp->_process, Process_Init, REALTIME);        // 重启发送
+        
+        return ERR_SUCCESS;
+    }
+    
+    return ERR_NO_TASK;
+ }
+
+/*********************************************************************************************
+
+    NB: 处理
+
+  ********************************************************************************************/
+void NB_SocketLoopHandle(void (*handleFunc)(struct NBSocketStruct *, void *param), void *param)
+{
+    struct NBSocketStruct *nbSocketTemp = nb.sockets;
+    while(true)
+    {
+        if(nbSocketTemp == NULL)
+        {   break;  }
+        (*handleFunc)(nbSocketTemp, param);
+        nbSocketTemp = nbSocketTemp->next;
+    }
 }
+/*********************************************************************************************
+
+    NBSOCKET 相关回调, 重置所有的socket
+
+  ********************************************************************************************/
+void NBSocket_Reset(struct NBSocketStruct *socket, void *param)
+{
+    bool isAllClear = (param == NULL)? false: *(bool *)param;
+  
+    socket->_flag = 0;
+    socket->_socketId = -1;
+    socket->_counterError = 0;
+    
+    PROCESS_CHANGE(socket->_process, Process_Init);
+    
+    if(isAllClear == true)
+    {   TxQueue_FreeAll(&(socket->txQueueApp)); }
+}
+/*********************************************************************************************
+
+    NBSOCKET 指定id的错误处理
+
+  ********************************************************************************************/
+void NBSocket_ErrorHandleById(struct NBSocketStruct *socket, void *param)
+{
+      uint32_t temp32 = *((uint32_t *)param);
+      
+      if(socket->_socketId == temp32)
+      {
+            if(socket->CallBack_ErrorHandle != NULL)
+            {   socket->CallBack_ErrorHandle(socket, ERR_CON_CLOSE);        }
+      }
+}       

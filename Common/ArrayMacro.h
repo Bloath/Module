@@ -6,7 +6,7 @@
 
 /* Public typedef ------------------------------------------------------------*/
 /* Public define -------------------------------------------------------------*/
-#define Array_Max(array, length, max)                   \
+#define ARRAY_MAX(array, length, max)                   \
     {                                                   \
         max = array[0];                                 \
         for (uint16_t __i = 1; __i < length; __i++)     \
@@ -18,7 +18,7 @@
         }                                               \
     }
 
-#define Array_Min(array, length, min)                   \
+#define ARRAY_MIN(array, length, min)                   \
     {                                                   \
         min = array[0];                                 \
         for (uint16_t __i = 1; __i < length; __i++)     \
@@ -30,7 +30,7 @@
         }                                               \
     }
 
-#define Array_Sum(array, length, base)                  \
+#define ARRAY_SUM(array, length, base)                  \
     {                                                   \
         for (uint16_t __i = 0; __i < length; __i++)     \
         {                                               \
@@ -38,7 +38,7 @@
         }                                               \
     }
 
-#define Array_MaxIndex(array, length, index)            \
+#define ARRAY_MAX_INDEX(array, length, index)           \
     {                                                   \
         index = 0;                                      \
         for (uint16_t __i = 1; __i < length; __i++)     \
@@ -50,7 +50,7 @@
         }                                               \
     }
 
-#define Array_SortAsc(array, length)                                    \
+#define ARRAY_SORT_ASC(array, length)                                   \
     {                                                                   \
         for (uint16_t __i = 0; __i < length; __i++)                     \
         {                                                               \
@@ -66,7 +66,7 @@
         }                                                               \
     }
 
-#define Array_SortDesc(array, length)                                   \
+#define ARRAY_SORT_DESC(array, length)                                  \
     {                                                                   \
         for (uint16_t __i = 0; __i < length; __i++)                     \
         {                                                               \
@@ -82,7 +82,7 @@
         }                                                               \
     }
 
-#define Array_Average(array, length, average)           \
+#define ARRAY_AVERAGE(array, length, average)           \
     {                                                   \
         average = 0;                                    \
         for (uint16_t __i = 0; __i < length; __i++)     \
@@ -92,9 +92,9 @@
         average /= length;                              \
     }
 
-#define Array_MiddleAverage(array, length, middleAverage)                               \
+#define ARRAY_MIDDLE_AVERAGE(array, length, middleAverage)                              \
     {                                                                                   \
-        Array_SortAsc(array, length);                                                   \
+        ARRAY_SORT_ASC(array, length);                                                   \
         uint16_t quarterLen = ((length % 4) == 0) ? (length / 4) : (length / 4 + 1);    \
         middleAverage = 0;                                                              \
         for (uint16_t __i = quarterLen; __i < (length - quarterLen); __i++)             \
@@ -104,13 +104,12 @@
         middleAverage /= (length - quarterLen * 2);                                     \
     }
 
-#define Array_Append(array, counter, value) \
+#define ARRAY_APPEND(array, counter, value) \
     {                                       \
         array[counter] = value;             \
         counter++;                          \
     }
 
-#define Compare_Similarity(v1, v2, rate) (((v1 / v2 - 1) < rate) ? true : false)
 
 /* Public macro --------------------------------------------------------------*/
 /* Public variables ----------------------------------------------------------*/

@@ -23,7 +23,7 @@ struct Dps310FifoStruct
     uint32_t origin[32];            // fifo原始数据
     uint32_t lastTemperatureOrigin; // 上一次的温度原始数据
     uint32_t pressureEx1List[32];      // 压力数据转换
-    int16_t temperatureEx1;            // 温度
+    int16_t temperatureEx2;            // 温度
     uint16_t oCount;                // 原始数据数量
     uint16_t pCount;                // 压力数据个数
 };
@@ -33,7 +33,7 @@ struct Dps310DataStruct
     uint32_t pressureOrigin;
     uint32_t temperatureOrigin;
     uint32_t pressureEx1;
-    int16_t temperatureEx1;
+    int16_t temperatureEx2;
     struct ProcessStruct _process;  // 流程
 };
 
